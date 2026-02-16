@@ -1,0 +1,29 @@
+-- COMPREHENSIVE ACCOUNT BALANCE CHECK
+-- Purpose: Find ALL accounts with non-zero balances to identify the Rs 120,980 gap
+
+WITH AllBalances AS (
+    SELECT 
+        a.account_type,
+        a.name,
+        a.slug,
+        a.code,
+        COALESCE(SUM(le.debit_amount - le.credit_amount), 0) as net_balance,
+        CASE 
+            WHEN a.account_type IN ('asset', 'expense') THEN COALESCE(SUM(le.debit_amount - le.credit_amount), 0)
+            WHEN a.account_type IN ('liability', 'equity', 'income') THEN COALESCE(SUM(le.credit_amount - le.debit_amount), 0)
+        END as normal_balance
+    FROM accounts a
+    LEFT JOIN ledger_entries le ON a.id = le.account_id AND le.posting_date <= '2026-02-06'
+    WHERE (le.is_reversed IS NULL OR le.is_reversed = false OR le.id IS NULL)
+    GROUP BY a.id, a.name, a.slug, a.code, a.account_type
+)
+SELECT 
+    account_type,
+    name,
+    slug,
+    code,
+    net_balance,
+    normal_balance
+FROM AllBalances
+WHERE normal_balance != 0 OR net_balance != 0
+ORDER BY account_type, normal_balance DESC;

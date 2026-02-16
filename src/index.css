@@ -1,0 +1,414 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* V11 STYLE LOCK: GOVERNMENT / BANK ACCOUNTING SYSTEM */
+/* STRICT: NO ANIMATIONS, NO HOVER EFFECTS, NO ROUNDED CORNERS, NO SHADOWS */
+
+/* V11 SAFE IMPROVEMENT: Scoped global reset to prevent 3rd-party component breakage */
+.ledger-system *,
+.ledger-system *::before,
+.ledger-system *::after {
+  border-radius: 0 !important;
+  transition: none !important;
+  animation: none !important;
+  box-shadow: none !important;
+}
+
+/* V11 SAFE IMPROVEMENT: Fallback for pages without .ledger-system wrapper */
+body.accounting-mode *,
+body.accounting-mode *::before,
+body.accounting-mode *::after {
+  border-radius: 0 !important;
+  transition: none !important;
+  animation: none !important;
+  box-shadow: none !important;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #F1F5F9;
+  /* SLIGHTLY DARKER TO POP WHITE FORMS */
+  color: #0F172A;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* BANK-GRADE FORM UTILITIES */
+/* V11 SAFE IMPROVEMENT: Scoped to avoid breaking date pickers and dropdowns */
+.ledger-form input,
+.ledger-form select,
+.ledger-form textarea,
+.ledger-form button,
+input[type="text"].ledger-input,
+input[type="number"].ledger-input,
+input[type="date"].ledger-input,
+select.ledger-input,
+textarea.ledger-input {
+  background-color: white !important;
+  border: 1px solid #94A3B8 !important;
+  font-weight: 700 !important;
+  color: #0F172A !important;
+  text-transform: uppercase !important;
+  font-size: 11px !important;
+}
+
+/* V11 SAFE IMPROVEMENT: Enhanced focus visibility for accessibility */
+.ledger-form input:focus,
+.ledger-form select:focus,
+.ledger-form textarea:focus,
+input[type="text"].ledger-input:focus,
+input[type="number"].ledger-input:focus,
+input[type="date"].ledger-input:focus,
+select.ledger-input:focus,
+textarea.ledger-input:focus {
+  border: 2px solid #0F172A !important;
+  outline: 2px solid #0F172A !important;
+  /* V11 SAFE IMPROVEMENT: Stronger focus indicator */
+  outline-offset: 2px !important;
+  box-shadow: none !important;
+}
+
+/* V11 SAFE IMPROVEMENT: Scoped labels to preserve component library labels */
+.ledger-form label,
+label.ledger-label {
+  font-size: 9px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  color: #475569 !important;
+  margin-bottom: 4px !important;
+  display: block !important;
+}
+
+/* COMPONENT OVERRIDES (SHADCN/RADIX) */
+[data-radix-popper-content-wrapper] {
+  box-shadow: none !important;
+  border: 2px solid #0F172A !important;
+  animation: none !important;
+  background: white !important;
+}
+
+[role="option"],
+[role="menuitem"],
+[role="combobox"] {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  border-bottom: 1px solid #F1F5F9 !important;
+  padding: 8px 12px !important;
+}
+
+[role="option"]:focus,
+[role="option"][data-state="checked"],
+[role="menuitem"]:focus {
+  background-color: #0F172A !important;
+  color: white !important;
+}
+
+/* HIGH-CONTRAST DENSE TABLES */
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  font-size: 11px;
+}
+
+/* V11 SAFE IMPROVEMENT: Sticky headers for long tables (audit readability) */
+.ledger-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.ledger-table th {
+  background: #0F172A !important;
+  color: white !important;
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  padding: 10px 12px;
+  border: 1px solid #1E293B;
+  text-align: left;
+}
+
+.ledger-table td {
+  padding: 8px 12px;
+  border: 1px solid #E2E8F0;
+  font-weight: 500;
+  color: #334155;
+}
+
+.ledger-table tr:nth-child(even) {
+  background-color: #F8FAFC;
+}
+
+/* V11 SAFE IMPROVEMENT: Stronger totals row for audit clarity */
+.ledger-table tfoot tr,
+.ledger-table tr.totals-row {
+  background: #0F172A !important;
+  color: white !important;
+  font-weight: 900 !important;
+  border-top: 3px solid #0F172A !important;
+  /* V11 SAFE IMPROVEMENT: Stronger visual separation */
+}
+
+.ledger-table tfoot td,
+.ledger-table tr.totals-row td {
+  color: white !important;
+  font-weight: 900 !important;
+  border: 1px solid #1E293B !important;
+}
+
+/* NUMERICAL DATA STYLES */
+.num-audit {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+  /* V11 SAFE IMPROVEMENT: Proper number alignment */
+}
+
+/* REPORT HEADERS */
+.report-header {
+  margin-bottom: 2rem;
+  border-bottom: 4px solid #0F172A;
+  padding-bottom: 1rem;
+}
+
+.report-title {
+  font-size: 24px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  color: #0F172A;
+  margin: 0;
+}
+
+.report-subtitle {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  color: #64748B;
+  margin-top: 4px;
+}
+
+/* STATUS CHIPS */
+.status-pill {
+  padding: 2px 8px;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+}
+
+/* V11 SAFE IMPROVEMENT: Explicit semantic state utilities (no new colors) */
+.state-success {
+  color: #15803d !important;
+  border-color: #15803d !important;
+}
+
+.state-danger {
+  color: #be123c !important;
+  border-color: #be123c !important;
+}
+
+.state-warning {
+  color: #d97706 !important;
+  border-color: #d97706 !important;
+}
+
+.state-neutral {
+  color: #64748B !important;
+  border-color: #64748B !important;
+}
+
+/* SUMMARY CARDS (GOV STYLE) */
+/* V11 SAFE IMPROVEMENT: Enhanced Summary Card internal spacing */
+.summary-card {
+  background: white;
+  border: 2px solid #E2E8F0 !important;
+  /* V11 SAFE IMPROVEMENT: Stronger borders for KPIs */
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-label {
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #64748B;
+  letter-spacing: 0.1em;
+}
+
+.summary-value {
+  font-size: 20px;
+  font-weight: 900;
+  color: #0F172A;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  /* V11 SAFE IMPROVEMENT: Consistent number rendering */
+}
+
+.text-assets {
+  color: #15803d !important;
+}
+
+.text-liabilities {
+  color: #be123c !important;
+}
+
+.center-align {
+  text-align: center !important;
+}
+
+.right-align {
+  text-align: right !important;
+}
+
+/* V11 SAFE IMPROVEMENT: Mobile readability utilities (opt-in, CSS-only) */
+@media (max-width: 768px) {
+  .ledger-table.mobile-stack tbody tr {
+    display: block;
+    border-bottom: 3px solid #0F172A;
+    margin-bottom: 10px;
+  }
+
+  .ledger-table.mobile-stack tbody td {
+    display: block;
+    text-align: right;
+    padding: 6px 12px;
+    border: none;
+    border-bottom: 1px solid #E2E8F0;
+  }
+
+  .ledger-table.mobile-stack tbody td::before {
+    content: attr(data-label);
+    float: left;
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: 9px;
+    color: #64748B;
+  }
+}
+
+/* --- PRINT SYSTEM --- */
+/* V11 SAFE IMPROVEMENT: Hardened print styles for audit compliance */
+@media print {
+
+  .print-hidden,
+  button,
+  nav,
+  aside,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+    padding: 0;
+  }
+
+  .report-container {
+    width: 100%;
+    max-width: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .ledger-table {
+    font-size: 9px;
+    page-break-inside: avoid;
+    /* V11 SAFE IMPROVEMENT: Prevent table splitting */
+  }
+
+  .ledger-table thead {
+    display: table-header-group;
+    /* V11 SAFE IMPROVEMENT: Repeat headers on each page */
+  }
+
+  .ledger-table tfoot {
+    display: table-footer-group;
+    /* V11 SAFE IMPROVEMENT: Repeat totals on each page */
+  }
+
+  .ledger-table th,
+  .ledger-table td {
+    padding: 4px 8px;
+    border: 1px solid #000 !important;
+  }
+
+  /* V11 SAFE IMPROVEMENT: Prevent orphaned rows */
+  .ledger-table tr {
+    page-break-inside: avoid;
+  }
+
+  .signature-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 40px;
+    margin-top: 60px;
+    page-break-inside: avoid;
+    /* V11 SAFE IMPROVEMENT: Keep signatures together */
+  }
+
+  .signature-line {
+    border-top: 1px solid #000;
+    text-align: center;
+    font-size: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+    padding-top: 8px;
+  }
+
+  /* V11 SAFE IMPROVEMENT: Ensure critical audit info prints */
+  .report-header,
+  .report-title,
+  .report-subtitle {
+    page-break-after: avoid;
+  }
+}
+
+/* V11 SAFE IMPROVEMENT: Non-animated button feedback (accessibility) */
+.button-gov {
+  @apply h-10 px-6 font-black uppercase text-[10px] tracking-widest rounded-none border-2 transition-none shadow-none active:translate-y-0 active:scale-100;
+}
+
+/* V11 SAFE IMPROVEMENT: Professional Audit Notice / Disclaimer Box */
+.audit-notice {
+  background: #F8FAFC !important;
+  border: 2px dashed #94A3B8 !important;
+  padding: 16px !important;
+  color: #475569 !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  line-height: 1.6 !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* V11 SAFE IMPROVEMENT: Professional Ledger Footer Totals */
+.ledger-footer-total {
+  font-size: 20px !important;
+  font-weight: 900 !important;
+  text-decoration: underline double !important;
+  text-underline-offset: 4px;
+}
+
+.button-gov:focus {
+  outline: 2px solid #0F172A !important;
+  /* V11 SAFE IMPROVEMENT: Keyboard accessibility */
+  outline-offset: 2px !important;
+}
+
+.button-gov:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  border-color: #94A3B8 !important;
+  /* V11 SAFE IMPROVEMENT: Clear disabled state */
+}
