@@ -95,8 +95,8 @@ export function Sidebar({ className, onItemClick }: { className?: string, onItem
         <div className="p-8 border-b border-white/5">
           <Link to="/" onClick={onItemClick} className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-none bg-slate-800 border border-slate-700">
-                <Building2 className="h-5 w-5 text-slate-300" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-none bg-slate-900 border border-white/10 overflow-hidden p-1.5">
+                <img src="/logo.svg" alt="Naveed Musazai" className="h-full w-full object-contain filter brightness-110" />
               </div>
               <h1 className="text-xl font-black text-white tracking-tighter leading-none uppercase">
                 NAVEED <br /> <span className="text-slate-500">MUSAZAI</span>
