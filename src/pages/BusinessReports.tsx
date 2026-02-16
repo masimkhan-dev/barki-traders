@@ -119,6 +119,26 @@ export default function BusinessReports() {
         },
     });
 
+    // DRAWINGS REPORT DATA
+    const { data: drawings, isLoading: loadingDrawings } = useQuery({
+        queryKey: ['report-drawings', startDate, endDate],
+        queryFn: async () => {
+            const { data: acc } = await supabase.from('accounts').select('id').eq('slug', 'owner_drawings').single();
+            if (!acc) return [];
+
+            const { data, error } = await supabase
+                .from('ledger_entries')
+                .select('*')
+                .eq('account_id', acc.id)
+                .gte('posting_date', startDate)
+                .lte('posting_date', endDate)
+                .order('posting_date', { ascending: false });
+            if (error) throw error;
+            return data;
+        },
+        staleTime: 0
+    });
+
     return (
 
         <DashboardLayout>
@@ -169,11 +189,12 @@ export default function BusinessReports() {
 
                 <div className="px-4 space-y-8">
                     <Tabs value={activeReport} onValueChange={setActiveReport} className="space-y-6">
-                        <TabsList className="bg-slate-100 p-0 rounded-none h-10 border border-slate-300 w-full lg:max-w-xl grid grid-cols-4 print:hidden">
+                        <TabsList className="bg-slate-100 p-0 rounded-none h-10 border border-slate-300 w-full lg:max-w-2xl grid grid-cols-5 print:hidden">
                             <TabsTrigger value="sales" className="rounded-none border-r border-slate-300 font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white h-full transition-none">Sales</TabsTrigger>
                             <TabsTrigger value="purchases" className="rounded-none border-r border-slate-300 font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white h-full transition-none">Purchases</TabsTrigger>
                             <TabsTrigger value="payments" className="rounded-none border-r border-slate-300 font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white h-full transition-none">Payments</TabsTrigger>
-                            <TabsTrigger value="market" className="rounded-none font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white h-full transition-none">Market Position</TabsTrigger>
+                            <TabsTrigger value="market" className="rounded-none border-r border-slate-300 font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white h-full transition-none">Market Position</TabsTrigger>
+                            <TabsTrigger value="drawings" className="rounded-none font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white h-full transition-none">Drawings</TabsTrigger>
                         </TabsList>
 
                         {/* SUMMARY CARDS FOR CONTEXT */}
@@ -206,6 +227,12 @@ export default function BusinessReports() {
                                 <div className="summary-card">
                                     <span className="summary-label">Cash/Bank Flow</span>
                                     <span className="summary-value text-slate-900">{formatPKR(payments?.reduce((s, r) => s + (Number(r.amount) || 0), 0) || 0)}</span>
+                                </div>
+                            )}
+                            {activeReport === 'drawings' && (
+                                <div className="summary-card border-orange-200">
+                                    <span className="summary-label text-orange-600">Total Withdrawals</span>
+                                    <span className="summary-value text-orange-700">{formatPKR(drawings?.reduce((s, r) => s + (Number(r.debit_amount) || 0), 0) || 0)}</span>
                                 </div>
                             )}
                             {activeReport === 'market' && (
@@ -402,6 +429,47 @@ export default function BusinessReports() {
                                                 )}
                                             </td>
                                             <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </TabsContent>
+
+                        {/* DRAWINGS REPORT (NEW) */}
+                        <TabsContent value="drawings" className="m-0">
+                            <div className="border border-slate-300 overflow-hidden">
+                                <table className="ledger-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="w-24">Date</th>
+                                            <th className="w-32 center-align">Voucher No</th>
+                                            <th>Description / Narration</th>
+                                            <th className="right-align w-48">Amount (PKR)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {loadingDrawings ? (
+                                            <tr>
+                                                <td colSpan={4} className="py-24 bg-slate-50/50">
+                                                    <div className="flex flex-col items-center justify-center gap-4">
+                                                        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Retrieving Withdrawals...</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ) : drawings?.map((row, i) => (
+                                            <tr key={i}>
+                                                <td>{formatClassicDate(row.posting_date)}</td>
+                                                <td className="num-audit !text-[10px] center-align text-slate-400">{row.voucher_no}</td>
+                                                <td className="font-bold uppercase">{row.narration || 'Owner Withdrawal'}</td>
+                                                <td className="right-align num-audit font-bold text-orange-700">{formatNumber(row.debit_amount)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="bg-slate-50 font-black">
+                                        <tr className="border-t-2 border-slate-900">
+                                            <td colSpan={3} className="px-4 py-3 right-align uppercase text-xs">Total Withdrawals for Period:</td>
+                                            <td className="px-4 py-3 right-align text-xl text-orange-700 num-audit underline decoration-double">{formatPKR(drawings?.reduce((s, r) => s + (Number(r.debit_amount) || 0), 0) || 0)}</td>
                                         </tr>
                                     </tfoot>
                                 </table>

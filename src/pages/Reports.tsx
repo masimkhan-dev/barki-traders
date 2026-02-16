@@ -21,6 +21,7 @@ import { formatPKR } from '@/lib/format';
 import { Loader2, Calendar, DollarSign, Activity, TrendingUp, TrendingDown, Scale } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { DrawingsReport } from '@/components/dashboard/DrawingsReport';
 
 export default function Reports() {
   const [reportDate, setReportDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -121,18 +122,26 @@ export default function Reports() {
         </div>
 
         <Tabs defaultValue="daily" className="space-y-4">
-          <TabsList className="bg-muted p-1 rounded-lg w-full md:w-auto grid grid-cols-3">
+          <TabsList className="bg-muted p-1 rounded-lg w-full md:w-auto grid grid-cols-4">
             <TabsTrigger value="daily" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              Daily Log
+              <span className="hidden md:inline">Daily Log</span>
+              <span className="md:hidden">Daily</span>
             </TabsTrigger>
             <TabsTrigger value="pnl" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Profit & Loss
+              <span className="hidden md:inline">Profit/Loss</span>
+              <span className="md:hidden">P&L</span>
             </TabsTrigger>
             <TabsTrigger value="accounts" className="flex items-center gap-2">
               <Scale className="h-4 w-4" />
-              Trial Balance
+              <span className="hidden md:inline">Trial Balance</span>
+              <span className="md:hidden">Trial</span>
+            </TabsTrigger>
+            <TabsTrigger value="drawings" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              <span className="hidden md:inline">Drawings</span>
+              <span className="md:hidden">Draw</span>
             </TabsTrigger>
           </TabsList>
 
@@ -357,8 +366,13 @@ export default function Reports() {
             </Card>
           </TabsContent>
 
+          {/* 4. OWNER DRAWINGS */}
+          <TabsContent value="drawings" className="animate-in fade-in slide-in-from-bottom-5">
+            <DrawingsReport startDate={startDate} endDate={endDate} />
+          </TabsContent>
+
         </Tabs>
       </div>
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }
