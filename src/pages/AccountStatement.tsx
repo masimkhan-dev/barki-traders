@@ -380,8 +380,8 @@ export default function AccountStatement() {
                     <th className="w-24 px-4 py-3">Date</th>
                     <th className="w-28 px-4 py-3">Ref/Voucher</th>
                     <th className="px-4 py-3">Transaction Type</th>
-                    <th className="right-align w-24 px-4 py-3 print-hidden">Qty (L)</th>
-                    <th className="right-align w-24 px-4 py-3 print-hidden">Rate</th>
+                    <th className="right-align w-24 px-4 py-3">Qty (L)</th>
+                    <th className="right-align w-24 px-4 py-3">Rate</th>
                     <th className="right-align w-32 px-4 py-3">Debit</th>
                     <th className="right-align w-32 px-4 py-3">Credit</th>
                     <th className="right-align w-40 px-4 py-3 bg-slate-100/50 print:bg-slate-50">Balance</th>
@@ -422,23 +422,28 @@ export default function AccountStatement() {
                         <td className={cn("uppercase font-bold tracking-tight text-[10px] text-slate-900 px-4", row.is_reversed_entry && "line-through grayscale")}>
                           {typeLabel}
                         </td>
-                        <td className="right-align num-audit text-slate-500 font-medium print-hidden">{(row.quantity || row.qty || 0) > 0 ? formatNumber(row.quantity || row.qty || 0) : '-'}</td>
-                        <td className="right-align num-audit text-slate-400 print-hidden">{(row.rate || 0) > 0 ? formatNumber(row.rate) : '-'}</td>
+                        <td className="right-align num-audit text-slate-500 font-medium font-bold">{(row.quantity || row.qty || 0) > 0 ? formatNumber(row.quantity || row.qty || 0) : '-'}</td>
+                        <td className="right-align num-audit text-slate-400 font-bold">{(row.rate || 0) > 0 ? formatNumber(row.rate) : '-'}</td>
                         <td className="right-align num-audit font-bold text-slate-700">{row.debit > 0 ? formatNumber(row.debit) : '-'}</td>
                         <td className="right-align num-audit font-bold text-slate-700">{row.credit > 0 ? formatNumber(row.credit) : '-'}</td>
-                        <td className={cn(
-                          "right-align num-audit font-black text-[11px] bg-slate-50/30",
-                          row.running_balance > 0 ? "text-assets print:text-[#be123c]" : row.running_balance < 0 ? "text-liabilities print:text-[#15803d]" : "text-slate-300"
-                        )}>
-                          {row.running_balance === 0 ? "0.00" : formatNumber(Math.abs(row.running_balance))}
-                          {row.running_balance !== 0 && (
-                            <span className={cn(
-                              "text-[7px] ml-1 font-black",
-                              row.running_balance > 0 ? "text-[#be123c]" : "text-[#15803d]"
-                            )}>
-                              {row.running_balance > 0 ? "DR" : "CR"}
-                            </span>
+                        <td
+                          className={cn(
+                            "right-align num-audit font-black text-[11px] px-4",
+                            row.running_balance > 0
+                              ? "text-assets bg-rose-50/40 border-l border-rose-100 print:text-[#be123c]"
+                              : row.running_balance < 0
+                                ? "text-liabilities bg-emerald-50/40 border-l border-emerald-100 print:text-[#15803d]"
+                                : "text-slate-300 bg-slate-50/30"
                           )}
+                        >
+                          <div className="flex items-center justify-end gap-2">
+                            <span>{row.running_balance === 0 ? "0.00" : formatNumber(Math.abs(row.running_balance))}</span>
+                            {row.running_balance !== 0 && (
+                              <span className="text-[7px] ml-1 font-black uppercase opacity-60">
+                                {row.running_balance > 0 ? "DR" : "CR"}
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -470,6 +475,6 @@ export default function AccountStatement() {
       </div>
 
       <ReversalModal isOpen={revModalOpen} voucherNo={selectedVoucher} onClose={() => setRevModalOpen(false)} />
-    </DashboardLayout>
+    </DashboardLayout >
   );
 }

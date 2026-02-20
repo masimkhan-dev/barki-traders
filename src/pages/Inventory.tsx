@@ -43,7 +43,7 @@ export default function Inventory() {
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { isAccountant } = useAuth();
+  const { isAccountant, isAdmin } = useAuth();
 
   // Use calculated inventory instead of buggy inventory table
   const { data: inventory, isLoading } = useInventory();
@@ -284,7 +284,7 @@ export default function Inventory() {
                 <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
                   <h2 className="text-sm font-black uppercase tracking-widest text-slate-800">Master Data: Fuel Products</h2>
 
-                  {isAccountant && (
+                  {(isAdmin || isAccountant) && (
                     <Dialog open={isDialogOpen} onOpenChange={(open) => {
                       setIsDialogOpen(open);
                       if (!open) {
@@ -354,7 +354,7 @@ export default function Inventory() {
                           <th>Standard Unit</th>
                           <th className="center-align">Audit Status</th>
                           <th>Created On</th>
-                          {isAccountant && <th className="w-24 center-align">Actions</th>}
+                          {(isAdmin || isAccountant) && <th className="w-24 center-align">Actions</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -364,8 +364,8 @@ export default function Inventory() {
                             <td className="uppercase">{fuelType.unit}</td>
                             <td className="center-align">
                               <button
-                                onClick={() => isAccountant && toggleActive(fuelType)}
-                                disabled={!isAccountant}
+                                onClick={() => (isAdmin || isAccountant) && toggleActive(fuelType)}
+                                disabled={!(isAdmin || isAccountant)}
                                 className={cn(
                                   'px-2 py-0.5 text-[9px] font-black uppercase border',
                                   fuelType.is_active
@@ -379,7 +379,7 @@ export default function Inventory() {
                             <td className="num-audit text-xs text-slate-500">
                               {new Date(fuelType.created_at).toLocaleDateString('en-PK')}
                             </td>
-                            {isAccountant && (
+                            {(isAdmin || isAccountant) && (
                               <td className="center-align">
                                 <Button
                                   variant="ghost"

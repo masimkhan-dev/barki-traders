@@ -450,7 +450,7 @@ export default function Roznamcha() {
                                 >
                                   <Edit2 className="h-3.5 w-3.5" />
                                 </Button>
-                                {role === 'admin' && (
+                                { (role === 'admin' || role === 'accountant') && (
                                   <Button
                                     variant="ghost"
                                     size="icon"
