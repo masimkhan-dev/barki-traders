@@ -317,11 +317,11 @@ export default function Roznamcha() {
           {/* Cash Balance Summary */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="summary-card">
-              <span className="summary-label text-assets font-black">Total Volume Inward</span>
+              <span className="summary-label text-assets font-black">Total Inward (Received/Sales)</span>
               <span className="summary-value text-assets">{formatPKR(totals.debit)}</span>
             </div>
             <div className="summary-card">
-              <span className="summary-label text-liabilities font-black">Total Volume Outward</span>
+              <span className="summary-label text-liabilities font-black">Total Outward (Paid/Purchases)</span>
               <span className="summary-value text-liabilities">{formatPKR(totals.credit)}</span>
             </div>
             <div className={cn(
@@ -356,8 +356,8 @@ export default function Roznamcha() {
                         <th className="w-28 !text-white">Voucher No</th>
                         <th className="w-48 !text-white">Type & Mode</th>
                         <th className="!text-white">Particulars / Journal Description</th>
-                        <th className="right-align w-32 !text-white">Inward (Cash/Bank)</th>
-                        <th className="right-align w-32 !text-white">Outward (Pay)</th>
+                        <th className="right-align w-32 !text-white">Inward (+) <br /><span className="text-[9px] font-normal tracking-normal text-slate-300">Received/Sales</span></th>
+                        <th className="right-align w-32 !text-white">Outward (-) <br /><span className="text-[9px] font-normal tracking-normal text-slate-300">Paid/Purchases</span></th>
                         <th className="center-align w-16 !text-white">Verif</th>
                         <th className="center-align w-24 !text-white print:hidden">Audit Access</th>
                       </tr>
@@ -372,8 +372,8 @@ export default function Roznamcha() {
 
                         return (
                           <tr key={t.id} className={cn("transition-colors", rowColor)}>
-                            <td className="num-audit !text-[10px]">{t.time}</td>
-                            <td className="num-audit !text-[10px] !font-medium text-slate-400 group/rev">
+                            <td className="num-audit text-xs">{t.time}</td>
+                            <td className="num-audit text-xs !font-medium text-slate-500 group/rev">
                               <div className="flex items-center justify-between">
                                 <span>{t.voucher_no}</span>
                                 <button
@@ -381,17 +381,17 @@ export default function Roznamcha() {
                                   className="opacity-0 group-hover/rev:opacity-100 p-1 hover:text-rose-600 transition-all print:hidden"
                                   title="Reverse Transaction"
                                 >
-                                  <RotateCcw className="h-3 w-3" />
+                                  <RotateCcw className="h-4 w-4" />
                                 </button>
                               </div>
                             </td>
                             <td>
                               <div className="flex flex-col gap-1">
-                                <span className="font-bold uppercase !text-[9px] flex items-center gap-1">
+                                <span className="font-bold uppercase text-xs flex items-center gap-1">
                                   {getTypeIcon(t.type)} {getTypeLabel(t.type)}
                                 </span>
                                 <span className={cn(
-                                  "text-[7px] font-black px-1.5 py-0.5 w-fit border",
+                                  "text-[10px] font-black px-1.5 py-0.5 w-fit border rounded-sm",
                                   t.mode === 'CASH/BANK' ? "bg-emerald-600 text-white border-emerald-700" : "bg-slate-200 text-slate-600 border-slate-300"
                                 )}>
                                   {t.mode}
@@ -400,20 +400,20 @@ export default function Roznamcha() {
                             </td>
                             <td>
                               <div className="flex flex-col">
-                                <span className="font-bold text-slate-900 uppercase text-[10px] tracking-tight">{t.party_name}</span>
-                                <span className="text-[8px] italic text-slate-500 font-medium">
+                                <span className="font-bold text-slate-900 uppercase text-xs tracking-tight">{t.party_name}</span>
+                                <span className="text-[11px] italic text-slate-500 font-medium">
                                   {(t.narration || '').replace(/^Ref: N\/A - /, "").replace(/^Ref: N\/A/, "").trim() || 'SYSTEM ENTRY'}
                                 </span>
                               </div>
                             </td>
-                            <td className="right-align num-audit font-bold">
+                            <td className="right-align num-audit font-bold text-sm">
                               {t.debit > 0 ? (
                                 <span className="text-emerald-700">{formatPKR(t.debit).replace('Rs. ', '')}</span>
                               ) : (t.mode === 'CREDIT' && (t.type === 'sale' || t.type === 'receipt' || t.type === 'transfer')) ? (
                                 <span className="text-slate-400 italic font-normal">{formatPKR(t.nominal_value || 0).replace('Rs. ', '')}</span>
                               ) : '-'}
                             </td>
-                            <td className="right-align num-audit font-bold">
+                            <td className="right-align num-audit font-bold text-sm">
                               {t.credit > 0 ? (
                                 <span className="text-rose-700">{formatPKR(t.credit).replace('Rs. ', '')}</span>
                               ) : (t.mode === 'CREDIT' && (t.type === 'purchase' || t.type === 'payment')) ? (
@@ -450,7 +450,7 @@ export default function Roznamcha() {
                                 >
                                   <Edit2 className="h-3.5 w-3.5" />
                                 </Button>
-                                { (role === 'admin' || role === 'accountant') && (
+                                {(role === 'admin' || role === 'accountant') && (
                                   <Button
                                     variant="ghost"
                                     size="icon"

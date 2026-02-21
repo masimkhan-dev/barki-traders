@@ -237,7 +237,7 @@ export default function AccountStatement() {
               color: black !important; 
               border: 1pt solid black !important; 
               padding: 6px 4px !important; 
-              font-size: 8pt !important; 
+              font-size: 10pt !important; 
               font-weight: bold !important; 
               text-transform: uppercase !important;
               font-family: 'Montserrat', sans-serif !important;
@@ -245,12 +245,17 @@ export default function AccountStatement() {
             .print-table td { 
               border: 0.5pt solid #ccc !important; 
               padding: 5px 4px !important; 
-              font-size: 7.5pt !important; 
+              font-size: 9.5pt !important; 
               color: black !important; 
             }
             .print-neg-balance { color: #15803d !important; font-weight: bold !important; }
             .print-pos-balance { color: #be123c !important; font-weight: bold !important; }
             .print\:hidden, button, nav, aside, .react-datepicker { display: none !important; }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
           }
         `}} />
 
@@ -404,40 +409,53 @@ export default function AccountStatement() {
                       else if (row.particulars.toLowerCase().includes('payment')) typeLabel = "Payment Received";
                     }
 
+                    if (row.fuel_name && row.fuel_name !== 'N/A' && row.fuel_name.trim() !== '') {
+                      typeLabel = typeLabel === 'Inventory Purchase' || typeLabel === 'Sale' || typeLabel === 'Sales Voucher'
+                        ? `${typeLabel} - ${row.fuel_name}`
+                        : `${typeLabel} (${row.fuel_name})`;
+                    }
+
                     return (
                       <tr key={i} className={cn(
                         "hover:bg-slate-50/50 transition-colors",
-                        isOpening ? "bg-slate-100/80 font-bold" : "",
-                        row.is_reversed_entry ? "opacity-30 italic bg-rose-50/20" : ""
+                        isOpening ? "bg-slate-200 font-bold print:bg-slate-200 border-y-2 border-slate-400" : "",
+                        row.is_reversed_entry ? "opacity-30 italic bg-rose-50/20" : "",
+                        !isOpening && !row.is_reversed_entry && vNo.startsWith('PUR') ? "bg-blue-50/30 print:bg-blue-50 border-b border-blue-100" : "",
+                        !isOpening && !row.is_reversed_entry && vNo.startsWith('VCH') ? "bg-orange-50/30 print:bg-orange-50 border-b border-orange-100" : ""
                       )}>
-                        <td className="center-align num-audit text-[9px] text-slate-500">{formatClassicDate(row.posting_date)}</td>
-                        <td className="font-mono text-[8px] text-slate-400 group">
+                        <td className="center-align num-audit text-xs text-slate-600">{formatClassicDate(row.posting_date)}</td>
+                        <td className="font-mono text-[10px] text-slate-500 group">
                           <div className="flex items-center justify-between">
                             <span>{row.voucher_no}</span>
                             <button onClick={() => { setSelectedVoucher(row.voucher_no); setRevModalOpen(true); }} className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-rose-600 print:hidden">
-                              <RotateCcw className="h-2.5 w-2.5" />
+                              <RotateCcw className="h-3 w-3" />
                             </button>
                           </div>
                         </td>
-                        <td className={cn("uppercase font-bold tracking-tight text-[10px] text-slate-900 px-4", row.is_reversed_entry && "line-through grayscale")}>
+                        <td className={cn("uppercase font-bold tracking-tight text-xs text-slate-900 px-4", row.is_reversed_entry && "line-through grayscale")}>
                           {typeLabel}
                         </td>
-                        <td className="right-align num-audit text-slate-500 font-medium font-bold">{(row.quantity || row.qty || 0) > 0 ? formatNumber(row.quantity || row.qty || 0) : '-'}</td>
-                        <td className="right-align num-audit text-slate-400 font-bold">{(row.rate || 0) > 0 ? formatNumber(row.rate) : '-'}</td>
-                        <td className="right-align num-audit font-bold text-slate-700">{row.debit > 0 ? formatNumber(row.debit) : '-'}</td>
-                        <td className="right-align num-audit font-bold text-slate-700">{row.credit > 0 ? formatNumber(row.credit) : '-'}</td>
+                        <td className="right-align num-audit text-slate-600 font-bold text-xs">{(row.quantity || row.qty || 0) > 0 ? formatNumber(row.quantity || row.qty || 0) : '-'}</td>
+                        <td className="right-align num-audit text-slate-500 font-bold text-xs">{(row.rate || 0) > 0 ? formatNumber(row.rate) : '-'}</td>
+                        <td className="right-align num-audit font-bold text-slate-800 text-sm">{row.debit > 0 ? formatNumber(row.debit) : '-'}</td>
+                        <td className="right-align num-audit font-bold text-slate-800 text-sm">{row.credit > 0 ? formatNumber(row.credit) : '-'}</td>
                         <td
                           className={cn(
-                            "right-align num-audit font-black text-[11px] px-4",
+                            "right-align num-audit font-black text-sm px-4",
                             row.running_balance > 0
-                              ? "text-assets bg-rose-50/40 border-l border-rose-100 print:text-[#be123c]"
+                              ? "text-[#be123c] bg-rose-50/80 border-l border-rose-200 print:text-[#be123c] print:bg-rose-50"
                               : row.running_balance < 0
-                                ? "text-liabilities bg-emerald-50/40 border-l border-emerald-100 print:text-[#15803d]"
-                                : "text-slate-300 bg-slate-50/30"
+                                ? "text-[#15803d] bg-emerald-50/80 border-l border-emerald-200 print:text-[#15803d] print:bg-emerald-50"
+                                : "text-slate-500 bg-slate-50/80"
                           )}
                         >
-                          <div className="flex items-center justify-end gap-2">
-                            <span>{row.running_balance === 0 ? "0.00" : formatNumber(Math.abs(row.running_balance))}</span>
+                          <div className="flex items-center justify-end gap-1">
+                            <span>
+                              {row.running_balance === 0
+                                ? "0.00"
+                                : `${row.running_balance > 0 ? '+' : '-'}${formatNumber(Math.abs(row.running_balance))}`
+                              }
+                            </span>
                             {row.running_balance !== 0 && (
                               <span className="text-[7px] ml-1 font-black uppercase opacity-60">
                                 {row.running_balance > 0 ? "DR" : "CR"}
