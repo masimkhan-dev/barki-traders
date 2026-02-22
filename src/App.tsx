@@ -26,6 +26,7 @@ const MonthEndClosing = lazy(() => import("./pages/MonthEndClosing"));
 const CapitalReport = lazy(() => import("./pages/CapitalReport"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const ChartOfAccounts = lazy(() => import("./pages/ChartOfAccounts"));
 import { Loader2 } from "lucide-react";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -115,6 +116,7 @@ function AppRoutes() {
         <Route path="/month-end-closing" element={<ProtectedRoute><MonthEndClosing /></ProtectedRoute>} />
         <Route path="/reports/capital" element={<ProtectedRoute><CapitalReport /></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+        <Route path="/settings/coa" element={<ProtectedRoute><ChartOfAccounts /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
