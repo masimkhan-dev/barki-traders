@@ -90,15 +90,10 @@ export default function Ledger() {
         originalType: p.type
       }));
 
-      // Simplified accounts: Only show Cash, Bank, and Proprietor Capital to the Munshi
+      // Expanded accounts: Show Cash, Bank, Capital, Expenses, and Income to the user
       const accounts = (accRes.data || [])
         .filter(a =>
-          a.code === '1000' ||
-          a.code === '1010' ||
-          a.code === '3010' ||
-          a.name.toLowerCase().includes('cash') ||
-          a.name.toLowerCase().includes('bank') ||
-          a.name.toLowerCase().includes('capital')
+          ['asset', 'liability', 'equity', 'expense', 'income'].includes(a.account_type)
         )
         .map(a => ({
           id: a.id,
