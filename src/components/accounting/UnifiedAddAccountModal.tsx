@@ -107,7 +107,7 @@ export function UnifiedAddAccountModal({
                     // ATOMIC: Use Secure RPC to ensure Trial Balance Integrity
                     const obAmount = parseFloat(openingBalance) || 0;
 
-                    const { data, error } = await supabase.rpc('create_secure_account_v1', {
+                    const { data, error } = await (supabase as any).rpc('create_secure_account_v1', {
                         p_name: name,
                         p_type: accountType,
                         p_sub_category: type,
