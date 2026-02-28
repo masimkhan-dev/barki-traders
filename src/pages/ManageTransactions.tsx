@@ -37,7 +37,7 @@ import { formatPKR, formatNumber } from '@/lib/format';
 import { Loader2, ArrowRightLeft, ShoppingCart, Truck, Search, UserPlus, AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, CheckCircle2, History, Banknote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInventory } from '@/hooks/useInventory';
-import { QuickAddCustomer } from '@/components/QuickAddCustomer';
+import { UnifiedAddAccountModal } from '@/components/accounting/UnifiedAddAccountModal';
 
 export default function ManageTransactions() {
     const navigate = useNavigate();
@@ -257,7 +257,7 @@ export default function ManageTransactions() {
         queryFn: async () => {
             const [partiesRes, accRes] = await Promise.all([
                 supabase.from('parties').select('id, name, type, current_balance').eq('is_active', true),
-                supabase.from('accounts').select('id, name, account_type').eq('is_active', true).in('account_type', ['asset', 'liability'])
+                supabase.from('accounts').select('id, name, account_type').eq('is_active', true).in('account_type', ['asset', 'liability', 'expense', 'income'])
             ]);
 
             const systemKeywords = ['receivable', 'payable', 'control', 'inventory', 'cost of goods', 'sales', 'revenue', 'equity', 'capital', 'drawings', 'opening balance', 'retained earnings', 'advance'];
@@ -271,13 +271,18 @@ export default function ManageTransactions() {
                 balance: p.current_balance
             }));
 
-            // Map Accounts (Only Cash and Bank accounts as requested)
+            // Map Accounts (Cash, Bank, and Expense/Income)
             const accounts = (accRes.data || [])
                 .filter(a => {
                     const nameLower = a.name.toLowerCase();
-                    return nameLower.includes('cash') || nameLower.includes('bank');
+                    // Include Cash/Bank OR any Expense/Income account (excluding strict system controls)
+                    const isCashBank = nameLower.includes('cash') || nameLower.includes('bank');
+                    const isExpenseIncome = ['expense', 'income'].includes(a.account_type);
+                    const isSystemControl = systemKeywords.some(k => nameLower.includes(k));
+
+                    return isCashBank || (isExpenseIncome && !isSystemControl);
                 })
-                .map(a => ({ id: a.id, name: a.name, type: 'account', originalType: 'cash/bank', balance: 0 }));
+                .map(a => ({ id: a.id, name: a.name, type: 'account', originalType: a.account_type, balance: 0 }));
 
             return [...parties, ...accounts].sort((a, b) => a.name.localeCompare(b.name));
         },
@@ -338,7 +343,8 @@ export default function ManageTransactions() {
         notes: '',
     });
     const [quickAddOpen, setQuickAddOpen] = useState(false);
-    const [quickAddType, setQuickAddType] = useState<'customer' | 'supplier'>('customer');
+    const [quickAddInitialType, setQuickAddInitialType] = useState<any>('trade_party');
+    const [quickAddInitialPartyType, setQuickAddInitialPartyType] = useState<'customer' | 'supplier' | 'both'>('customer');
 
     const salesMutation = useMutation({
         mutationFn: async (data: typeof salesForm) => {
@@ -556,9 +562,41 @@ export default function ManageTransactions() {
                                                         const acc = allAccounts?.find(a => a.id === val);
                                                         setOnlineForm(prev => ({ ...prev, from_id: val, from_type: acc?.type || '' }));
                                                     }}>
-                                                        <SelectTrigger ref={partySelectRef} className="h-12 bg-white font-bold border-slate-200 shadow-sm focus:ring-slate-900"><SelectValue placeholder="Select Source..." /></SelectTrigger>
-                                                        <SelectContent>
-                                                            {allAccounts?.map(a => <SelectItem key={a.id} value={a.id} className="font-medium">{a.name}</SelectItem>)}
+                                                        <SelectTrigger ref={partySelectRef} className="h-12 bg-white font-bold border-slate-200 shadow-sm focus:ring-slate-900">
+                                                            <SelectValue placeholder="Select Source..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="max-h-[400px]">
+                                                            <div className="px-2 py-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border-b mb-1">Source Selection</div>
+                                                            
+                                                            {/* Group: Assets (Cash/Bank) - STRICT: NO EXPENSES/SALARIES */}
+                                                            <div className="px-2 py-1 text-[9px] font-black text-emerald-600 uppercase tracking-tighter mt-2">Cash & Bank Accounts</div>
+                                                            {allAccounts?.filter(a => 
+                                                                a.type === 'account' && 
+                                                                a.originalType === 'asset' &&
+                                                                !a.name.toLowerCase().includes('salary')
+                                                            ).map(a => (
+                                                                <SelectItem key={a.id} value={a.id} className="font-bold text-xs">{a.name}</SelectItem>
+                                                            ))}
+
+                                                            {/* Group: Parties - STRICT: NO SALARY/EXPENSE */}
+                                                            <div className="px-2 py-1 text-[9px] font-black text-indigo-600 uppercase tracking-tighter mt-2">Trade Parties (Ledgers)</div>
+                                                            {allAccounts?.filter(a => 
+                                                                a.type === 'party' && 
+                                                                a.originalType !== 'expense' &&
+                                                                !a.name.toLowerCase().includes('salary')
+                                                            ).map(a => (
+                                                                <SelectItem key={a.id} value={a.id} className="font-bold text-xs">{a.name}</SelectItem>
+                                                            ))}
+
+                                                            {/* Group: Income Adjustment */}
+                                                            <div className="px-2 py-1 text-[9px] font-black text-amber-600 uppercase tracking-tighter mt-2">Income & Receipts</div>
+                                                            {allAccounts?.filter(a => 
+                                                                a.type === 'account' && 
+                                                                a.originalType === 'income' &&
+                                                                !a.name.toLowerCase().includes('salary')
+                                                            ).map(a => (
+                                                                <SelectItem key={a.id} value={a.id} className="font-medium text-xs italic">{a.name}</SelectItem>
+                                                            ))}
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
@@ -575,9 +613,29 @@ export default function ManageTransactions() {
                                                         const acc = allAccounts?.find(a => a.id === val);
                                                         setOnlineForm(prev => ({ ...prev, to_id: val, to_type: acc?.type || '' }));
                                                     }}>
-                                                        <SelectTrigger className="h-12 bg-white font-bold border-slate-200 shadow-sm focus:ring-slate-900"><SelectValue placeholder="Select Destination..." /></SelectTrigger>
-                                                        <SelectContent>
-                                                            {allAccounts?.map(a => <SelectItem key={a.id} value={a.id} className="font-medium">{a.name}</SelectItem>)}
+                                                        <SelectTrigger className="h-12 bg-white font-bold border-slate-200 shadow-sm focus:ring-slate-900">
+                                                            <SelectValue placeholder="Select Destination..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="max-h-[400px]">
+                                                            <div className="px-2 py-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border-b mb-1">Destination Selection</div>
+
+                                                            {/* Group: Expenses (Primary Receivers for Salaries/Bills) */}
+                                                            <div className="px-2 py-1 text-[9px] font-black text-rose-600 uppercase tracking-tighter mt-2">Salaries, Bills & Expenses</div>
+                                                            {allAccounts?.filter(a => a.type === 'account' && a.originalType === 'expense').map(a => (
+                                                                <SelectItem key={a.id} value={a.id} className="font-bold text-xs">{a.name}</SelectItem>
+                                                            ))}
+
+                                                            {/* Group: Parties */}
+                                                            <div className="px-2 py-1 text-[9px] font-black text-indigo-600 uppercase tracking-tighter mt-2">Trade Parties (Ledgers)</div>
+                                                            {allAccounts?.filter(a => a.type === 'party').map(a => (
+                                                                <SelectItem key={a.id} value={a.id} className="font-bold text-xs">{a.name}</SelectItem>
+                                                            ))}
+
+                                                            {/* Group: Assets (Internal Transfers) */}
+                                                            <div className="px-2 py-1 text-[9px] font-black text-emerald-600 uppercase tracking-tighter mt-2">Cash & Bank Accounts</div>
+                                                            {allAccounts?.filter(a => a.type === 'account' && a.originalType === 'asset').map(a => (
+                                                                <SelectItem key={a.id} value={a.id} className="font-bold text-xs">{a.name}</SelectItem>
+                                                            ))}
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
@@ -688,7 +746,7 @@ export default function ManageTransactions() {
                                         <h3 className="font-extrabold text-emerald-800 text-sm uppercase tracking-wider flex items-center gap-2">
                                             <ShoppingCart className="h-4 w-4 text-emerald-600" /> Credit Sale (Udhaar)
                                         </h3>
-                                        <Button variant="ghost" size="sm" onClick={() => { setQuickAddType('customer'); setQuickAddOpen(true); }} className="text-emerald-700 hover:bg-emerald-100 text-xs font-bold gap-1">
+                                        <Button variant="ghost" size="sm" onClick={() => { setQuickAddInitialType('trade_party'); setQuickAddInitialPartyType('customer'); setQuickAddOpen(true); }} className="text-emerald-700 hover:bg-emerald-100 text-xs font-bold gap-1">
                                             <UserPlus className="h-3 w-3" /> New Customer
                                         </Button>
                                     </div>
@@ -777,7 +835,7 @@ export default function ManageTransactions() {
                                         <h3 className="font-extrabold text-rose-800 text-sm uppercase tracking-wider flex items-center gap-2">
                                             <Truck className="h-4 w-4 text-rose-600" /> Stock Purchase
                                         </h3>
-                                        <Button variant="ghost" size="sm" onClick={() => { setQuickAddType('supplier'); setQuickAddOpen(true); }} className="text-rose-700 hover:bg-rose-100 text-xs font-bold gap-1">
+                                        <Button variant="ghost" size="sm" onClick={() => { setQuickAddInitialType('trade_party'); setQuickAddInitialPartyType('supplier'); setQuickAddOpen(true); }} className="text-rose-700 hover:bg-rose-100 text-xs font-bold gap-1">
                                             <UserPlus className="h-3 w-3" /> New Supplier
                                         </Button>
                                     </div>
@@ -845,15 +903,19 @@ export default function ManageTransactions() {
                 </Tabs>
             </div>
 
-            <QuickAddCustomer
-                open={quickAddOpen}
+            <UnifiedAddAccountModal
+                isOpen={quickAddOpen}
                 onOpenChange={setQuickAddOpen}
-                type={quickAddType as 'customer' | 'supplier'}
-                onCustomerCreated={(id) => {
-                    if (quickAddType === 'customer') {
+                initialType={quickAddInitialType}
+                initialPartyType={quickAddInitialPartyType}
+                onSuccess={(id) => {
+                    if (activeTab === 'sales') {
                         setSalesForm(prev => ({ ...prev, party_id: id }));
-                    } else {
+                    } else if (activeTab === 'purchases') {
                         setPurchaseForm(prev => ({ ...prev, party_id: id }));
+                    } else {
+                        // For 'online' (transfer), we don't know if it's from or to, 
+                        // so we just let the dropdown refresh and user can pick it.
                     }
                 }}
             />

@@ -40,6 +40,7 @@ const navItems: NavItem[] = [
   { label: 'Audit Terminal', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Daily Diary (Roznamcha)', href: '/roznamcha', icon: CalendarDays, roles: ['admin', 'accountant'] },
   { label: 'Voucher Factory', href: '/manage-transactions', icon: ArrowRightLeft, roles: ['admin', 'accountant'] },
+  { label: 'Manage Accounts (COA)', href: '/settings/coa', icon: Building2, roles: ['admin', 'accountant'] },
   { label: 'Expense Register', href: '/expenses', icon: Receipt, roles: ['admin', 'accountant'] },
   { label: 'Physical Stock Audit', href: '/inventory', icon: Package },
   { label: 'Party Statement', href: '/reports/account-statement', icon: FileText },
