@@ -94,11 +94,11 @@ function AppRoutes() {
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
       <Routes>
         <Route path="/auth" element={user && role ? <Navigate to={defaultRoute} replace /> : <Auth />} />
+        <Route path="/roznamcha-v3" element={<ProtectedRoute><RoznamchaV3 /></ProtectedRoute>} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/" element={<Navigate to={defaultRoute} replace />} />
         <Route path="/roznamcha" element={<ProtectedRoute><Roznamcha /></ProtectedRoute>} />
         <Route path="/roznamcha-v2" element={<ProtectedRoute><RoznamchaV2 /></ProtectedRoute>} />
-        <Route path="/roznamcha-v3" element={<ProtectedRoute><RoznamchaV3 /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         {/* Deprecated: <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} /> */}
         {/* Deprecated: <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} /> */}
