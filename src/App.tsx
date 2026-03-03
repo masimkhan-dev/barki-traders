@@ -11,6 +11,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Roznamcha = lazy(() => import("./pages/Roznamcha"));
+const RoznamchaV2 = lazy(() => import("./pages/RoznamchaV2"));
+const RoznamchaV3 = lazy(() => import("./pages/RoznamchaV3"));
 const Inventory = lazy(() => import("./pages/Inventory"));
 const Ledger = lazy(() => import("./pages/Ledger"));
 const ManageTransactions = lazy(() => import("./pages/ManageTransactions"));
@@ -95,6 +97,8 @@ function AppRoutes() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/" element={<Navigate to={defaultRoute} replace />} />
         <Route path="/roznamcha" element={<ProtectedRoute><Roznamcha /></ProtectedRoute>} />
+        <Route path="/roznamcha-v2" element={<ProtectedRoute><RoznamchaV2 /></ProtectedRoute>} />
+        <Route path="/roznamcha-v3" element={<ProtectedRoute><RoznamchaV3 /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         {/* Deprecated: <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} /> */}
         {/* Deprecated: <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} /> */}
