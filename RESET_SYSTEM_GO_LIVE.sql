@@ -1,36 +1,32 @@
 -- ==============================================================================
--- 🚀 SYSTEM RESET & GO-LIVE SCRIPT (FINAL PRODUCTION LAUNCH)
--- Purpose: Safely deletes all test transactions while keeping user accounts, 
---          settings, and your Parties/Khata safe.
--- Location to run: Supabase -> SQL Editor
---
--- DANGER LEVEL: HIGH (This will wipe all financial data)
+-- 🚀 FULL SYSTEM RESET & GO-LIVE SCRIPT (FINAL PRODUCTION)
+-- Purpose: Deletes ALL data (Transactions AND Customers/Suppliers/Parties)
+--          Keeps: Auth Users and Chart of Account Structure.
+-- Location: Supabase -> SQL Editor
 -- ==============================================================================
 
 BEGIN;
 
--- 1. Disable triggers temporarily so we don't hit recursive blocks
+-- 1. Disable triggers temporarily
 SET session_replication_role = 'replica';
 
--- 2. CLEAR ALL TRANSACTION TABLES (Ledger, Sales, Purchases, Payments, Expenses)
--- Using TRUNCATE CASCADE handles all foreign key relationships safely and resetting IDs.
+-- 2. WIPE ALL DATA
+-- This order ensures foreign keys don't block the process
 TRUNCATE TABLE ledger_entries CASCADE;
 TRUNCATE TABLE sales CASCADE;
 TRUNCATE TABLE purchases CASCADE;
 TRUNCATE TABLE payments CASCADE;
 
--- 3. RESET INVENTORY TO EXACTLY ZERO
--- Fixing column name: use 'quantity' in public.inventory instead of fuel_types.current_stock
+-- 3. WIPE PARTIES (Customers, Suppliers, Workers, etc.)
+TRUNCATE TABLE parties CASCADE;
+
+-- 4. RESET INVENTORY & STOCK
 UPDATE public.inventory
 SET quantity = 0, avg_cost = 0;
 
--- 4. Re-enable all triggers
+-- 5. Re-enable all triggers
 SET session_replication_role = 'origin';
-
--- OPTIONAL: If client wants to also delete the Test Parties (Customers/Suppliers)
--- Uncomment the line below if you want EVERY Khata/Party deleted too:
--- TRUNCATE TABLE parties CASCADE;
 
 COMMIT;
 
--- SUCCESS: The system is now 100% clean, empty, and ready for actual live business.
+-- ✅ SYSTEM IS NOW A CLEAN SLATE (EMPTY KHATA & EMPTY LEDGER)

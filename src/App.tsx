@@ -145,4 +145,5 @@ const App = () => (
   </QueryClientProvider>
 );
 
+// Fresh build trigger - V3 deployment
 export default App;

@@ -4,13 +4,13 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPKR, formatNumber } from '@/lib/format';
 import { Button } from '@/components/ui/button';
-import { Printer, Loader2, Scale, AlertCircle } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { Printer, Loader2, Scale, AlertCircle, Wallet, ShieldCheck, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface FinancialPosition {
-    category: string;
-    sub_category: string;
+interface BSLineItem {
+    section_code: string;
+    section_name: string;
+    group_name: string;
     account_name: string;
     balance: number;
 }
@@ -18,89 +18,48 @@ interface FinancialPosition {
 export default function BalanceSheet() {
     const [asOfDate, setAsOfDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
-    const { data: rawData, isLoading, error } = useQuery<FinancialPosition[], Error>({
-        queryKey: ['balance-sheet-v2', asOfDate],
+    const { data: rawData, isLoading, error } = useQuery<BSLineItem[]>({
+        queryKey: ['balance-sheet-v13', asOfDate],
         queryFn: async () => {
-            const { data, error } = await (supabase.rpc as any)('get_financial_position', { p_date: asOfDate });
+            const { data, error } = await (supabase.rpc as any)('get_financial_position_v13', { p_date: asOfDate });
             if (error) throw error;
-            return data as FinancialPosition[];
+            return data as BSLineItem[];
         }
     });
 
     const report = useMemo(() => {
         if (!rawData) return null;
 
-        const classify = (item: FinancialPosition) => {
-            const cat = item.category?.toUpperCase() || '';
-            const sub = item.sub_category?.toUpperCase() || '';
-            const name = item.account_name?.toUpperCase() || '';
+        const sections: Record<string, {
+            name: string,
+            groups: Record<string, { items: BSLineItem[], total: number }>,
+            total: number
+        }> = {};
 
-            if (cat === 'ASSETS') {
-                if (sub.includes('FIXED') || sub.includes('NON CURRENT') || name.includes('EQUIPMENT') || name.includes('VEHICLE')) {
-                    return 'NON_CURRENT_ASSET';
-                }
-                if (name.includes('CASH')) return 'CASH';
-                if (name.includes('BANK')) return 'BANK';
-                if (name.includes('INVENTORY') || name.includes('STOCK')) return 'INVENTORY';
-                return 'CURRENT_ASSET';
+        rawData.forEach(row => {
+            if (!sections[row.section_code]) {
+                sections[row.section_code] = { name: row.section_name, groups: {}, total: 0 };
             }
-            if (cat === 'LIABILITIES') {
-                if (sub.includes('LONG TERM') || name.includes('LOAN') && !name.includes('PAYABLE')) {
-                    return 'LONG_TERM_LIABILITY';
-                }
-                return 'CURRENT_LIABILITY';
+            if (!sections[row.section_code].groups[row.group_name]) {
+                sections[row.section_code].groups[row.group_name] = { items: [], total: 0 };
             }
-            if (cat === 'EQUITY') {
-                return 'EQUITY';
-            }
-            return 'UNKNOWN';
-        };
 
-        const currentAssets: FinancialPosition[] = [];
-        const cashAccounts: FinancialPosition[] = [];
-        const bankAccounts: FinancialPosition[] = [];
-        const inventoryAccounts: FinancialPosition[] = [];
-        const nonCurrentAssets: FinancialPosition[] = [];
+            sections[row.section_code].groups[row.group_name].items.push(row);
+            sections[row.section_code].groups[row.group_name].total += Number(row.balance);
+            sections[row.section_code].total += Number(row.balance);
+        });
 
-        const currentLiabilities: FinancialPosition[] = [];
-        const longTermLiabilities: FinancialPosition[] = [];
-        const equityAccounts: FinancialPosition[] = [];
-
-        for (const item of rawData) {
-            const type = classify(item);
-            if (type === 'CASH') cashAccounts.push(item);
-            else if (type === 'BANK') bankAccounts.push(item);
-            else if (type === 'INVENTORY') inventoryAccounts.push(item);
-            else if (type === 'CURRENT_ASSET') currentAssets.push(item);
-            else if (type === 'NON_CURRENT_ASSET') nonCurrentAssets.push(item);
-            else if (type === 'CURRENT_LIABILITY') currentLiabilities.push(item);
-            else if (type === 'LONG_TERM_LIABILITY') longTermLiabilities.push(item);
-            else if (type === 'EQUITY') equityAccounts.push(item);
-        }
-
-        const sum = (arr: FinancialPosition[]) => arr.reduce((acc, curr) => acc + (Number(curr.balance) || 0), 0);
-
-        const totalCash = sum(cashAccounts);
-        const totalBank = sum(bankAccounts);
-        const totalInventory = sum(inventoryAccounts);
-        const totalOtherCurrentAssets = sum(currentAssets);
-        const totalCurrentAssets = totalCash + totalBank + totalInventory + totalOtherCurrentAssets;
-
-        const totalNonCurrentAssets = sum(nonCurrentAssets);
-        const totalAssets = totalCurrentAssets + totalNonCurrentAssets;
-
-        const totalCurrentLiability = sum(currentLiabilities);
-        const totalLongTermLiability = sum(longTermLiabilities);
-        const totalLiabilities = totalCurrentLiability + totalLongTermLiability;
-
-        const totalEquity = sum(equityAccounts);
+        const totalAssets = (sections['10']?.total || 0) + (sections['15']?.total || 0);
+        const totalLiabilities = sections['20']?.total || 0;
+        const totalEquity = sections['30']?.total || 0;
         const totalLiabilityAndEquity = totalLiabilities + totalEquity;
 
         return {
-            cashAccounts, bankAccounts, inventoryAccounts, currentAssets, nonCurrentAssets,
-            currentLiabilities, longTermLiabilities, equityAccounts,
-            totalCash, totalBank, totalInventory, totalOtherCurrentAssets, totalCurrentAssets, totalNonCurrentAssets, totalAssets,
-            totalCurrentLiability, totalLongTermLiability, totalLiabilities, totalEquity, totalLiabilityAndEquity,
+            sections,
+            totalAssets,
+            totalLiabilities,
+            totalEquity,
+            totalLiabilityAndEquity,
             isBalanced: Math.abs(totalAssets - totalLiabilityAndEquity) < 1
         };
     }, [rawData]);
@@ -109,8 +68,9 @@ export default function BalanceSheet() {
         return (
             <DashboardLayout>
                 <div className="max-w-4xl mx-auto p-8">
-                    <div className="bg-red-50 p-6 rounded-lg border border-red-200">
-                        <p className="text-red-700 font-bold">Error Loading Report: {(error as Error).message}</p>
+                    <div className="bg-rose-50 p-8 rounded-3xl border border-rose-100 shadow-sm">
+                        <h2 className="text-rose-900 font-black uppercase text-xs tracking-widest mb-2">Accounting Engine Fault</h2>
+                        <p className="text-rose-700 font-bold text-sm">{(error as Error).message}</p>
                     </div>
                 </div>
             </DashboardLayout>
@@ -119,243 +79,168 @@ export default function BalanceSheet() {
 
     return (
         <DashboardLayout>
-            <div className="max-w-5xl mx-auto pb-20 print:p-0">
-                <div className="sticky-filter-bar print:hidden px-4 backdrop-blur-md bg-white/80 border-b border-slate-200">
-                    <div className="max-w-5xl mx-auto flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 py-4">
-                        <div className="report-header mb-0">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-slate-900 p-2 rounded-lg text-white">
-                                    <Scale className="h-6 w-6" />
-                                </div>
-                                <div>
-                                    <h1 className="report-title text-2xl font-black tracking-tight text-slate-900 uppercase">Balance Sheet</h1>
-                                    <p className="report-subtitle text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px]">Corporate Accounting Format</p>
-                                </div>
+            <div className="max-w-5xl mx-auto pb-32 print:p-0 animate-in fade-in duration-700">
+                {/* STICKY HEADER */}
+                <div className="sticky-filter-bar print:hidden px-6 backdrop-blur-xl bg-white/90 border-b border-slate-200/60 z-30 transition-all">
+                    <div className="max-w-5xl mx-auto flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 py-6">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-slate-900 p-3 rounded-2xl text-white shadow-xl shadow-slate-200">
+                                <Scale className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-black tracking-tighter text-slate-900 uppercase leading-none">Balance Sheet</h1>
+                                <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] mt-1">Financial Position Statement v13</p>
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-4 bg-white p-2 border border-slate-200 shadow-sm rounded-xl">
-                            <div className="flex items-center gap-4 px-2">
-                                <div className="flex flex-col">
-                                    <label className="text-[9px] font-black uppercase text-slate-400 mb-1">As Of Date</label>
-                                    <input type="date" value={asOfDate} onChange={e => setAsOfDate(e.target.value)} className="h-9 px-3 border border-slate-200 rounded-lg font-bold text-xs" />
-                                </div>
+                        <div className="flex items-center gap-4 bg-slate-50 p-2.5 border border-slate-200/80 shadow-inner rounded-2xl">
+                            <div className="flex flex-col px-4">
+                                <label className="text-[9px] font-black uppercase text-slate-400 mb-1 tracking-widest text-center">As Of Date</label>
+                                <input type="date" value={asOfDate} onChange={e => setAsOfDate(e.target.value)} className="h-10 px-4 border-none bg-white rounded-xl shadow-sm font-black text-[11px] text-slate-700 focus:ring-2 focus:ring-slate-900" />
                             </div>
                             <Button
-                                className="h-10 px-6 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold uppercase text-[10px] tracking-widest gap-2"
+                                className="h-11 px-10 rounded-xl bg-slate-900 hover:bg-black text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl shadow-slate-200 transition-all active:scale-95"
                                 onClick={() => window.print()}
                             >
-                                <Printer className="h-4 w-4" /> Print
+                                <Printer className="h-4 w-4" /> Print Statement
                             </Button>
                         </div>
                     </div>
                 </div>
 
-                <div className="px-4 space-y-8 mt-8">
+                <div className="px-6 mt-10 space-y-12">
                     {isLoading || !report ? (
-                        <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
-                            <Loader2 className="h-10 w-10 animate-spin text-slate-300" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Compiling Balance Sheet...</span>
+                        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-100">
+                            <Loader2 className="h-12 w-12 animate-spin text-slate-200" />
+                            <div className="text-center">
+                                <span className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 block animate-pulse">Reconciling Ledger State</span>
+                            </div>
                         </div>
                     ) : (
-                        <>
+                        <div className="space-y-12">
+                            {/* BALANCE CHECK AND SUMMARY CARDS */}
                             {!report.isBalanced && (
-                                <Card className="p-4 border-l-4 border-l-rose-600 bg-rose-50 rounded-none shadow-sm flex items-center gap-3 print:hidden">
-                                    <AlertCircle className="h-5 w-5 text-rose-600" />
-                                    <div>
-                                        <p className="text-sm font-black text-rose-900 uppercase">Balance Mismatch</p>
-                                        <p className="text-xs text-rose-700">Warning: Assets do not equal Liabilities + Equity. Difference: {formatPKR(Math.abs(report.totalAssets - report.totalLiabilityAndEquity))}</p>
+                                <div className="bg-rose-50 border-2 border-rose-100 p-6 rounded-3xl flex items-center gap-6 animate-bounce print:hidden">
+                                    <div className="bg-rose-600 p-3 rounded-2xl text-white shadow-lg shadow-rose-200">
+                                        <AlertCircle className="h-6 w-6" />
                                     </div>
-                                </Card>
+                                    <div>
+                                        <h3 className="text-rose-900 font-black uppercase text-xs tracking-widest">Reconciliation Warning</h3>
+                                        <p className="text-rose-700 text-sm font-bold">Assets do not match Equity + Liabilities. Difference: {formatPKR(Math.abs(report.totalAssets - report.totalLiabilityAndEquity))}</p>
+                                    </div>
+                                </div>
                             )}
 
-                            <div className="bg-white border text-sm border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
+                                <section className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm group">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600"><Wallet className="h-4 w-4" /></div>
+                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-emerald-500 transition-colors">Total Solvency</p>
+                                    </div>
+                                    <h3 className="text-2xl font-black text-slate-900 tracking-tighter">{formatPKR(report.totalAssets)}</h3>
+                                    <p className="text-[9px] font-bold text-slate-300 uppercase mt-2">Combined Asset Value</p>
+                                </section>
+                                <section className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm group">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="bg-slate-50 p-2 rounded-lg text-slate-600"><Landmark className="h-4 w-4" /></div>
+                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-slate-900 transition-colors">Risk Exposure</p>
+                                    </div>
+                                    <h3 className="text-2xl font-black text-slate-900 tracking-tighter">{formatPKR(report.totalLiabilities)}</h3>
+                                    <p className="text-[9px] font-bold text-slate-300 uppercase mt-2">Total Outstanding Debt</p>
+                                </section>
+                                <section className="bg-slate-900 p-6 rounded-[2rem] shadow-xl shadow-slate-200 group overflow-hidden relative">
+                                    <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                                        <ShieldCheck className="h-24 w-24 text-white" />
+                                    </div>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Net Worth (Equity)</p>
+                                    </div>
+                                    <h3 className="text-2xl font-black text-white tracking-tighter">{formatPKR(report.totalEquity)}</h3>
+                                    <p className="text-[9px] font-bold text-emerald-400 uppercase mt-2 tracking-widest">Owner's Net Position</p>
+                                </section>
+                            </div>
+
+                            {/* MAIN TABLE DESIGN */}
+                            <div className="bg-white border-2 border-slate-50 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-slate-200/50 print:border-none print:shadow-none">
                                 <table className="w-full border-collapse">
                                     <thead>
-                                        <tr className="bg-slate-50 border-b border-slate-200">
-                                            <th className="text-left px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Account</th>
-                                            <th className="text-right px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Total (PKR)</th>
+                                        <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-black">
+                                            <th className="text-left px-10 py-6 text-[11px] font-black uppercase tracking-[0.3em]">Accounting Head</th>
+                                            <th className="text-right px-10 py-6 text-[11px] font-black uppercase tracking-[0.3em]">Fair Value (PKR)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {/* ====== ASSETS ====== */}
-                                        <tr className="bg-slate-900 text-white">
-                                            <td colSpan={2} className="px-6 py-3 font-black uppercase tracking-widest text-sm">ASSETS</td>
-                                        </tr>
+                                        {/* ASSETS MASTER SECTION */}
+                                        <tr className="bg-emerald-50/50"><td colSpan={2} className="px-10 py-4 font-black text-emerald-900 uppercase text-xs tracking-[0.4em] border-b border-emerald-100/50">I. ASSETS & INVESTMENTS</td></tr>
 
-                                        {/* CURRENT ASSETS */}
-                                        <tr className="bg-slate-100">
-                                            <td colSpan={2} className="px-8 py-2 font-black text-slate-700 uppercase text-xs tracking-widest">CURRENT ASSETS</td>
-                                        </tr>
-
-                                        {/* Cash */}
-                                        {report.cashAccounts.length > 0 && (
-                                            <>
-                                                <tr className="bg-slate-50"><td colSpan={2} className="px-10 py-1.5 font-bold text-slate-500 uppercase text-[10px] tracking-widest">CASH</td></tr>
-                                                {report.cashAccounts.map((a, i) => (
-                                                    <tr key={`cash-${i}`} className="border-b border-slate-50">
-                                                        <td className="px-14 py-2 text-slate-600 text-xs font-bold uppercase">{a.account_name}</td>
-                                                        <td className="text-right px-6 py-2 tabular-nums font-bold">{formatNumber(a.balance)}</td>
+                                        {Object.keys(report.sections).filter(c => c === '10' || c === '15').sort().map(code => {
+                                            const section = report.sections[code];
+                                            return Object.entries(section.groups).map(([groupName, group]) => (
+                                                <div key={`${code}-${groupName}`} className="contents">
+                                                    <tr className="bg-slate-50/40"><td colSpan={2} className="px-12 py-3 font-black text-slate-400 uppercase text-[10px] tracking-[0.2em]">{groupName}</td></tr>
+                                                    {group.items.map((item, i) => (
+                                                        <tr key={`${item.account_name}-${i}`} className="group hover:bg-slate-50/50 transition-colors">
+                                                            <td className="px-16 py-3 font-bold uppercase text-slate-600 text-[11px] group-hover:text-slate-900 transition-colors border-b border-slate-50/50">{item.account_name}</td>
+                                                            <td className="text-right px-10 py-3 font-black tabular-nums text-slate-900 border-b border-slate-50/50">{formatNumber(item.balance)}</td>
+                                                        </tr>
+                                                    ))}
+                                                    <tr className="bg-white border-b border-slate-100">
+                                                        <td className="px-12 py-3 uppercase text-slate-400 font-bold text-[9px] tracking-widest italic">Total {groupName}</td>
+                                                        <td className="text-right px-10 py-3 font-black text-sm tabular-nums text-slate-900">{formatNumber(group.total)}</td>
                                                     </tr>
-                                                ))}
-                                                <tr className="font-bold bg-white">
-                                                    <td className="px-10 py-2.5 uppercase text-slate-700 text-[10px] tracking-widest">TOTAL CASH</td>
-                                                    <td className="text-right px-6 py-2.5 tabular-nums">{formatNumber(report.totalCash)}</td>
-                                                </tr>
-                                            </>
-                                        )}
+                                                </div>
+                                            ));
+                                        })}
 
-                                        {/* Bank */}
-                                        {report.bankAccounts.length > 0 && (
-                                            <>
-                                                <tr className="bg-slate-50"><td colSpan={2} className="px-10 py-1.5 font-bold text-slate-500 uppercase text-[10px] tracking-widest">BANK</td></tr>
-                                                {report.bankAccounts.map((a, i) => (
-                                                    <tr key={`bank-${i}`} className="border-b border-slate-50">
-                                                        <td className="px-14 py-2 text-slate-600 text-xs font-bold uppercase">{a.account_name}</td>
-                                                        <td className="text-right px-6 py-2 tabular-nums font-bold">{formatNumber(a.balance)}</td>
+                                        <tr className="bg-emerald-900 text-white font-black">
+                                            <td className="px-10 py-6 uppercase tracking-[0.4em] text-xs">TOTAL ASSETS</td>
+                                            <td className="text-right px-10 py-6 text-xl tabular-nums tracking-tighter">{formatPKR(report.totalAssets)}</td>
+                                        </tr>
+
+                                        {/* LIABILITIES & EQUITY SECTION */}
+                                        <tr className="bg-slate-50/50 pt-10"><td colSpan={2} className="px-10 py-4 font-black text-slate-900 uppercase text-xs tracking-[0.4em] border-b border-slate-200">II. LIABILITIES & EQUITY</td></tr>
+
+                                        {Object.keys(report.sections).filter(c => c === '20' || c === '30').sort().map(code => {
+                                            const section = report.sections[code];
+                                            return Object.entries(section.groups).map(([groupName, group]) => (
+                                                <div key={`${code}-${groupName}`} className="contents">
+                                                    <tr className="bg-slate-50/40"><td colSpan={2} className="px-12 py-3 font-black text-slate-400 uppercase text-[10px] tracking-[0.2em]">{groupName}</td></tr>
+                                                    {group.items.map((item, i) => (
+                                                        <tr key={`${item.account_name}-${i}`} className="group hover:bg-slate-50/50 transition-colors">
+                                                            <td className="px-16 py-3 font-bold uppercase text-slate-600 text-[11px] group-hover:text-slate-900 transition-colors border-b border-slate-50/50">{item.account_name}</td>
+                                                            <td className="text-right px-10 py-3 font-black tabular-nums text-slate-900 border-b border-slate-50/50">{formatNumber(item.balance)}</td>
+                                                        </tr>
+                                                    ))}
+                                                    <tr className="bg-white border-b border-slate-100">
+                                                        <td className="px-12 py-3 uppercase text-slate-400 font-bold text-[9px] tracking-widest italic">Total {groupName}</td>
+                                                        <td className="text-right px-10 py-3 font-black text-sm tabular-nums text-slate-900">{formatNumber(group.total)}</td>
                                                     </tr>
-                                                ))}
-                                                <tr className="font-bold bg-white">
-                                                    <td className="px-10 py-2.5 uppercase text-slate-700 text-[10px] tracking-widest">TOTAL BANK</td>
-                                                    <td className="text-right px-6 py-2.5 tabular-nums">{formatNumber(report.totalBank)}</td>
-                                                </tr>
-                                            </>
-                                        )}
+                                                </div>
+                                            ));
+                                        })}
 
-                                        {/* Inventory */}
-                                        {report.inventoryAccounts.length > 0 && (
-                                            <>
-                                                <tr className="bg-slate-50"><td colSpan={2} className="px-10 py-1.5 font-bold text-slate-500 uppercase text-[10px] tracking-widest">INVENTORY</td></tr>
-                                                {report.inventoryAccounts.map((a, i) => (
-                                                    <tr key={`inv-${i}`} className="border-b border-slate-50">
-                                                        <td className="px-14 py-2 text-slate-600 text-xs font-bold uppercase">{a.account_name}</td>
-                                                        <td className="text-right px-6 py-2 tabular-nums font-bold">{formatNumber(a.balance)}</td>
-                                                    </tr>
-                                                ))}
-                                                <tr className="font-bold bg-white">
-                                                    <td className="px-10 py-2.5 uppercase text-slate-700 text-[10px] tracking-widest">TOTAL INVENTORY</td>
-                                                    <td className="text-right px-6 py-2.5 tabular-nums">{formatNumber(report.totalInventory)}</td>
-                                                </tr>
-                                            </>
-                                        )}
-
-                                        {/* Other Current Assets */}
-                                        {report.currentAssets.length > 0 && (
-                                            <>
-                                                <tr className="bg-slate-50"><td colSpan={2} className="px-10 py-1.5 font-bold text-slate-500 uppercase text-[10px] tracking-widest">OTHER CURRENT ASSETS</td></tr>
-                                                {report.currentAssets.map((a, i) => (
-                                                    <tr key={`ca-${i}`} className="border-b border-slate-50">
-                                                        <td className="px-14 py-2 text-slate-600 text-xs font-bold uppercase">{a.account_name}</td>
-                                                        <td className="text-right px-6 py-2 tabular-nums font-bold">{formatNumber(a.balance)}</td>
-                                                    </tr>
-                                                ))}
-                                            </>
-                                        )}
-
-                                        <tr className="font-black border-y-2 border-slate-200 bg-slate-50">
-                                            <td className="px-8 py-3 uppercase text-slate-800 text-xs tracking-widest">TOTAL CURRENT ASSETS</td>
-                                            <td className="text-right px-6 py-3 tabular-nums">{formatNumber(report.totalCurrentAssets)}</td>
+                                        <tr className="bg-slate-900 text-white font-black">
+                                            <td className="px-10 py-6 uppercase tracking-[0.4em] text-xs">TOTAL LIABILITIES & EQUITY</td>
+                                            <td className="text-right px-10 py-6 text-xl tabular-nums tracking-tighter">{formatPKR(report.totalLiabilityAndEquity)}</td>
                                         </tr>
-
-                                        {/* NON-CURRENT ASSETS */}
-                                        <tr className="bg-slate-100">
-                                            <td colSpan={2} className="px-8 py-2 font-black text-slate-700 uppercase text-xs tracking-widest">NON CURRENT ASSETS</td>
-                                        </tr>
-                                        {report.nonCurrentAssets.length > 0 && (
-                                            <>
-                                                {report.nonCurrentAssets.map((a, i) => (
-                                                    <tr key={`nca-${i}`} className="border-b border-slate-50">
-                                                        <td className="px-14 py-2 text-slate-600 text-xs font-bold uppercase">{a.account_name}</td>
-                                                        <td className="text-right px-6 py-2 tabular-nums font-bold">{formatNumber(a.balance)}</td>
-                                                    </tr>
-                                                ))}
-                                            </>
-                                        )}
-                                        <tr className="font-black border-y-2 border-slate-200 bg-slate-50">
-                                            <td className="px-8 py-3 uppercase text-slate-800 text-xs tracking-widest">TOTAL NON CURRENT ASSETS</td>
-                                            <td className="text-right px-6 py-3 tabular-nums">{formatNumber(report.totalNonCurrentAssets)}</td>
-                                        </tr>
-
-                                        {/* TOTAL ASSETS (GRAND) */}
-                                        <tr className="font-black border-y-4 border-slate-900 bg-slate-100 text-lg text-emerald-800">
-                                            <td className="px-6 py-4 uppercase tracking-[0.2em]">TOTAL ASSETS</td>
-                                            <td className="text-right px-6 py-4 tabular-nums">{formatPKR(report.totalAssets)}</td>
-                                        </tr>
-
-
-                                        {/* ====== LIABILITIES & EQUITY ====== */}
-                                        <tr className="bg-slate-900 text-white mt-8">
-                                            <td colSpan={2} className="px-6 py-3 font-black uppercase tracking-widest text-sm">LIABILITIES AND EQUITY</td>
-                                        </tr>
-
-                                        {/* LIABILITIES */}
-                                        <tr className="bg-slate-100">
-                                            <td colSpan={2} className="px-8 py-2 font-black text-slate-700 uppercase text-xs tracking-widest">LIABILITIES</td>
-                                        </tr>
-
-                                        {/* Current Liabilities */}
-                                        <tr className="bg-slate-50"><td colSpan={2} className="px-10 py-1.5 font-bold text-slate-500 uppercase text-[10px] tracking-widest">CURRENT LIABILITY</td></tr>
-                                        {report.currentLiabilities.map((a, i) => (
-                                            <tr key={`cl-${i}`} className="border-b border-slate-50">
-                                                <td className="px-14 py-2 text-slate-600 text-xs font-bold uppercase">{a.account_name}</td>
-                                                <td className="text-right px-6 py-2 tabular-nums font-bold">{formatNumber(a.balance)}</td>
-                                            </tr>
-                                        ))}
-                                        <tr className="font-bold bg-white">
-                                            <td className="px-10 py-2.5 uppercase text-slate-700 text-[10px] tracking-widest">TOTAL CURRENT LIABILITY</td>
-                                            <td className="text-right px-6 py-2.5 tabular-nums">{formatNumber(report.totalCurrentLiability)}</td>
-                                        </tr>
-
-                                        {/* Long Term Liabilities */}
-                                        <tr className="bg-slate-50"><td colSpan={2} className="px-10 py-1.5 font-bold text-slate-500 uppercase text-[10px] tracking-widest">LONG TERM LIABILITY</td></tr>
-                                        {report.longTermLiabilities.map((a, i) => (
-                                            <tr key={`ltl-${i}`} className="border-b border-slate-50">
-                                                <td className="px-14 py-2 text-slate-600 text-xs font-bold uppercase">{a.account_name}</td>
-                                                <td className="text-right px-6 py-2 tabular-nums font-bold">{formatNumber(a.balance)}</td>
-                                            </tr>
-                                        ))}
-                                        <tr className="font-bold bg-white border-b-2 border-slate-200">
-                                            <td className="px-10 py-2.5 uppercase text-slate-700 text-[10px] tracking-widest">TOTAL LONG TERM LIABILITY</td>
-                                            <td className="text-right px-6 py-2.5 tabular-nums">{formatNumber(report.totalLongTermLiability)}</td>
-                                        </tr>
-
-                                        <tr className="font-black bg-slate-50 border-b-2 border-slate-200">
-                                            <td className="px-8 py-3 uppercase text-slate-800 text-xs tracking-widest">TOTAL LIABILITIES</td>
-                                            <td className="text-right px-6 py-3 tabular-nums">{formatNumber(report.totalLiabilities)}</td>
-                                        </tr>
-
-                                        {/* EQUITY */}
-                                        <tr className="bg-slate-100">
-                                            <td colSpan={2} className="px-8 py-2 font-black text-slate-700 uppercase text-xs tracking-widest">EQUITY</td>
-                                        </tr>
-                                        <tr className="bg-slate-50"><td colSpan={2} className="px-10 py-1.5 font-bold text-slate-500 uppercase text-[10px] tracking-widest">EQUITY</td></tr>
-                                        {report.equityAccounts.map((a, i) => (
-                                            <tr key={`eq-${i}`} className="border-b border-slate-50">
-                                                <td className="px-14 py-2 text-slate-600 text-xs font-bold uppercase">{a.account_name}</td>
-                                                <td className="text-right px-6 py-2 tabular-nums font-bold">{formatNumber(a.balance)}</td>
-                                            </tr>
-                                        ))}
-                                        <tr className="font-bold bg-white">
-                                            <td className="px-10 py-2.5 uppercase text-slate-700 text-[10px] tracking-widest">TOTAL EQUITY</td>
-                                            <td className="text-right px-6 py-2.5 tabular-nums">{formatNumber(report.totalEquity)}</td>
-                                        </tr>
-
-                                        <tr className="font-black bg-slate-50 border-b-2 border-slate-200">
-                                            <td className="px-8 py-3 uppercase text-slate-800 text-xs tracking-widest">TOTAL EQUITY</td>
-                                            <td className="text-right px-6 py-3 tabular-nums">{formatNumber(report.totalEquity)}</td>
-                                        </tr>
-
                                     </tbody>
-                                    <tfoot>
-                                        {/* TOTAL LIABILITIES & EQUITY (GRAND) */}
-                                        <tr className="font-black border-y-4 border-slate-900 bg-slate-100 text-lg text-slate-900">
-                                            <td className="px-6 py-4 uppercase tracking-[0.2em]">TOTAL LIABILITIES AND EQUITY</td>
-                                            <td className="text-right px-6 py-4 tabular-nums">{formatPKR(report.totalLiabilityAndEquity)}</td>
-                                        </tr>
-                                    </tfoot>
                                 </table>
                             </div>
-                        </>
+
+                            {/* AUDIT SIGNATURE - PRINT ONLY */}
+                            <div className="hidden print:flex justify-between mt-24 px-10">
+                                <div className="border-t border-slate-300 pt-4 w-52 text-center">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Chief Accountant</p>
+                                </div>
+                                <div className="border-t border-slate-300 pt-4 w-52 text-center">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Managing Director</p>
+                                </div>
+                            </div>
+
+                            <div className="text-center print:hidden opacity-30 italic text-[10px] font-bold uppercase tracking-widest mt-8">
+                                Document digitally generated on {new Date().toLocaleDateString()}
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>
