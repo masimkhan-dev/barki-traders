@@ -266,13 +266,7 @@ export default function RoznamchaV3() {
         <DashboardLayout>
             <div className="max-w-5xl mx-auto pb-20">
 
-                {/* TEST BANNER */}
-                <div className="bg-amber-50 border-b border-amber-300 px-4 py-1.5 flex items-center gap-2 print:hidden">
-                    <FlaskConical className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">
-                        Test Page — Daily Book V3 — /roznamcha-v3 — Originals untouched
-                    </span>
-                </div>
+
 
                 {/* ── DATE HEADER ──────────────────────────────── */}
                 <div className="px-5 pt-5 pb-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100">
