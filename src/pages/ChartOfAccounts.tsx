@@ -33,7 +33,7 @@ export default function ChartOfAccounts() {
             if (accRes.error) throw accRes.error;
             if (partyRes.error) throw partyRes.error;
 
-            const generalAccounts: UnifiedAccount[] = accRes.data.map(a => ({
+            const generalAccounts: UnifiedAccount[] = (accRes.data as any[] || []).map(a => ({
                 id: a.id,
                 name: a.name,
                 code: a.code,
