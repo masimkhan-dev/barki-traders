@@ -26,7 +26,7 @@ export default function ChartOfAccounts() {
         queryKey: ['unified-chart-of-accounts'],
         queryFn: async () => {
             const [accRes, partyRes] = await Promise.all([
-                (supabase.from('accounts').select('id, name, code, account_type, sub_category, is_active').order('code') as any),
+                supabase.from('accounts').select('id, name, code, account_type, sub_category, is_active').order('code'),
                 supabase.from('parties').select('id, name, type, is_active')
             ]);
 
