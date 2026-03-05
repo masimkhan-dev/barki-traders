@@ -541,7 +541,12 @@ export default function ManageTransactions() {
                                                 d.setDate(d.getDate() - 1);
                                                 setOnlineForm({ ...onlineForm, date: d.toISOString().split('T')[0] });
                                             }}><ChevronLeft className="h-3 w-3" /></Button>
-                                            <span className="text-xs font-mono font-bold w-24 text-center">{onlineForm.date}</span>
+                                            <input
+                                                type="date"
+                                                value={onlineForm.date}
+                                                onChange={(e) => setOnlineForm({ ...onlineForm, date: e.target.value })}
+                                                className="h-6 px-1 border-none bg-transparent text-[10px] font-mono font-bold w-[110px] text-center focus:outline-none"
+                                            />
                                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
                                                 const d = new Date(onlineForm.date);
                                                 d.setDate(d.getDate() + 1);
@@ -567,11 +572,11 @@ export default function ManageTransactions() {
                                                         </SelectTrigger>
                                                         <SelectContent className="max-h-[400px]">
                                                             <div className="px-2 py-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border-b mb-1">Source Selection</div>
-                                                            
+
                                                             {/* Group: Assets (Cash/Bank) - STRICT: NO EXPENSES/SALARIES */}
                                                             <div className="px-2 py-1 text-[9px] font-black text-emerald-600 uppercase tracking-tighter mt-2">Cash & Bank Accounts</div>
-                                                            {allAccounts?.filter(a => 
-                                                                a.type === 'account' && 
+                                                            {allAccounts?.filter(a =>
+                                                                a.type === 'account' &&
                                                                 a.originalType === 'asset' &&
                                                                 !a.name.toLowerCase().includes('salary')
                                                             ).map(a => (
@@ -580,8 +585,8 @@ export default function ManageTransactions() {
 
                                                             {/* Group: Parties - STRICT: NO SALARY/EXPENSE */}
                                                             <div className="px-2 py-1 text-[9px] font-black text-indigo-600 uppercase tracking-tighter mt-2">Trade Parties (Ledgers)</div>
-                                                            {allAccounts?.filter(a => 
-                                                                a.type === 'party' && 
+                                                            {allAccounts?.filter(a =>
+                                                                a.type === 'party' &&
                                                                 a.originalType !== 'expense' &&
                                                                 !a.name.toLowerCase().includes('salary')
                                                             ).map(a => (
@@ -590,8 +595,8 @@ export default function ManageTransactions() {
 
                                                             {/* Group: Income Adjustment */}
                                                             <div className="px-2 py-1 text-[9px] font-black text-amber-600 uppercase tracking-tighter mt-2">Income & Receipts</div>
-                                                            {allAccounts?.filter(a => 
-                                                                a.type === 'account' && 
+                                                            {allAccounts?.filter(a =>
+                                                                a.type === 'account' &&
                                                                 a.originalType === 'income' &&
                                                                 !a.name.toLowerCase().includes('salary')
                                                             ).map(a => (
@@ -752,14 +757,25 @@ export default function ManageTransactions() {
                                     </div>
                                     <div className="p-8">
                                         <form onSubmit={(e) => { e.preventDefault(); salesMutation.mutate(salesForm); }} className="space-y-6">
-                                            <div className="space-y-2">
-                                                <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Customer Account</Label>
-                                                <Select value={salesForm.party_id} onValueChange={(val) => setSalesForm({ ...salesForm, party_id: val })}>
-                                                    <SelectTrigger className="h-12 border-emerald-100 font-bold text-slate-800"><SelectValue placeholder="Select Customer..." /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {allAccounts?.filter(a => a.type === 'party').map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Sale Date</Label>
+                                                    <Input
+                                                        type="date"
+                                                        value={salesForm.sale_date}
+                                                        onChange={e => setSalesForm({ ...salesForm, sale_date: e.target.value })}
+                                                        className="h-12 border-emerald-100 font-bold text-slate-800"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Customer Account</Label>
+                                                    <Select value={salesForm.party_id} onValueChange={(val) => setSalesForm({ ...salesForm, party_id: val })}>
+                                                        <SelectTrigger className="h-12 border-emerald-100 font-bold text-slate-800"><SelectValue placeholder="Select Customer..." /></SelectTrigger>
+                                                        <SelectContent>
+                                                            {allAccounts?.filter(a => a.type === 'party').map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-6">
@@ -841,14 +857,25 @@ export default function ManageTransactions() {
                                     </div>
                                     <div className="p-8">
                                         <form onSubmit={(e) => { e.preventDefault(); purchaseMutation.mutate(purchaseForm); }} className="space-y-6">
-                                            <div className="space-y-2">
-                                                <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Supplier Account</Label>
-                                                <Select value={purchaseForm.party_id} onValueChange={(val) => setPurchaseForm({ ...purchaseForm, party_id: val })}>
-                                                    <SelectTrigger className="h-12 border-rose-100 font-bold text-slate-800"><SelectValue placeholder="Select Supplier..." /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {allAccounts?.filter(a => a.type === 'party').map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Purchase Date</Label>
+                                                    <Input
+                                                        type="date"
+                                                        value={purchaseForm.purchase_date}
+                                                        onChange={e => setPurchaseForm({ ...purchaseForm, purchase_date: e.target.value })}
+                                                        className="h-12 border-rose-100 font-bold text-slate-800"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Supplier Account</Label>
+                                                    <Select value={purchaseForm.party_id} onValueChange={(val) => setPurchaseForm({ ...purchaseForm, party_id: val })}>
+                                                        <SelectTrigger className="h-12 border-rose-100 font-bold text-slate-800"><SelectValue placeholder="Select Supplier..." /></SelectTrigger>
+                                                        <SelectContent>
+                                                            {allAccounts?.filter(a => a.type === 'party').map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-6">
