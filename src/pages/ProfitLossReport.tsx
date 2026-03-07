@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
@@ -176,7 +176,7 @@ export default function ProfitLossReport() {
                                             const isRevenue = code === '10';
 
                                             return (
-                                                <div key={code} className="contents">
+                                                <React.Fragment key={code}>
                                                     {/* SECTION HEADER */}
                                                     <tr className="bg-slate-50/80 border-y border-slate-100">
                                                         <td colSpan={2} className="px-10 py-4 font-black text-slate-900 uppercase text-[11px] tracking-[0.2em]">
@@ -224,7 +224,7 @@ export default function ProfitLossReport() {
                                                             </td>
                                                         </tr>
                                                     )}
-                                                </div>
+                                                </React.Fragment>
                                             );
                                         })}
                                     </tbody>

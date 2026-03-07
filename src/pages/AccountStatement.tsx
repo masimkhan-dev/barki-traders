@@ -21,7 +21,9 @@ import {
   Download,
   ShieldCheck,
   RotateCcw,
-  Loader2
+  Loader2,
+  FileDown,
+  Share2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -169,6 +171,124 @@ export default function AccountStatement() {
     };
   }, [rawStatement]);
 
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const loadHtml2Pdf = async () => {
+    if ((window as any).html2pdf?.Worker) return (window as any).html2pdf;
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.onload = () => resolve((window as any).html2pdf);
+      script.onerror = () => reject(new Error('Failed to load html2pdf'));
+      document.body.appendChild(script);
+    });
+  };
+
+  const getPdfOptions = () => {
+    const customerName = activeParty?.name?.replace(/[^a-z0-9]/gi, '_') || 'unknown';
+    const filename = `statement_${customerName}_${appliedStart}_${appliedEnd}.pdf`;
+    return {
+      margin: 5,
+      filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!appliedParty || !rawStatement || rawStatement.length === 0) {
+      toast.error("Please load the statement first.");
+      return;
+    }
+
+    if (rawStatement.length > 600) {
+      toast.error("Statement too large to export. Please reduce date range.");
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+    try {
+      const element = document.getElementById('ledger-statement-document');
+      if (!element) throw new Error('Container not found');
+
+      // Fix html2canvas clipping issue
+      const tableContainer = element.querySelector('.overflow-x-auto');
+      if (tableContainer) tableContainer.classList.remove('overflow-x-auto');
+
+      const html2pdf = await loadHtml2Pdf();
+      await html2pdf().set(getPdfOptions()).from(element).save();
+
+      // Restore
+      if (tableContainer) tableContainer.classList.add('overflow-x-auto');
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to generate PDF.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleWhatsAppShare = async () => {
+    if (!appliedParty || !rawStatement || rawStatement.length === 0) {
+      toast.error("Please load the statement first.");
+      return;
+    }
+
+    if (rawStatement.length > 600) {
+      toast.error("Statement too large to export. Please reduce date range.");
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+    try {
+      const element = document.getElementById('ledger-statement-document');
+      if (!element) throw new Error('Container not found');
+
+      // Fix html2canvas clipping issue
+      const tableContainer = element.querySelector('.overflow-x-auto');
+      if (tableContainer) tableContainer.classList.remove('overflow-x-auto');
+
+      const html2pdf = await loadHtml2Pdf();
+      const options = getPdfOptions();
+
+      const pdfBlob = await html2pdf().set(options).from(element).outputPdf('blob');
+
+      // Restore
+      if (tableContainer) tableContainer.classList.add('overflow-x-auto');
+
+      const file = new File([pdfBlob], options.filename, { type: 'application/pdf' });
+
+      const summaryMsg = `Customer: ${activeParty?.name}\nStatement period: ${formatClassicDate(appliedStart)} to ${formatClassicDate(appliedEnd)}\nOpening balance: ${formatNumber(Math.abs(stats.opening))} ${stats.opening >= 0 ? "Dr" : "Cr"}\nTotal debit: ${formatNumber(stats.totalDebit)}\nTotal credit: ${formatNumber(stats.totalCredit)}\nClosing balance: ${formatNumber(Math.abs(stats.balance))} ${stats.balance >= 0 ? "Dr" : "Cr"}`;
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Account Statement',
+          text: summaryMsg
+        });
+      } else {
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = options.filename;
+        a.click();
+
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+        const encodedMsg = encodeURIComponent(summaryMsg);
+        window.open(`https://wa.me/?text=${encodedMsg}`, '_blank');
+        toast("PDF downloaded. Please attach it in WhatsApp.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to generate PDF.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="bg-white min-h-screen pb-20 print:p-0">
@@ -178,7 +298,7 @@ export default function AccountStatement() {
           
           @media screen { .print-only { display: none !important; } }
           @media print {
-            @page { size: A4 portrait; margin: 8mm; }
+            @page { size: A4 landscape; margin: 5mm; }
             body * { visibility: hidden !important; }
             .print-container-base, .print-container-base * { visibility: visible !important; }
             .print-container-base { 
@@ -190,6 +310,11 @@ export default function AccountStatement() {
               padding: 0 !important; 
               margin: 0 !important; 
               background: white !important;
+            }
+            .ledger-pdf-container {
+              width: 1200px !important;
+              background: white !important;
+              padding: 24px !important;
             }
             .print-header {
               font-family: 'Montserrat', sans-serif !important;
@@ -232,6 +357,9 @@ export default function AccountStatement() {
               border: 1.2pt solid black !important; 
               font-family: 'JetBrains Mono', monospace !important;
             }
+            .print-table tr {
+              page-break-inside: avoid !important;
+            }
             .print-table th { 
               background-color: #f1f5f9 !important; 
               color: black !important; 
@@ -247,6 +375,11 @@ export default function AccountStatement() {
               padding: 5px 4px !important; 
               font-size: 9.5pt !important; 
               color: black !important; 
+              white-space: nowrap !important;
+            }
+            .print-table th:last-child,
+            .print-table td:last-child {
+              min-width: 120px !important;
             }
             .print-neg-balance { color: #15803d !important; font-weight: bold !important; }
             .print-pos-balance { color: #be123c !important; font-weight: bold !important; }
@@ -301,6 +434,14 @@ export default function AccountStatement() {
                 <Button variant="outline" size="icon" className="h-9 w-9 rounded-none border-slate-300 bg-white text-green-700" onClick={() => exportToCSV(rawStatement || [], 'account_statement')}>
                   <Download className="h-4 w-4" />
                 </Button>
+                <Button variant="outline" className="h-9 rounded-none border-slate-300 bg-white px-3 font-bold uppercase text-[10px] tracking-widest gap-2" onClick={handleDownloadPDF} disabled={isGeneratingPdf}>
+                  {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                  Download PDF
+                </Button>
+                <Button variant="outline" className="h-9 rounded-none border-slate-300 bg-white px-3 font-bold uppercase text-[10px] tracking-widest gap-2 text-[#25D366]" onClick={handleWhatsAppShare} disabled={isGeneratingPdf}>
+                  {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+                  Share to WhatsApp
+                </Button>
               </div>
             </div>
           </div>
@@ -336,7 +477,7 @@ export default function AccountStatement() {
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Retrieving Ledger Records...</span>
           </div>
         ) : appliedParty ? (
-          <div className="max-w-7xl mx-auto px-4 pt-8 pb-20 print:p-0 print-container-base">
+          <div id="ledger-statement-document" className="max-w-7xl mx-auto px-4 pt-8 pb-20 print:p-0 print-container-base ledger-pdf-container">
             <div className="print-header flex justify-between items-baseline border-b-2 border-slate-900 pb-2 mb-6">
               <div className="flex flex-col">
                 <h2 className="text-2xl font-black uppercase text-slate-900 tracking-tighter">Account Statement: {activeParty?.name}</h2>
