@@ -299,79 +299,83 @@ label.ledger-label {
 }
 
 /* --- PRINT SYSTEM --- */
-/* V11 SAFE IMPROVEMENT: Hardened print styles for audit compliance */
-@media print {
+.print-only {
+  display: none !important;
+}
 
-  .print-hidden,
-  button,
+@media print {
+  .print-only {
+    display: block !important;
+  }
+
+  /* 1. HIDE UI ELEMENTS */
   nav,
   aside,
-  .no-print {
+  header,
+  footer,
+  button,
+  .no-print,
+  .print-hidden {
     display: none !important;
   }
 
+  /* 2. DYNAMIC LAYOUT RESET */
+  html,
   body {
-    background: white;
-    padding: 0;
+    background: white !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  .report-container {
-    width: 100%;
-    max-width: none;
-    padding: 0;
-    margin: 0;
+  main,
+  .flex-1,
+  .lg\:pl-72,
+  [class*="pl-72"] {
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+  }
+
+  .min-h-screen,
+  [class*="min-h-screen"] {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  /* 3. ISOLATE LEDGER DOCUMENT */
+  #ledger-statement-document {
+    display: block !important;
+    visibility: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    position: static !important;
   }
 
   .ledger-table {
-    font-size: 10pt;
-    page-break-inside: avoid;
-    /* V11 SAFE IMPROVEMENT: Prevent table splitting */
+    font-size: 9pt !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .ledger-table tr {
+    page-break-inside: avoid !important;
   }
 
   .ledger-table thead {
-    display: table-header-group;
-    /* V11 SAFE IMPROVEMENT: Repeat headers on each page */
+    display: table-header-group !important;
   }
 
-  .ledger-table tfoot {
-    display: table-footer-group;
-    /* V11 SAFE IMPROVEMENT: Repeat totals on each page */
-  }
-
-  .ledger-table th,
-  .ledger-table td {
-    padding: 6px 10px;
-    border: 1px solid #000 !important;
-  }
-
-  /* V11 SAFE IMPROVEMENT: Prevent orphaned rows */
-  .ledger-table tr {
-    page-break-inside: avoid;
-  }
-
-  .signature-grid {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 40px;
-    margin-top: 60px;
-    page-break-inside: avoid;
-    /* V11 SAFE IMPROVEMENT: Keep signatures together */
-  }
-
-  .signature-line {
-    border-top: 1px solid #000;
-    text-align: center;
-    font-size: 8px;
-    font-weight: 900;
-    text-transform: uppercase;
-    padding-top: 8px;
-  }
-
-  /* V11 SAFE IMPROVEMENT: Ensure critical audit info prints */
-  .report-header,
-  .report-title,
-  .report-subtitle {
-    page-break-after: avoid;
+  /* Force colors */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 

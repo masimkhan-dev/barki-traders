@@ -117,6 +117,12 @@ const loadHtml2Pdf = (): Promise<any> => {
           resolve((window as any).html2pdf);
         }
       }, 100);
+
+      // Guard: Don't hang forever if script fails silently
+      setTimeout(() => {
+        clearInterval(poll);
+        reject(new Error('Timeout waiting for html2pdf to load'));
+      }, 10000);
       return;
     }
 
@@ -159,9 +165,12 @@ const buildPrintLayoutHtml = (
   fmtDate: (s: string | null | undefined) => string
 ): string => {
   const drCr = (v: number) => (v >= 0 ? 'DR' : 'CR');
-  const balColor = (v: number) => (v > 0 ? '#be123c' : v < 0 ? '#15803d' : '#64748b');
 
-  const tableRows = rows.map((row, i) => {
+  const sortedRows = [...rows].sort(
+    (a, b) => new Date(a.posting_date).getTime() - new Date(b.posting_date).getTime()
+  );
+
+  const tableRows = sortedRows.map((row, i) => {
     const isOpening = row.voucher_no === 'OPEN';
     const vNo = row.voucher_no.toUpperCase();
     const cleanedNote = row.particulars
@@ -176,6 +185,7 @@ const buildPrintLayoutHtml = (
       else if (row.particulars.toLowerCase().includes('bank transfer')) typeLabel = 'Bank Transfer';
       else if (row.particulars.toLowerCase().includes('payment')) typeLabel = 'Payment Received';
     }
+
     if (row.fuel_name && row.fuel_name !== 'N/A' && row.fuel_name.trim() !== '') {
       typeLabel =
         typeLabel === 'Inventory Purchase' || typeLabel === 'Sale' || typeLabel === 'Sales Voucher'
@@ -183,43 +193,39 @@ const buildPrintLayoutHtml = (
           : `${typeLabel} (${row.fuel_name})`;
     }
 
-    const qty = row.quantity || row.qty || 0;
-    const rowBg = isOpening
-      ? '#e2e8f0'
-      : row.is_reversed_entry
-      ? '#fff1f2'
-      : vNo.startsWith('PUR')
-      ? '#eff6ff'
-      : vNo.startsWith('VCH')
-      ? '#fff7ed'
-      : 'white';
+    const rowClass = [
+      isOpening ? 'bg-slate-200 font-bold border-y-2 border-slate-400' : '',
+      row.is_reversed_entry ? 'opacity-30 italic bg-rose-50/20' : '',
+      !isOpening && !row.is_reversed_entry && vNo.startsWith('PUR') ? 'bg-blue-50' : '',
+      !isOpening && !row.is_reversed_entry && vNo.startsWith('VCH') ? 'bg-orange-50' : ''
+    ].join(' ');
 
-    const textDecoration = row.is_reversed_entry ? 'line-through' : 'none';
-    const opacity = row.is_reversed_entry ? '0.45' : '1';
+    const balTextClass = row.running_balance > 0 ? 'text-[#be123c]' : row.running_balance < 0 ? 'text-[#15803d]' : 'text-slate-500';
+    const balBgClass = row.running_balance > 0 ? 'bg-rose-50/80 border-l border-rose-200' : row.running_balance < 0 ? 'bg-emerald-50/80 border-l border-emerald-200' : 'bg-slate-50/80';
 
     return `
-      <tr style="background:${rowBg};opacity:${opacity};page-break-inside:avoid;">
-        <td style="text-align:center;font-family:'Courier New',monospace;font-size:8.5pt;">${fmtDate(row.posting_date)}</td>
-        <td style="font-family:'Courier New',monospace;font-size:8pt;color:#64748b;">${row.voucher_no}</td>
-        <td style="font-weight:700;font-size:8.5pt;text-decoration:${textDecoration};text-transform:uppercase;">${typeLabel}</td>
-        <td style="text-align:right;font-family:'Courier New',monospace;font-size:8.5pt;">${qty > 0 ? fmtNum(qty) : '-'}</td>
-        <td style="text-align:right;font-family:'Courier New',monospace;font-size:8.5pt;">${(row.rate || 0) > 0 ? fmtNum(row.rate!) : '-'}</td>
-        <td style="text-align:right;font-family:'Courier New',monospace;font-weight:700;font-size:9pt;">${row.debit > 0 ? fmtNum(row.debit) : '-'}</td>
-        <td style="text-align:right;font-family:'Courier New',monospace;font-weight:700;font-size:9pt;">${row.credit > 0 ? fmtNum(row.credit) : '-'}</td>
-        <td style="text-align:right;font-family:'Courier New',monospace;font-weight:900;font-size:9.5pt;color:${balColor(row.running_balance)};border-left:1.5pt solid #cbd5e1;">
-          ${row.running_balance === 0
-            ? '0.00'
-            : `${fmtNum(Math.abs(row.running_balance))} <span style="font-size:6.5pt;font-weight:900;">${row.running_balance > 0 ? 'DR' : 'CR'}</span>`
-          }
+      <tr class="${rowClass}">
+        <td class="center-align num-audit text-xs text-slate-600">${fmtDate(row.posting_date)}</td>
+        <td class="font-mono text-[10px] text-slate-500">${row.voucher_no}</td>
+        <td class="uppercase font-bold tracking-tight text-xs text-slate-900 px-4 ${row.is_reversed_entry ? 'line-through grayscale' : ''}">${typeLabel}</td>
+        <td class="right-align num-audit text-slate-600 font-bold text-xs">${(row.quantity || row.qty) ? fmtNum(row.quantity || row.qty || 0) : '-'}</td>
+        <td class="right-align num-audit text-slate-500 font-bold text-xs">${(row.rate) ? fmtNum(row.rate!) : '-'}</td>
+        <td class="right-align num-audit font-bold text-slate-800 text-sm">${row.debit !== 0 ? fmtNum(row.debit) : '-'}</td>
+        <td class="right-align num-audit font-bold text-slate-800 text-sm">${row.credit !== 0 ? fmtNum(row.credit) : '-'}</td>
+        <td class="right-align num-audit font-black text-sm px-4 ${balTextClass} ${balBgClass}">
+          <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
+            <span>${row.running_balance === 0 ? '0.00' : (row.running_balance > 0 ? '+' : '-') + fmtNum(Math.abs(row.running_balance))}</span>
+            ${row.running_balance !== 0 ? `<span class="text-[7px] font-black uppercase opacity-60">${drCr(row.running_balance)}</span>` : ''}
+          </div>
         </td>
       </tr>`;
   }).join('');
 
-  const productRows = (productSummary || [])
+  const productSummaryHtml = (productSummary || [])
     .map(ps => `
-      <div style="border-left:4pt solid black;padding:6px 10px;background:#f8fafc;margin-right:12px;display:inline-block;">
-        <div style="font-size:7pt;font-weight:900;text-transform:uppercase;color:#94a3b8;">${ps.fuel_name} Total</div>
-        <div style="font-family:'Courier New',monospace;font-size:13pt;font-weight:900;">${fmtNum(ps.total_qty)} <span style="font-size:8pt;font-weight:400;">Litres</span></div>
+      <div class="ps-box">
+        <span class="ps-label">${ps.fuel_name} Summary</span>
+        <span class="ps-value">${fmtNum(ps.total_qty)} <span class="ps-unit">Litres</span></span>
       </div>`)
     .join('');
 
@@ -227,105 +233,139 @@ const buildPrintLayoutHtml = (
 <html>
 <head>
 <meta charset="UTF-8"/>
+<meta name="viewport" content="width=1100, initial-scale=1.0"/>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body { font-family: 'Montserrat', sans-serif; background: white; padding: 20px 24px; width: 277mm; }
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=JetBrains+Mono:wght@400;700&display=swap');
   
-  /* ── Header ── */
-  .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2.5pt solid black; padding-bottom: 10px; margin-bottom: 14px; }
-  .header-left h1 { font-size: 16pt; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px; }
-  .header-left span { font-size: 7pt; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
-  .header-right { text-align: right; }
-  .header-right .label { font-size: 7.5pt; font-weight: 900; text-transform: uppercase; }
-  .header-right .period { font-size: 9pt; font-weight: 700; color: #475569; }
+  /* Reset */
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { width: 1100px; background: white; }
+  body { font-family: 'Montserrat', sans-serif; background: white; padding: 60px; }
 
-  /* ── Summary Box ── */
-  .summary-box { display: grid; grid-template-columns: repeat(4, 1fr); border: 1.5pt solid black; margin-bottom: 14px; }
-  .summary-item { border-right: 1pt solid black; padding: 8px 10px; text-align: center; }
-  .summary-item:last-child { border-right: none; background: black; color: white; }
-  .summary-label { font-size: 6.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; color: #94a3b8; }
-  .summary-item:last-child .summary-label { color: #94a3b8; }
-  .summary-value { font-family: 'Courier New', monospace; font-size: 12pt; font-weight: 900; }
-
-  /* ── Table ── */
-  table { width: 100%; border-collapse: collapse; border: 1.2pt solid black; }
-  th {
-    background: #f1f5f9;
-    color: black;
-    border: 1pt solid black;
-    padding: 7px 6px;
-    font-size: 7.5pt;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-family: 'Montserrat', sans-serif;
-    white-space: nowrap;
+  /* Utility Classes */
+  .flex { display: flex !important; }
+  .flex-col { flex-direction: column !important; }
+  .justify-between { justify-content: space-between !important; }
+  .items-baseline { align-items: baseline !important; }
+  .text-right { text-align: right !important; }
+  .text-center { text-align: center !important; }
+  .uppercase { text-transform: uppercase !important; }
+  .font-black { font-weight: 900 !important; }
+  .font-bold { font-weight: 700 !important; }
+  .font-mono { font-family: 'JetBrains Mono', monospace !important; }
+  .tracking-tighter { letter-spacing: -0.05em !important; }
+  .tracking-widest { letter-spacing: 0.1em !important; }
+  .tracking-tight { letter-spacing: -0.025em !important; }
+  .text-2xl { font-size: 24px !important; font-weight: 900 !important; }
+  .text-xs { font-size: 12px !important; }
+  .text-sm { font-size: 14px !important; }
+  .text-[9px] { font-size: 9px !important; }
+  .text-[10px] { font-size: 10px !important; }
+  .text-slate-900 { color: #0f172a !important; }
+  .text-slate-500 { color: #64748b !important; }
+  .text-slate-600 { color: #475569 !important; }
+  .text-slate-800 { color: #1e293b !important; }
+  .border-b-2 { border-bottom: 2px solid #0f172a !important; }
+  .mb-6 { margin-bottom: 24px !important; }
+  .pb-2 { padding-bottom: 8px !important; }
+  .mt-8 { margin-top: 32px !important; }
+  .gap-4 { gap: 16px !important; }
+  .w-full { width: 100% !important; }
+  .px-4 { padding-left: 16px !important; padding-right: 16px !important; }
+  .line-through { text-decoration: line-through !important; }
+  .grayscale { filter: grayscale(100%) !important; }
+  .opacity-30 { opacity: 0.3 !important; }
+  .opacity-60 { opacity: 0.6 !important; }
+  .italic { font-style: italic !important; }
+  .num-audit { font-family: 'JetBrains Mono', monospace !important; }
+  
+  /* Print Components */
+  .print-header { border-bottom: 2pt solid black; margin-bottom: 20px; }
+  
+  .print-summary-box {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    border: 1.5pt solid black !important;
+    margin-bottom: 20px !important;
   }
-  td {
-    border: 0.5pt solid #cbd5e1;
-    padding: 5px 6px;
-    font-size: 8.5pt;
-    color: black;
-    white-space: nowrap;
+  .print-summary-item {
+    border-right: 1pt solid black;
+    padding: 12px 6px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
-  tr { page-break-inside: avoid; }
+  .print-summary-item:last-child { border-right: none; background: #000; color: #fff; }
+  .ps-label, .print-summary-label { font-size: 7pt; text-transform: uppercase; font-weight: 900; color: inherit; }
+  .ps-value, .print-summary-value { font-size: 11pt; font-weight: 900; font-family: 'JetBrains Mono', monospace; }
+  
+  .ledger-table { width: 100%; border-collapse: collapse; border: 1.2pt solid black; margin-bottom: 20px; }
+  .ledger-table th { background-color: #f1f5f9; border: 1pt solid black; padding: 8px 4px; font-size: 10pt; font-weight: 900; text-transform: uppercase; text-align: left; }
+  .ledger-table td { border: 0.5pt solid #ccc; padding: 6px 4px; font-size: 9.5pt; color: black; white-space: nowrap; }
 
-  /* ── Footer ── */
-  .footer { margin-top: 16px; text-align: center; font-size: 7.5pt; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; border-top: 1pt solid #e2e8f0; padding-top: 10px; }
-  .product-summary { margin-top: 14px; }
+  /* Product Summary Widgets */
+  .ps-box { border-left: 4px solid #0f172a; background: #f8fafc; padding: 10px 16px; display: flex; flex-direction: column; min-width: 150px; }
+  .ps-unit { font-size: 10px; font-weight: 400; }
+
+  /* Highlights */
+  .bg-slate-200 { background-color: #e2e8f0 !important; }
+  .bg-blue-50 { background-color: #eff6ff !important; }
+  .bg-orange-50 { background-color: #fff7ed !important; }
+  .bg-rose-50\/20 { background-color: rgba(255, 241, 242, 0.2) !important; }
+  .bg-rose-50\/80 { background-color: rgba(255, 241, 242, 0.8) !important; }
+  .bg-emerald-50\/80 { background-color: rgba(236, 253, 245, 0.8) !important; }
+  .bg-slate-50\/80 { background-color: rgba(248, 250, 252, 0.8) !important; }
+  .border-rose-200 { border-color: #fecdd3 !important; }
+  .border-emerald-200 { border-color: #a7f3d0 !important; }
+  .text-[#be123c] { color: #be123c !important; }
+  .text-[#15803d] { color: #15803d !important; }
+  
+  .footer { margin-top: 50px; text-align: center; font-size: 9px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; border-top: 1pt solid #f1f5f9; padding-top: 32px; }
 </style>
 </head>
 <body>
-
-  <!-- Header -->
-  <div class="header">
-    <div class="header-left">
-      <h1>Account Statement: ${partyName}</h1>
-      <span>Business ID: ${partyId.slice(0, 12)}...</span>
+  <div class="print-header flex justify-between items-baseline border-b-2 pb-2 mb-6">
+    <div class="flex flex-col">
+      <h2 class="text-2xl uppercase tracking-tighter">Account Statement: ${partyName}</h2>
+      <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Business ID: ${partyId.slice(0, 12)}...</span>
     </div>
-    <div class="header-right">
-      <div class="label">Statement Period</div>
-      <div class="period">${fmtDate(startDate)} — ${fmtDate(endDate)}</div>
+    <div class="text-right">
+      <span class="text-[10px] font-black text-slate-900 uppercase">Statement Period</span>
+      <p class="text-xs font-bold text-slate-500">${fmtDate(startDate)} — ${fmtDate(endDate)}</p>
     </div>
   </div>
 
-  <!-- Summary -->
-  <div class="summary-box">
-    <div class="summary-item">
-      <div class="summary-label">Opening Balance</div>
-      <div class="summary-value" style="color:${stats.opening >= 0 ? '#be123c' : '#15803d'}">
-        ${fmtNum(Math.abs(stats.opening))} <span style="font-size:7pt">${drCr(stats.opening)}</span>
-      </div>
+  <div class="print-summary-box">
+    <div class="print-summary-item">
+      <span class="print-summary-label">Opening Balance</span>
+      <span class="print-summary-value">${fmtNum(Math.abs(stats.opening))} <span class="${stats.opening >= 0 ? 'text-[#be123c]' : 'text-[#15803d]'}">${drCr(stats.opening)}</span></span>
     </div>
-    <div class="summary-item">
-      <div class="summary-label">Total Purchases / Dr</div>
-      <div class="summary-value">${fmtNum(stats.totalDebit)}</div>
+    <div class="print-summary-item">
+      <span class="print-summary-label">Total Purchases/Dr</span>
+      <span class="print-summary-value">${fmtNum(stats.totalDebit)}</span>
     </div>
-    <div class="summary-item">
-      <div class="summary-label">Total Payments / Cr</div>
-      <div class="summary-value">${fmtNum(stats.totalCredit)}</div>
+    <div class="print-summary-item">
+      <span class="print-summary-label">Total Payments/Cr</span>
+      <span class="print-summary-value">${fmtNum(stats.totalCredit)}</span>
     </div>
-    <div class="summary-item">
-      <div class="summary-label">Current Balance</div>
-      <div class="summary-value">
-        ${fmtNum(Math.abs(stats.balance))} <span style="font-size:7pt">${drCr(stats.balance)}</span>
-      </div>
+    <div class="print-summary-item">
+      <span class="print-summary-label">Current Balance</span>
+      <span class="print-summary-value">${fmtNum(Math.abs(stats.balance))} <span class="${stats.balance >= 0 ? 'text-[#be123c]' : 'text-[#15803d]'}">${drCr(stats.balance)}</span></span>
     </div>
   </div>
 
-  <!-- Table -->
-  <table>
+  <table class="ledger-table">
     <thead>
       <tr>
-        <th style="width:72px;text-align:center;">Date</th>
-        <th style="width:90px;">Ref / Voucher</th>
-        <th>Transaction Type</th>
-        <th style="width:72px;text-align:right;">Qty (L)</th>
-        <th style="width:72px;text-align:right;">Rate</th>
-        <th style="width:96px;text-align:right;">Debit</th>
-        <th style="width:96px;text-align:right;">Credit</th>
-        <th style="width:110px;text-align:right;background:#f8fafc;">Balance</th>
+        <th style="width:90px;text-align:center;">Date</th>
+        <th style="width:110px;">Ref/Voucher</th>
+        <th style="width:280px;">Transaction Type</th>
+        <th style="width:80px;text-align:right;">Qty (L)</th>
+        <th style="width:80px;text-align:right;">Rate</th>
+        <th style="width:110px;text-align:right;">Debit</th>
+        <th style="width:110px;text-align:right;">Credit</th>
+        <th style="width:130px;text-align:right;background:#f8fafc;">Balance</th>
       </tr>
     </thead>
     <tbody>
@@ -333,18 +373,14 @@ const buildPrintLayoutHtml = (
     </tbody>
   </table>
 
-  <!-- Product Summary -->
-  ${productRows ? `<div class="product-summary">${productRows}</div>` : ''}
+  ${productSummaryHtml ? `<div class="mt-8 flex gap-4">${productSummaryHtml}</div>` : ''}
 
-  <!-- Footer -->
   <div class="footer">End of Account Statement — Thank you for your business</div>
-
 </body>
 </html>`;
 };
 
 const buildPdfFromElement = async (
-  _sourceElementId: string,
   partyId: string,
   partyName: string,
   startDate: string,
@@ -366,7 +402,8 @@ const buildPdfFromElement = async (
 
   // Inject into hidden iframe so fonts/styles render in isolation
   const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:297mm;height:210mm;border:none;visibility:hidden;';
+  // width matches body width: 1100px. height is auto to prevent clipping
+  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;height:10px;border:none;visibility:hidden;';
   document.body.appendChild(iframe);
 
   const iframeDoc = iframe.contentDocument!;
@@ -374,8 +411,20 @@ const buildPdfFromElement = async (
   iframeDoc.write(html);
   iframeDoc.close();
 
-  // Wait for fonts to load inside iframe
-  await new Promise(resolve => setTimeout(resolve, 1200));
+  // Wait for fonts to load natively (with safety fallback for older browsers/Safari)
+  try {
+    if (iframeDoc.fonts && iframeDoc.fonts.ready) {
+      await iframeDoc.fonts.ready;
+    } else if ((document as any).fonts && (document as any).fonts.ready) {
+      await (document as any).fonts.ready;
+    }
+  } catch (e) {
+    console.warn('Font loading check failed, proceeding with timeout fallback');
+  }
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  // Update iframe height to precisely match content avoiding truncation
+  iframe.style.height = iframeDoc.body.scrollHeight + 'px';
 
   const options = {
     margin: [6, 6, 6, 6],
@@ -385,7 +434,10 @@ const buildPdfFromElement = async (
       scale: 2,
       useCORS: true,
       scrollY: 0,
-      windowWidth: 1122, // 297mm at 96dpi
+      scrollX: 0,
+      x: 0,
+      windowWidth: 1100,
+      width: 1100,
     },
     jsPDF: {
       unit: 'mm',
@@ -474,7 +526,7 @@ export default function AccountStatement() {
 
       if (error) {
         console.error('RPC get_party_statement failed:', error);
-        toast.error(`Failed to load statement: ${error.message || 'Unknown error'}`);
+        toast.error(`Failed to load statement: ${error.message || 'Unknown error'} `);
         throw new Error(error.message || 'RPC call failed');
       }
 
@@ -510,11 +562,15 @@ export default function AccountStatement() {
     if (!rawStatement || rawStatement.length === 0)
       return { opening: 0, balance: 0, totalDebit: 0, totalCredit: 0 };
 
-    const openingRow =
-      rawStatement[0].voucher_no === 'OPEN' ? rawStatement[0] : null;
+    // Explicitly sort statement for chronological stats calculation
+    const sorted = [...rawStatement].sort(
+      (a, b) => new Date(a.posting_date).getTime() - new Date(b.posting_date).getTime()
+    );
+
+    const openingRow = sorted[0].voucher_no === 'OPEN' ? sorted[0] : null;
     const opening = openingRow ? openingRow.running_balance : 0;
 
-    const transactions = rawStatement.filter(
+    const transactions = sorted.filter(
       r => r.voucher_no !== 'OPEN' && !r.is_reversed_entry
     );
     const totalDebit = transactions.reduce(
@@ -526,8 +582,13 @@ export default function AccountStatement() {
       0
     );
 
-    const closing = rawStatement[rawStatement.length - 1];
-    return { opening, totalDebit, totalCredit, balance: closing.running_balance };
+    const closing = sorted[sorted.length - 1];
+    return {
+      opening,
+      totalDebit,
+      totalCredit,
+      balance: closing.running_balance,
+    };
   }, [rawStatement]);
 
   // ─── Guard: check statement loaded before export ──────────────────────────
@@ -537,19 +598,19 @@ export default function AccountStatement() {
       return false;
     }
     if (rawStatement.length > MAX_EXPORT_ROWS) {
-      toast.error('Statement too large to export. Please reduce date range.');
+      toast.error(`Statement too large (${rawStatement.length} rows). Please reduce date range.`);
       return false;
     }
     return true;
   };
 
-  // ─── Handler: Download PDF ────────────────────────────────────────────────
+  // ─── Handler: Download PDF (Blob) ─────────────────────────────────────────
   const handleDownloadPDF = async () => {
     if (!canExport()) return;
     setIsDownloadingPdf(true);
+
     try {
       const { blob, filename } = await buildPdfFromElement(
-        'ledger-statement-document',
         appliedParty!,
         activeParty?.name ?? '',
         appliedStart,
@@ -571,29 +632,19 @@ export default function AccountStatement() {
       toast.success('PDF downloaded successfully.');
     } catch (error) {
       console.error(error);
-      toast.error('Failed to generate PDF.');
+      toast.error('Failed to generate PDF layout.');
     } finally {
       setIsDownloadingPdf(false);
     }
   };
 
   // ─── Handler: WhatsApp Share ──────────────────────────────────────────────
-  //
-  // DESKTOP FLOW (PC/Laptop — navigator.share not available):
-  //   1. Generate PDF → auto-download it
-  //   2. Show toast: "PDF downloaded! Attach it in WhatsApp Web."
-  //   3. After 1.5s open WhatsApp Web (not wa.me which doesn't support file attach)
-  //
-  // MOBILE FLOW (if ever used on mobile with share support):
-  //   1. Use native navigator.share with file + summary text
-  //
   const handleWhatsAppShare = async () => {
     if (!canExport()) return;
     setIsSharingPdf(true);
 
     try {
       const { blob, filename } = await buildPdfFromElement(
-        'ledger-statement-document',
         appliedParty!,
         activeParty?.name ?? '',
         appliedStart,
@@ -606,12 +657,12 @@ export default function AccountStatement() {
       );
 
       const summaryMsg = [
-        `Customer: ${activeParty?.name}`,
-        `Statement period: ${formatClassicDate(appliedStart)} to ${formatClassicDate(appliedEnd)}`,
-        `Opening balance: ${formatNumber(Math.abs(stats.opening))} ${stats.opening >= 0 ? 'Dr' : 'Cr'}`,
-        `Total debit: ${formatNumber(stats.totalDebit)}`,
-        `Total credit: ${formatNumber(stats.totalCredit)}`,
-        `Closing balance: ${formatNumber(Math.abs(stats.balance))} ${stats.balance >= 0 ? 'Dr' : 'Cr'}`,
+        `*Customer:* ${activeParty?.name}`,
+        `*Period:* ${formatClassicDate(appliedStart)} to ${formatClassicDate(appliedEnd)}`,
+        `*Opening:* ${formatNumber(Math.abs(stats.opening))} ${stats.opening >= 0 ? 'Dr' : 'Cr'}`,
+        `*Total Debit:* ${formatNumber(stats.totalDebit)}`,
+        `*Total Credit:* ${formatNumber(stats.totalCredit)}`,
+        `*Closing:* ${formatNumber(Math.abs(stats.balance))} ${stats.balance >= 0 ? 'Dr' : 'Cr'}`,
       ].join('\n');
 
       const file = new File([blob], filename, { type: 'application/pdf' });
@@ -630,7 +681,8 @@ export default function AccountStatement() {
         return;
       }
 
-      // ── Desktop fallback: download PDF then open WhatsApp Web ─────────────
+      // Desktop fallback: pre-filled text share if needed, otherwise download
+      const encodedMsg = encodeURIComponent(summaryMsg);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -639,14 +691,12 @@ export default function AccountStatement() {
       setTimeout(() => URL.revokeObjectURL(url), 3000);
 
       toast.success(
-        'PDF downloaded! Open WhatsApp Web and attach this file to share.',
-        { duration: 6000 }
+        'PDF downloaded! Redirecting to WhatsApp... attach the file to share the statement.',
+        { duration: 8000 }
       );
-
-      // Open WhatsApp Web after short delay so user sees the toast first
       setTimeout(() => {
-        window.open('https://web.whatsapp.com', '_blank');
-      }, 1500);
+        window.open(`https://web.whatsapp.com/send?text=${encodedMsg}`, '_blank');
+      }, 2000);
     } catch (error) {
       console.error(error);
       toast.error('Failed to generate PDF.');
@@ -662,103 +712,84 @@ export default function AccountStatement() {
         <style
           dangerouslySetInnerHTML={{
             __html: `
-          @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
-          
-          @media screen { .print-only { display: none !important; } }
-          @media print {
-            @page { size: A4 landscape; margin: 5mm; }
-            body * { visibility: hidden !important; }
-            .print-container-base, .print-container-base * { visibility: visible !important; }
-            .print-container-base { 
-              position: absolute !important; 
-              left: 0 !important; 
-              top: 0 !important; 
-              width: 100% !important; 
-              border: none !important; 
-              padding: 0 !important; 
-              margin: 0 !important; 
-              background: white !important;
-            }
-            .ledger-pdf-container {
-              width: 1200px !important;
-              background: white !important;
-              padding: 24px !important;
-            }
-            .print-header {
-              font-family: 'Montserrat', sans-serif !important;
-              text-align: center;
-              margin-bottom: 20px;
-              border-bottom: 2pt solid #000;
-              padding-bottom: 10px;
-            }
-            .print-summary-box {
-              display: grid !important;
-              grid-template-columns: repeat(4, 1fr) !important;
-              gap: 0 !important;
-              border: 1.5pt solid black !important;
-              margin-bottom: 15px !important;
-              font-family: 'Montserrat', sans-serif !important;
-            }
-            .print-summary-item {
-              border-right: 1pt solid black !important;
-              padding: 8px 5px !important;
-              text-align: center;
-              display: flex !important;
-              flex-direction: column !important;
-              justify-content: center;
-            }
-            .print-summary-item:last-child { border-right: none !important; background: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; }
-            .print-summary-label {
-              font-size: 7pt !important;
-              text-transform: uppercase !important;
-              font-weight: 900 !important;
-              margin-bottom: 2px;
-            }
-            .print-summary-value {
-              font-size: 11pt !important;
-              font-weight: 900 !important;
-              font-family: 'JetBrains Mono', monospace !important;
-            }
-            .print-table { 
-              width: 100% !important; 
-              border-collapse: collapse !important; 
-              border: 1.2pt solid black !important; 
-              font-family: 'JetBrains Mono', monospace !important;
-            }
-            .print-table tr {
-              page-break-inside: avoid !important;
-            }
-            .print-table th { 
-              background-color: #f1f5f9 !important; 
-              color: black !important; 
-              border: 1pt solid black !important; 
-              padding: 6px 4px !important; 
-              font-size: 10pt !important; 
-              font-weight: bold !important; 
-              text-transform: uppercase !important;
-              font-family: 'Montserrat', sans-serif !important;
-            }
-            .print-table td { 
-              border: 0.5pt solid #ccc !important; 
-              padding: 5px 4px !important; 
-              font-size: 9.5pt !important; 
-              color: black !important; 
-              white-space: nowrap !important;
-            }
-            .print-table th:last-child,
-            .print-table td:last-child {
-              min-width: 120px !important;
-            }
-            .print-neg-balance { color: #15803d !important; font-weight: bold !important; }
-            .print-pos-balance { color: #be123c !important; font-weight: bold !important; }
-            .print\\:hidden, button, nav, aside, .react-datepicker { display: none !important; }
-            * {
-              -webkit-print-color-adjust: exact !important;
-              color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
+
+@media screen { .print-only { display: none !important; } }
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  
+  /* Reset layout - hide everything non-document via index.css */
+  .print-container-base {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+  }
+  .ledger-pdf-container {
+    width: 100% !important;
+    background: white !important;
+    padding: 10px !important;
+  }
+  .print-header {
+    font-family: 'Montserrat', sans-serif !important;
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 2pt solid #000;
+    padding-bottom: 10px;
+  }
+  .print-summary-box {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 0 !important;
+    border: 2pt solid black !important;
+    margin-bottom: 15px !important;
+  }
+  .print-summary-item {
+    border-right: 1pt solid black !important;
+    padding: 10px 5px !important;
+    text-align: center;
+  }
+  .print-summary-item:last-child { border-right: none !important; background: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; }
+  .print-summary-label {
+    font-size: 8pt !important;
+    text-transform: uppercase !important;
+    font-weight: 900 !important;
+    margin-bottom: 2px;
+  }
+  .print-summary-value {
+    font-size: 11pt !important;
+    font-weight: 900 !important;
+  }
+  .print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border: 1.5pt solid black !important;
+  }
+  .print-table tr { break-inside: avoid !important; }
+  .print-table th {
+    background-color: #f8fafc !important;
+    border: 1pt solid black !important;
+    padding: 8px 4px !important;
+    font-size: 10pt !important;
+    text-transform: uppercase !important;
+  }
+  .print-table td {
+    border: 0.5pt solid #000 !important;
+    padding: 6px 4px !important;
+    font-size: 9.5pt !important;
+  }
+  .print-neg-balance { color: #15803d !important; font-weight: bold !important; }
+  .print-pos-balance { color: #be123c !important; font-weight: bold !important; }
+  .print-hidden, button, nav, aside, [class*="sticky-filter-bar"], .react-datepicker { display: none !important; }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
           }
-        `,
+`,
           }}
         />
 
@@ -898,7 +929,7 @@ export default function AccountStatement() {
               >
                 {stats.opening === 0
                   ? '0.00'
-                  : `${formatNumber(Math.abs(stats.opening))} ${stats.opening >= 0 ? 'Dr' : 'Cr'}`}
+                  : `${formatNumber(Math.abs(stats.opening))} ${stats.opening >= 0 ? 'Dr' : 'Cr'} `}
               </span>
             </div>
             <div className="flex flex-col items-end border-l border-slate-200 pl-8">
@@ -924,7 +955,7 @@ export default function AccountStatement() {
               <span className="text-sm font-black num-audit text-white leading-none">
                 {stats.balance === 0
                   ? '0.00'
-                  : `${formatNumber(Math.abs(stats.balance))} ${stats.balance >= 0 ? 'Dr' : 'Cr'}`}
+                  : `${formatNumber(Math.abs(stats.balance))} ${stats.balance >= 0 ? 'Dr' : 'Cr'} `}
               </span>
             </div>
           </div>
@@ -1051,16 +1082,16 @@ export default function AccountStatement() {
                     ) {
                       typeLabel =
                         typeLabel === 'Inventory Purchase' ||
-                        typeLabel === 'Sale' ||
-                        typeLabel === 'Sales Voucher'
-                          ? `${typeLabel} - ${row.fuel_name}`
+                          typeLabel === 'Sale' ||
+                          typeLabel === 'Sales Voucher'
+                          ? `${typeLabel} - ${row.fuel_name} `
                           : `${typeLabel} (${row.fuel_name})`;
                     }
 
                     return (
                       <tr
                         // FIX #9: more stable key including posting_date
-                        key={`${row.voucher_no}-${row.posting_date}-${i}`}
+                        key={`${row.voucher_no} -${row.posting_date} -${i} `}
                         className={cn(
                           'hover:bg-slate-50/50 transition-colors',
                           isOpening
@@ -1126,15 +1157,15 @@ export default function AccountStatement() {
                             row.running_balance > 0
                               ? 'text-[#be123c] bg-rose-50/80 border-l border-rose-200 print:text-[#be123c] print:bg-rose-50'
                               : row.running_balance < 0
-                              ? 'text-[#15803d] bg-emerald-50/80 border-l border-emerald-200 print:text-[#15803d] print:bg-emerald-50'
-                              : 'text-slate-500 bg-slate-50/80'
+                                ? 'text-[#15803d] bg-emerald-50/80 border-l border-emerald-200 print:text-[#15803d] print:bg-emerald-50'
+                                : 'text-slate-500 bg-slate-50/80'
                           )}
                         >
                           <div className="flex items-center justify-end gap-1">
                             <span>
                               {row.running_balance === 0
                                 ? '0.00'
-                                : `${row.running_balance > 0 ? '+' : '-'}${formatNumber(Math.abs(row.running_balance))}`}
+                                : `${row.running_balance > 0 ? '+' : '-'}${formatNumber(Math.abs(row.running_balance))} `}
                             </span>
                             {row.running_balance !== 0 && (
                               <span className="text-[7px] ml-1 font-black uppercase opacity-60">
