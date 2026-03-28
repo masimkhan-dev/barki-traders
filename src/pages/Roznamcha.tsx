@@ -160,9 +160,13 @@ export default function Roznamcha() {
       const finalTransactions = Array.from(groupedMap.values()).map(t => {
         if (t.debit === 0 && t.credit === 0) {
           const originalEntries = entries.filter(e => e.voucher_no === t.voucher_no);
-          const nominalAmount = originalEntries.length > 0
-            ? Math.max(...originalEntries.map(e => Math.max(Number(e.debit_amount) || 0, Number(e.credit_amount) || 0)))
-            : 0;
+          // Prioritize the entry with a party (Sale/Purchase rate) over internal entries like COGS
+          const partyEntry = originalEntries.find(e => e.party?.name);
+          const nominalAmount = partyEntry 
+            ? Math.max(Number(partyEntry.debit_amount) || 0, Number(partyEntry.credit_amount) || 0)
+            : (originalEntries.length > 0
+                ? Math.max(...originalEntries.map(e => Math.max(Number(e.debit_amount) || 0, Number(e.credit_amount) || 0)))
+                : 0);
 
           return {
             ...t,

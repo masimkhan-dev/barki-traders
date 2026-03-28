@@ -189,12 +189,15 @@ export default function RoznamchaV3() {
                     flow_type = 'journal';    // No cash/bank: ledger-only adjustment
                 }
 
-                // Amount = largest single value in the voucher
-                const amount = Math.max(
-                    ...rows.map((e: any) =>
-                        Math.max(Number(e.debit_amount) || 0, Number(e.credit_amount) || 0)
-                    )
-                );
+                // Amount = prioritize the entry with a party (Sale/Purchase rate) over internal entries like COGS
+                const partyEntry = rows.find((e: any) => e.party?.name);
+                const amount = partyEntry 
+                    ? Math.max(Number(partyEntry.debit_amount) || 0, Number(partyEntry.credit_amount) || 0)
+                    : Math.max(
+                        ...rows.map((e: any) =>
+                            Math.max(Number(e.debit_amount) || 0, Number(e.credit_amount) || 0)
+                        )
+                    );
 
                 dailyRows.push({
                     id: group.id,
