@@ -53,6 +53,10 @@ interface DailyRow {
     remarks: string;  // Cleaned — no "Ref:" no trailing dash
     type: string;
     is_reversed: boolean;
+    fuel_name?: string;
+    quantity?: number;
+    rate_per_unit?: number;
+    total_amount?: number;
 }
 
 // ── Remarks cleaner ─────────────────────────────────────────
@@ -68,10 +72,11 @@ function cleanRemarks(raw: string): string {
 
 // ── Voucher short ID ─────────────────────────────────────────
 function shortVoucherId(voucher_no: string): string {
-    // VCH-20260302-2107 → #2107
+    if (!voucher_no) return '#—';
     const parts = voucher_no.split('-');
     const last = parts[parts.length - 1];
-    return `#${last}`;
+    // Shorten extremely long system IDs (anything over 7 chars in the last part)
+    return last.length > 7 ? `#${last.slice(-5)}` : `#${last}`;
 }
 
 // ── Flow type badge config ───────────────────────────────────
@@ -128,6 +133,36 @@ export default function RoznamchaV3() {
                 .order('voucher_no', { ascending: true });
 
             if (error) throw error;
+
+            // Fetch fuel details for sale/purchase vouchers on this date
+            const [salesRes, purchasesRes] = await Promise.all([
+                supabase
+                    .from('sales')
+                    .select(`voucher_no, quantity, rate_per_unit, total_amount, fuel_types(name)`)
+                    .eq('sale_date', selectedDate),
+                supabase
+                    .from('purchases')
+                    .select(`voucher_no, quantity, rate_per_unit, total_amount, fuel_types(name)`)
+                    .eq('purchase_date', selectedDate)
+            ]);
+
+            const fuelDetailMap = new Map<string, any>();
+            (salesRes.data || []).forEach((s: any) => {
+                fuelDetailMap.set(s.voucher_no, {
+                    fuel_name: s.fuel_types?.name,
+                    quantity: s.quantity,
+                    rate_per_unit: s.rate_per_unit,
+                    total_amount: s.total_amount
+                });
+            });
+            (purchasesRes.data || []).forEach((p: any) => {
+                fuelDetailMap.set(p.voucher_no, {
+                    fuel_name: p.fuel_types?.name,
+                    quantity: p.quantity,
+                    rate_per_unit: p.rate_per_unit,
+                    total_amount: p.total_amount
+                });
+            });
 
             const entries = (data || []) as any[];
 
@@ -212,6 +247,10 @@ export default function RoznamchaV3() {
                     remarks: group.narration,
                     type: group.type,
                     is_reversed: group.is_reversed,
+                    fuel_name: fuelDetailMap.get(voucher_no)?.fuel_name,
+                    quantity: fuelDetailMap.get(voucher_no)?.quantity,
+                    rate_per_unit: fuelDetailMap.get(voucher_no)?.rate_per_unit,
+                    total_amount: fuelDetailMap.get(voucher_no)?.total_amount,
                 });
             });
 
@@ -402,6 +441,11 @@ export default function RoznamchaV3() {
                                                         {row.remarks && (
                                                             <p className="text-[10px] text-slate-300 mt-0.5 leading-snug italic">
                                                                 {row.remarks}
+                                                            </p>
+                                                        )}
+                                                        {row.fuel_name && row.quantity && (
+                                                            <p className="text-[10px] text-slate-400 mt-1 font-mono">
+                                                                [{row.fuel_name}] {row.quantity.toLocaleString()} L × {row.rate_per_unit?.toLocaleString()} = {row.total_amount?.toLocaleString()}
                                                             </p>
                                                         )}
                                                     </td>

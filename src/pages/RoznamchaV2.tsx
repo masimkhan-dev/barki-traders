@@ -56,6 +56,17 @@ interface DailyTransactionV2 {
     is_cash_tx: boolean;
     mode: TxMode;
     nominal_value: number; // Only used for LEDGER_ONLY display, never in totals
+    fuel_name?: string;
+    quantity?: number;
+    rate_per_unit?: number;
+    total_amount?: number;
+}
+
+function shortVoucherId(voucher_no: string): string {
+    if (!voucher_no) return '#—';
+    const parts = voucher_no.split('-');
+    const last = parts[parts.length - 1];
+    return last.length > 7 ? `${last.slice(-5)}` : `${last}`;
 }
 
 export default function RoznamchaV2() {
@@ -94,6 +105,36 @@ export default function RoznamchaV2() {
                 .order('voucher_no', { ascending: true });
 
             if (error) throw error;
+
+            // Fetch fuel details for sale/purchase vouchers on this date
+            const [salesRes, purchasesRes] = await Promise.all([
+                supabase
+                    .from('sales')
+                    .select(`voucher_no, quantity, rate_per_unit, total_amount, fuel_types(name)`)
+                    .eq('sale_date', selectedDate),
+                supabase
+                    .from('purchases')
+                    .select(`voucher_no, quantity, rate_per_unit, total_amount, fuel_types(name)`)
+                    .eq('purchase_date', selectedDate)
+            ]);
+
+            const fuelDetailMap = new Map<string, any>();
+            (salesRes.data || []).forEach((s: any) => {
+                fuelDetailMap.set(s.voucher_no, {
+                    fuel_name: s.fuel_types?.name,
+                    quantity: s.quantity,
+                    rate_per_unit: s.rate_per_unit,
+                    total_amount: s.total_amount
+                });
+            });
+            (purchasesRes.data || []).forEach((p: any) => {
+                fuelDetailMap.set(p.voucher_no, {
+                    fuel_name: p.fuel_types?.name,
+                    quantity: p.quantity,
+                    rate_per_unit: p.rate_per_unit,
+                    total_amount: p.total_amount
+                });
+            });
 
             const entries = (data || []) as any[];
 
@@ -155,7 +196,14 @@ export default function RoznamchaV2() {
                     return { ...t, mode: 'INTERNAL_TRANSFER' as TxMode };
                 }
 
-                return { ...t, mode: 'CASH/BANK' as TxMode };
+                return {
+                    ...t,
+                    mode: 'CASH/BANK' as TxMode,
+                    fuel_name: fuelDetailMap.get(t.voucher_no)?.fuel_name,
+                    quantity: fuelDetailMap.get(t.voucher_no)?.quantity,
+                    rate_per_unit: fuelDetailMap.get(t.voucher_no)?.rate_per_unit,
+                    total_amount: fuelDetailMap.get(t.voucher_no)?.total_amount,
+                };
             });
 
             // Sort by time then voucher number
@@ -389,7 +437,7 @@ export default function RoznamchaV2() {
                                                     >
                                                         <td className="num-audit text-xs">{t.time}</td>
                                                         <td className="num-audit text-xs !font-medium text-slate-500">
-                                                            {t.voucher_no}
+                                                            {shortVoucherId(t.voucher_no)}
                                                             {isReversed && <span className="ml-1 text-[8px] bg-slate-400 text-white px-1 rounded">VOID</span>}
                                                         </td>
                                                         <td>
@@ -409,6 +457,11 @@ export default function RoznamchaV2() {
                                                                 <span className="text-[11px] italic text-slate-500 font-medium">
                                                                     {(t.narration || '').replace(/^Ref: N\/A - /, '').replace(/^Ref: N\/A/, '').trim() || 'SYSTEM ENTRY'}
                                                                 </span>
+                                                                {t.fuel_name && t.quantity && (
+                                                                    <span className="text-[10px] text-slate-400 mt-1 font-mono block">
+                                                                        [{t.fuel_name}] {t.quantity.toLocaleString()} L × {t.rate_per_unit?.toLocaleString()} = {t.total_amount?.toLocaleString()}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </td>
 

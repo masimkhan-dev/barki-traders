@@ -56,6 +56,17 @@ interface DailyTransaction {
   mode?: 'CASH/BANK' | 'CREDIT';
   nominal_value?: number;
   is_cash_tx?: boolean;
+  fuel_name?: string;
+  quantity?: number;
+  rate_per_unit?: number;
+  total_amount?: number;
+}
+
+function shortVoucherId(voucher_no: string): string {
+  if (!voucher_no) return '#—';
+  const parts = voucher_no.split('-');
+  const last = parts[parts.length - 1];
+  return last.length > 7 ? `${last.slice(-5)}` : `${last}`;
 }
 
 export default function Roznamcha() {
@@ -119,6 +130,36 @@ export default function Roznamcha() {
 
       if (error) throw error;
 
+      // Fetch fuel details for sale/purchase vouchers on this date
+      const [salesRes, purchasesRes] = await Promise.all([
+        supabase
+          .from('sales')
+          .select(`voucher_no, quantity, rate_per_unit, total_amount, fuel_types(name)`)
+          .eq('sale_date', selectedDate),
+        supabase
+          .from('purchases')
+          .select(`voucher_no, quantity, rate_per_unit, total_amount, fuel_types(name)`)
+          .eq('purchase_date', selectedDate)
+      ]);
+
+      const fuelDetailMap = new Map<string, any>();
+      (salesRes.data || []).forEach((s: any) => {
+        fuelDetailMap.set(s.voucher_no, {
+          fuel_name: s.fuel_types?.name,
+          quantity: s.quantity,
+          rate_per_unit: s.rate_per_unit,
+          total_amount: s.total_amount
+        });
+      });
+      (purchasesRes.data || []).forEach((p: any) => {
+        fuelDetailMap.set(p.voucher_no, {
+          fuel_name: p.fuel_types?.name,
+          quantity: p.quantity,
+          rate_per_unit: p.rate_per_unit,
+          total_amount: p.total_amount
+        });
+      });
+
       // Group by voucher_no to show one line per transaction
       const groupedMap = new Map<string, DailyTransaction & { raw_created_at: string }>();
 
@@ -177,7 +218,11 @@ export default function Roznamcha() {
         return {
           ...t,
           nominal_value: 0,
-          mode: 'CASH/BANK' as const
+          mode: 'CASH/BANK' as const,
+          fuel_name: fuelDetailMap.get(t.voucher_no)?.fuel_name,
+          quantity: fuelDetailMap.get(t.voucher_no)?.quantity,
+          rate_per_unit: fuelDetailMap.get(t.voucher_no)?.rate_per_unit,
+          total_amount: fuelDetailMap.get(t.voucher_no)?.total_amount,
         };
       });
 
@@ -262,7 +307,7 @@ export default function Roznamcha() {
         <div className="sticky-filter-bar print:hidden px-4">
           <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
             <div className="report-header mb-0">
-              <h1 className="report-title">Naveed Musazai</h1>
+              <h1 className="report-title">Naveed Musazai real</h1>
               <p className="report-subtitle">Daily Cash & Bank Book — Roznamcha</p>
             </div>
 
@@ -379,7 +424,7 @@ export default function Roznamcha() {
                             <td className="num-audit text-xs">{t.time}</td>
                             <td className="num-audit text-xs !font-medium text-slate-500 group/rev">
                               <div className="flex items-center justify-between">
-                                <span>{t.voucher_no}</span>
+                                <span>{shortVoucherId(t.voucher_no)}</span>
                                 <button
                                   onClick={() => { setSelectedVoucher(t.voucher_no); setRevModalOpen(true); }}
                                   className="opacity-0 group-hover/rev:opacity-100 p-1 hover:text-rose-600 transition-all print:hidden"
@@ -408,6 +453,11 @@ export default function Roznamcha() {
                                 <span className="text-[11px] italic text-slate-500 font-medium">
                                   {(t.narration || '').replace(/^Ref: N\/A - /, "").replace(/^Ref: N\/A/, "").trim() || 'SYSTEM ENTRY'}
                                 </span>
+                                {t.fuel_name && t.quantity && (
+                                  <span className="text-[10px] text-slate-400 mt-1 font-mono block">
+                                    [{t.fuel_name}] {t.quantity.toLocaleString()} L × {t.rate_per_unit?.toLocaleString()} = {t.total_amount?.toLocaleString()}
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="right-align num-audit font-bold text-sm">

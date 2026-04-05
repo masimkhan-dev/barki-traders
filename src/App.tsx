@@ -10,8 +10,6 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 // Lazy-loaded pages — each becomes a separate JS chunk, loaded only when navigated to
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Roznamcha = lazy(() => import("./pages/Roznamcha"));
-const RoznamchaV2 = lazy(() => import("./pages/RoznamchaV2"));
 const RoznamchaV3 = lazy(() => import("./pages/RoznamchaV3"));
 const Inventory = lazy(() => import("./pages/Inventory"));
 const Ledger = lazy(() => import("./pages/Ledger"));
@@ -97,7 +95,6 @@ function AppRoutes() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/" element={<Navigate to={defaultRoute} replace />} />
         <Route path="/roznamcha" element={<ProtectedRoute><RoznamchaV3 /></ProtectedRoute>} />
-        {/* Legacy Roznamcha unplugged: <Route path="/roznamcha-old" element={<ProtectedRoute><Roznamcha /></ProtectedRoute>} /> */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         {/* Deprecated: <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} /> */}
         {/* Deprecated: <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} /> */}
