@@ -1,13 +1,11 @@
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import {
     Select,
     SelectContent,
@@ -15,479 +13,354 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from '@/components/ui/tabs';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { formatPKR, formatNumber } from '@/lib/format';
-import { Loader2, ArrowRightLeft, ShoppingCart, Truck, Search, UserPlus, AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, CheckCircle2, History, Banknote } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useInventory } from '@/hooks/useInventory';
+import { formatNumber, formatPKR } from '@/lib/format';
+import { 
+    Loader2, 
+    Receipt, 
+    Wallet, 
+    Banknote, 
+    History, 
+    CheckCircle2, 
+    AlertCircle, 
+    PlusCircle,
+    FlaskConical,
+    ArrowRightLeft,
+    AlertTriangle,
+    Package,
+    Calendar,
+    PenTool,
+    Users,
+    Building,
+    ArrowRight,
+    TrendingDown,
+    TrendingUp
+} from 'lucide-react';
 import { UnifiedAddAccountModal } from '@/components/accounting/UnifiedAddAccountModal';
+import { cn } from '@/lib/utils';
+
+type TransactionType = 'EXPENSE' | 'ACTION_CENTER' | 'SHRINKAGE' | 'ASSET_PURCHASE' | 'OWNER_WITHDRAWAL';
+
+interface EntityOption {
+    id: string;
+    name: string;
+    type: 'party' | 'account';
+    category?: string;
+}
 
 export default function ManageTransactions() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const queryClient = useQueryClient();
     const { toast } = useToast();
-    const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState('online');
+    
+    const [txnType, setTxnType] = useState<TransactionType>('EXPENSE');
     const [isEditMode, setIsEditMode] = useState(false);
     const [editVoucherNo, setEditVoucherNo] = useState<string | null>(null);
-    const [showPartyHistory, setShowPartyHistory] = useState(false);
-    const [showSuccessModal, setShowSuccessModal] = useState(false);
-    const [originalQty, setOriginalQty] = useState<number>(0);
-    const partySelectRef = useRef<HTMLButtonElement>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-    // Deep-Edit Loader: Pulls original record and fills form
+    const [form, setForm] = useState({
+        date: new Date().toISOString().split('T')[0],
+        expense_account_id: '',
+        payment_account_id: '',
+        amount: '',
+        narration: '',
+        // Asset specific
+        asset_name: '',
+        asset_category: 'Equipment',
+        // Shrinkage specific
+        fuel_type_id: '',
+        quantity_lost: '',
+        rate_per_liter: '',
+        reason: 'Tanker Delivery Shortage',
+        // Action Center specific
+        from_entity_id: '',
+        from_type: 'party' as 'party' | 'account',
+        to_entity_id: '',
+        to_type: 'account' as 'party' | 'account',
+        action_type: 'transfer' as 'transfer' | 'receipt' | 'payment' | 'contra'
+    });
+
+    // ── Load URL Params & Edit Mode ─────────────────────────────
     useEffect(() => {
         const vNo = searchParams.get('edit');
+        const typeParam = searchParams.get('type');
+        const fuelIdParam = searchParams.get('fuel_type_id');
+
+        if (typeParam === 'SHRINKAGE') {
+            setTxnType('SHRINKAGE');
+            if (fuelIdParam) {
+                setForm(prev => ({ ...prev, fuel_type_id: fuelIdParam }));
+            }
+        }
+
         if (!vNo) return;
 
-        const loadVoucher = async () => {
+        const loadTransaction = async () => {
             setIsEditMode(true);
             setEditVoucherNo(vNo);
 
-            // 1. Try Sales
-            const { data: sale } = await supabase.from('sales').select('*').eq('voucher_no', vNo).maybeSingle();
-            if (sale) {
-                setActiveTab('sales');
-                setSalesForm({
-                    sale_date: sale.sale_date,
-                    party_id: sale.party_id,
-                    fuel_type_id: sale.fuel_type_id,
-                    quantity: String(sale.quantity),
-                    rate_per_unit: String(sale.rate_per_unit),
-                    is_credit: sale.is_credit,
-                    notes: sale.notes || ''
-                });
-                setOriginalQty(sale.quantity || 0);
-                return;
+            // Determine type by voucher prefix
+            if (vNo.startsWith('SHR-')) {
+                setTxnType('SHRINKAGE');
+                // For shrinkage, we'd need to fetch from some specific table if it was stored there,
+                // but currently it's just ledger + inventory. We'll pre-fill what we can from ledger.
+            } else if (vNo.startsWith('EXP-')) {
+                setTxnType('EXPENSE');
             }
 
-            // 2. Try Purchases
-            const { data: purchase } = await supabase.from('purchases').select('*').eq('voucher_no', vNo).maybeSingle();
-            if (purchase) {
-                setActiveTab('purchases');
-                setPurchaseForm({
-                    purchase_date: purchase.purchase_date,
-                    party_id: purchase.party_id,
-                    fuel_type_id: purchase.fuel_type_id,
-                    quantity: String(purchase.quantity),
-                    rate_per_unit: String(purchase.rate_per_unit),
-                    is_credit: !purchase.is_paid_now,
-                    notes: purchase.notes || '',
-                    is_paid_now: String(purchase.is_paid_now),
-                    payment_method: purchase.payment_method || 'Cash'
-                });
-                return;
-            }
+            const { data: entries } = await supabase.from('ledger_entries').select('*').eq('voucher_no', vNo);
+            if (entries && entries.length >= 2) {
+                const debitEntry = entries.find(e => e.debit_amount > 0);
+                const creditEntry = entries.find(e => e.credit_amount > 0);
 
-            // 3. Try Online (Payments table)
-            const { data: payment } = await supabase.from('payments').select('*, ledger_entries!inner(*)').eq('voucher_no', vNo).maybeSingle();
-            if (payment) {
-                // For online, we need to find who was 'From' and who was 'To' from ledger_entries
-                const { data: entries } = await supabase.from('ledger_entries').select('*').eq('voucher_no', vNo);
-                if (entries && entries.length >= 2) {
-                    const fromEntry = entries.find(e => e.credit_amount > 0);
-                    const toEntry = entries.find(e => e.debit_amount > 0);
-                    setActiveTab('online');
-                    setOnlineForm({
-                        date: payment.payment_date,
-                        from_id: fromEntry?.party_id || fromEntry?.account_id || '',
-                        from_type: fromEntry?.party_id ? 'party' : 'account',
-                        to_id: toEntry?.party_id || toEntry?.account_id || '',
-                        to_type: toEntry?.party_id ? 'party' : 'account',
-                        amount: String(payment.amount),
-                        reference: '',
-                        remarks: payment.notes || ''
-                    });
-                }
-                return;
-            }
-
-            // 4. Fallback: Transfer vouchers (VCH-*) only exist in ledger_entries
-            const { data: transferEntries } = await supabase.from('ledger_entries').select('*').eq('voucher_no', vNo);
-            if (transferEntries && transferEntries.length >= 2) {
-                const fromEntry = transferEntries.find(e => e.credit_amount > 0);
-                const toEntry = transferEntries.find(e => e.debit_amount > 0);
-                const amount = Math.max(...transferEntries.map(e => Math.max(Number(e.debit_amount) || 0, Number(e.credit_amount) || 0)));
-                setActiveTab('online');
-                setOnlineForm({
-                    date: fromEntry?.posting_date || new Date().toISOString().split('T')[0],
-                    from_id: fromEntry?.party_id || fromEntry?.account_id || '',
-                    from_type: fromEntry?.party_id ? 'party' : 'account',
-                    to_id: toEntry?.party_id || toEntry?.account_id || '',
-                    to_type: toEntry?.party_id ? 'party' : 'account',
-                    amount: String(amount),
-                    reference: '',
-                    remarks: (fromEntry?.narration || '').replace(/^Ref: N\/A - /, '').trim()
-                });
+                setForm(prev => ({
+                    ...prev,
+                    date: debitEntry?.posting_date || new Date().toISOString().split('T')[0],
+                    expense_account_id: debitEntry?.account_id || '',
+                    payment_account_id: creditEntry?.account_id || '',
+                    amount: String(Math.max(debitEntry?.debit_amount || 0, creditEntry?.credit_amount || 0)),
+                    narration: debitEntry?.narration || '',
+                }));
             }
         };
-
-        loadVoucher();
+        loadTransaction();
     }, [searchParams]);
 
-    // Auto-focus on party selection when tab changes to 'online' or on mount
-    useEffect(() => {
-        if (activeTab === 'online' && !isEditMode) {
-            const timer = setTimeout(() => {
-                partySelectRef.current?.focus();
-            }, 500);
-            return () => clearTimeout(timer);
-        }
-    }, [activeTab]);
-
-    const resetOnlineForm = () => {
-        setOnlineForm({
-            date: new Date().toISOString().split('T')[0],
-            from_id: '',
-            from_type: '',
-            to_id: '',
-            to_type: '',
-            amount: '',
-            reference: '',
-            remarks: ''
-        });
-    };
-
-    // --- SHARED DATA ---
-    const { data: fuelTypes } = useQuery({
-        queryKey: ['fuel-types'],
+    // ── Data Fetching ───────────────────────────────────────────
+    const { data: expenseAccounts } = useQuery({
+        queryKey: ['accounts-expense'],
         queryFn: async () => {
-            const { data } = await supabase.from('fuel_types').select('*').eq('is_active', true);
-            return data;
+            const { data } = await supabase
+                .from('accounts')
+                .select('id, name, code')
+                .eq('account_type', 'expense')
+                .eq('is_active', true)
+                .order('code');
+            return data || [];
         },
-        staleTime: 5 * 60 * 1000, // 5 minutes — fuel types rarely change mid-session
     });
 
-    const { data: inventoryData } = useInventory();
-
-    // ------------------------------------------
-    // TAB 1: ONLINE TRANSACTIONS (Money Transfer)
-    // ------------------------------------------
-    const [onlineForm, setOnlineForm] = useState({
-        date: new Date().toISOString().split('T')[0],
-        from_id: '',
-        from_type: '',
-        to_id: '',
-        to_type: '',
-        amount: '',
-        reference: '',
-        remarks: ''
-    });
-
-    const { data: historyData } = useQuery({
-        queryKey: ['transaction-history', onlineForm.date, onlineForm.from_id, onlineForm.to_id, showPartyHistory],
+    const { data: paymentAccounts } = useQuery({
+        queryKey: ['accounts-payment'],
         queryFn: async () => {
-            let query = supabase
+            const { data } = await supabase
+                .from('accounts')
+                .select('id, name, code')
+                .eq('account_type', 'asset')
+                .or('name.ilike.%cash%,name.ilike.%bank%')
+                .eq('is_active', true);
+            return data || [];
+        },
+    });
+
+    const { data: allAccounts } = useQuery({
+        queryKey: ['accounts-all-active'],
+        queryFn: async () => {
+            const { data } = await supabase
+                .from('accounts')
+                .select('id, name, code, account_type')
+                .eq('is_active', true)
+                .order('name');
+            return data || [];
+        }
+    });
+
+    const { data: parties } = useQuery({
+        queryKey: ['parties-active'],
+        queryFn: async () => {
+            const { data } = await supabase
+                .from('parties')
+                .select('id, name, type')
+                .eq('is_active', true)
+                .order('name');
+            return data || [];
+        }
+    });
+
+    const { data: fuelTypes } = useQuery({
+        queryKey: ['fuel-types-active'],
+        queryFn: async () => {
+            const { data } = await supabase
+                .from('fuel_types')
+                .select('id, name, unit')
+                .eq('is_active', true)
+                .order('name');
+            return data || [];
+        }
+    });
+
+    const { data: recentVouchers } = useQuery({
+        queryKey: ['recent-factory-vouchers'],
+        queryFn: async () => {
+            const { data, error } = await supabase
                 .from('ledger_entries')
                 .select(`
-                    id, 
-                    voucher_no, 
-                    debit_amount, 
-                    credit_amount, 
-                    narration,
+                    voucher_no,
+                    voucher_type,
                     posting_date,
-                    account:accounts(name),
+                    narration,
+                    debit_amount,
+                    credit_amount,
+                    accounts(name),
                     party:parties(name)
-                `);
-
-            if (showPartyHistory && (onlineForm.from_id || onlineForm.to_id)) {
-                // Show history for the selected party
-                const partyId = onlineForm.from_id || onlineForm.to_id;
-                query = query.eq('party_id', partyId);
-            } else {
-                // Default: Daily History
-                query = query.eq('posting_date', onlineForm.date);
-            }
-
-            // FILTER: Only show Payments/Receipts in this view (Exclude Sales/Purchases)
-            query = query.eq('voucher_type', 'payment');
-
-            const { data, error } = await query.order('posting_date', { ascending: false }).order('created_at', { ascending: false });
+                `)
+                .in('voucher_type', ['adjustment', 'expense', 'receipt', 'payment', 'shrinkage', 'asset', 'withdrawal'])
+                .order('created_at', { ascending: false })
+                .limit(15);
 
             if (error) throw error;
-
-            // Group by voucher_no
-            const voucherGroups: Record<string, any> = {};
-            data.forEach((entry: any) => {
-                if (!voucherGroups[entry.voucher_no]) {
-                    voucherGroups[entry.voucher_no] = {
-                        id: entry.id,
-                        date: entry.posting_date,
-                        voucher_no: entry.voucher_no,
-                        amount: Math.max(entry.debit_amount, entry.credit_amount),
-                        remarks: (entry.narration || '').replace(/^Ref: N\/A - /, '').trim(),
-                        from_name: entry.credit_amount > 0 ? (entry.party?.name || entry.account?.name) : '',
-                        to_name: entry.debit_amount > 0 ? (entry.party?.name || entry.account?.name) : '',
-                        debit: entry.debit_amount,
-                        credit: entry.credit_amount
-                    };
-                } else {
-                    if (entry.credit_amount > 0) voucherGroups[entry.voucher_no].from_name = entry.party?.name || entry.account?.name;
-                    if (entry.debit_amount > 0) voucherGroups[entry.voucher_no].to_name = entry.party?.name || entry.account?.name;
-                    if (entry.debit_amount > 0) voucherGroups[entry.voucher_no].debit = entry.debit_amount;
-                    if (entry.credit_amount > 0) voucherGroups[entry.voucher_no].credit = entry.credit_amount;
+            
+            // Unique by voucher_no
+            const unique = [];
+            const seen = new Set();
+            for (const item of data) {
+                if (!seen.has(item.voucher_no)) {
+                    unique.push(item);
+                    seen.add(item.voucher_no);
                 }
-            });
-
-            return Object.values(voucherGroups);
+            }
+            return unique;
         }
     });
 
-    // FETCH UNIFIED ACCOUNTS (Parties + System Accounts)
-    const { data: allAccounts } = useQuery({
-        queryKey: ['all-accounts-fresh'],
-        queryFn: async () => {
-            const [partiesRes, accRes] = await Promise.all([
-                supabase.from('parties').select('id, name, type, current_balance').eq('is_active', true),
-                supabase.from('accounts').select('id, name, account_type').eq('is_active', true).in('account_type', ['asset', 'liability', 'expense', 'income'])
-            ]);
-
-            const systemKeywords = ['receivable', 'payable', 'control', 'inventory', 'cost of goods', 'sales', 'revenue', 'equity', 'capital', 'drawings', 'opening balance', 'retained earnings', 'advance'];
-
-            // Map Parties
-            const parties = (partiesRes.data || []).map(p => ({
-                id: p.id,
-                name: p.name,
-                type: 'party',
-                originalType: p.type,
-                balance: p.current_balance
-            }));
-
-            // Map Accounts (Cash, Bank, and Expense/Income)
-            const accounts = (accRes.data || [])
-                .filter(a => {
-                    const nameLower = a.name.toLowerCase();
-                    // Include Cash/Bank OR any Expense/Income account (excluding strict system controls)
-                    const isCashBank = nameLower.includes('cash') || nameLower.includes('bank');
-                    const isExpenseIncome = ['expense', 'income'].includes(a.account_type);
-                    const isSystemControl = systemKeywords.some(k => nameLower.includes(k));
-
-                    return isCashBank || (isExpenseIncome && !isSystemControl);
-                })
-                .map(a => ({ id: a.id, name: a.name, type: 'account', originalType: a.account_type, balance: 0 }));
-
-            return [...parties, ...accounts].sort((a, b) => a.name.localeCompare(b.name));
-        },
-        staleTime: 30 * 1000, // 30 seconds — parties can be added but not every second
-    });
-
-    const p_narration_val = `Ref: ${onlineForm.reference || 'N/A'} - ${onlineForm.remarks || ''}`;
-
-    const onlineMutation = useMutation({
-        mutationFn: async (data: typeof onlineForm) => {
-            if (!data.from_id || !data.to_id || !data.amount) throw new Error("Please fill all required fields");
-            const fromEntity = allAccounts?.find(a => a.id === data.from_id);
-            const toEntity = allAccounts?.find(a => a.id === data.to_id);
-            if (!fromEntity || !toEntity) throw new Error("Invalid accounts");
-
-            const { error } = await (supabase as any).rpc('post_munshi_voucher', {
-                p_from_account_id: fromEntity.id,
-                p_to_account_id: toEntity.id,
-                p_amount: parseFloat(data.amount),
-                p_narration: p_narration_val,
-                p_date: data.date,
-                p_voucher_no: isEditMode ? editVoucherNo : null
-            });
-            if (error) throw error;
-            return true;
-        },
-        onSuccess: () => {
-            toast({
-                title: isEditMode ? 'Voucher Revised' : 'Transfer Recorded',
-                description: isEditMode ? 'Old records scrubbed and new ones posted.' : 'Account balances adjusted.'
-            });
-            setShowSuccessModal(true);
-            queryClient.invalidateQueries({ queryKey: ['roznamcha'] });
-            queryClient.invalidateQueries({ queryKey: ['transaction-history'] });
-            queryClient.invalidateQueries({ queryKey: ['calculated-inventory'] });
-            queryClient.invalidateQueries({ queryKey: ['all-accounts-fresh'] });
-            resetOnlineForm();
-            if (isEditMode) {
-                setIsEditMode(false);
-                setEditVoucherNo(null);
-                navigate('/manage-transactions'); // Clear query params
-            }
-        },
-        onError: (e) => toast({ variant: 'destructive', title: 'Error', description: e.message })
-    });
-
-
-    // ------------------------------------------
-    // TAB 2: SALES (Petrol Out)
-    // ------------------------------------------
-    const [salesForm, setSalesForm] = useState({
-        sale_date: new Date().toISOString().split('T')[0],
-        party_id: '',
-        fuel_type_id: '',
-        quantity: '',
-        rate_per_unit: '',
-        is_credit: false,
-        notes: '',
-    });
-    const [quickAddOpen, setQuickAddOpen] = useState(false);
-    const [quickAddInitialType, setQuickAddInitialType] = useState<any>('trade_party');
-    const [quickAddInitialPartyType, setQuickAddInitialPartyType] = useState<'customer' | 'supplier' | 'both'>('customer');
-
-    const salesMutation = useMutation({
-        mutationFn: async (data: typeof salesForm) => {
-            if (!data.party_id) throw new Error("Please select a valid Account (Party)");
-
-            // Stock Validation (Skip or warn on edit if complex, but simple check against current)
-            if (!isEditMode) {
-                const stockItem = inventoryData?.find(i => i.fuel_type_id === data.fuel_type_id);
-                const currentStock = stockItem?.current_stock || 0;
-                const requested = parseFloat(data.quantity);
-                if (currentStock < requested) {
-                    throw new Error(`ACCOUNTING INTEGRITY ALERT: Negative Stock is blocked. Current ${stockItem?.fuel_type_name} availability: ${formatNumber(currentStock)} L.`);
+    // ── Mutation ───────────────────────────────────────────────
+    const mutation = useMutation({
+        mutationFn: async (payload: typeof form) => {
+            if (txnType === 'ACTION_CENTER') {
+                if (!payload.from_entity_id || !payload.to_entity_id || !payload.amount) {
+                    throw new Error("Source, Destination, and Amount are required.");
                 }
+                if (payload.from_entity_id === payload.to_entity_id && payload.from_type === payload.to_type) {
+                    throw new Error("Source and Destination cannot be the same.");
+                }
+                const { data, error } = await (supabase as any).rpc('create_manage_transaction', {
+                    p_transaction_type: payload.action_type,
+                    p_from_type: payload.from_type,
+                    p_from_entity_id: payload.from_entity_id,
+                    p_to_type: payload.to_type,
+                    p_to_entity_id: payload.to_entity_id,
+                    p_amount: parseFloat(payload.amount),
+                    p_narration: payload.narration,
+                    p_transaction_date: payload.date
+                });
+                if (error) throw error;
+                return data;
             }
 
-            const qty = parseFloat(data.quantity);
-            const rate = parseFloat(data.rate_per_unit);
-            const saleData = {
-                sale_date: data.sale_date,
-                party_id: data.party_id,
-                fuel_type_id: data.fuel_type_id,
-                quantity: qty,
-                rate_per_unit: rate,
-                total_amount: qty * rate,
-                notes: data.notes
-            };
-
-            if (isEditMode && editVoucherNo) {
-                const { error } = await supabase.from('sales').update(saleData).eq('voucher_no', editVoucherNo);
+            if (txnType === 'SHRINKAGE') {
+                if (!payload.fuel_type_id || !payload.quantity_lost || !payload.rate_per_liter) {
+                    throw new Error("Please provide Fuel Type, Quantity and Rate.");
+                }
+                const { data, error } = await (supabase as any).rpc('post_fuel_shrinkage_writeoff', {
+                    p_fuel_type_id: payload.fuel_type_id,
+                    p_quantity_lost: parseFloat(payload.quantity_lost),
+                    p_rate_per_liter: parseFloat(payload.rate_per_liter),
+                    p_date: payload.date,
+                    p_reason: payload.reason,
+                    p_voucher_no: isEditMode ? editVoucherNo : null
+                });
                 if (error) throw error;
-            } else {
-                const { error } = await supabase.from('sales').insert({
-                    ...saleData,
-                    voucher_no: `SAL-${Date.now()}`,
-                    is_credit: true,
-                    created_by: user?.id
-                } as any);
-                if (error) throw error;
+                return data;
             }
-            return true;
+
+            if (txnType === 'EXPENSE') {
+                if (!payload.expense_account_id || !payload.payment_account_id || !payload.amount) {
+                    throw new Error("Missing required fields.");
+                }
+                const { data, error } = await (supabase as any).rpc('post_expense_entry', {
+                    p_expense_account_id: payload.expense_account_id,
+                    p_payment_account_id: payload.payment_account_id,
+                    p_amount: parseFloat(payload.amount),
+                    p_narration: payload.narration,
+                    p_date: payload.date,
+                    p_voucher_no: isEditMode ? editVoucherNo : null
+                });
+                if (error) throw error;
+                return data;
+            }
+
+            if (txnType === 'ASSET_PURCHASE') {
+                if (!payload.asset_name || !payload.amount || !payload.payment_account_id) {
+                    throw new Error("Missing asset details or payment source.");
+                }
+                const { data, error } = await (supabase as any).rpc('purchase_fixed_asset', {
+                    p_name: payload.asset_name,
+                    p_category: payload.asset_category,
+                    p_amount: parseFloat(payload.amount),
+                    p_date: payload.date,
+                    p_paid_from_account_id: payload.payment_account_id,
+                    p_description: payload.narration
+                });
+                if (error) throw error;
+                return data;
+            }
+
+            if (txnType === 'OWNER_WITHDRAWAL') {
+                if (!payload.amount || !payload.payment_account_id) {
+                    throw new Error("Amount and payment source required.");
+                }
+                const { data, error } = await (supabase as any).rpc('post_owner_withdrawal', {
+                    p_payment_account_id: payload.payment_account_id,
+                    p_amount: parseFloat(payload.amount),
+                    p_narration: payload.narration || 'Owner Withdrawal',
+                    p_date: payload.date
+                });
+                if (error) throw error;
+                return data;
+            }
         },
         onSuccess: () => {
             toast({
-                title: isEditMode ? 'Sale Revised' : 'Sale Recorded',
-                description: isEditMode ? 'Stock and Ledger recalculated.' : 'Inventory deducted, Account debited.'
+                title: 'Transaction Posted',
+                description: 'The record has been committed to the ledger and inventory.'
             });
-            setSalesForm(prev => ({ ...prev, quantity: '', notes: '' }));
+            // Reset form partly
+            setForm(prev => ({ 
+                ...prev, 
+                amount: '', 
+                narration: '', 
+                quantity_lost: '', 
+                asset_name: '' 
+            }));
             queryClient.invalidateQueries({ queryKey: ['roznamcha'] });
-            queryClient.invalidateQueries({ queryKey: ['transaction-history'] });
+            queryClient.invalidateQueries({ queryKey: ['recent-factory-vouchers'] });
             queryClient.invalidateQueries({ queryKey: ['calculated-inventory'] });
-            queryClient.invalidateQueries({ queryKey: ['all-accounts-fresh'] });
+            
             if (isEditMode) {
                 setIsEditMode(false);
                 setEditVoucherNo(null);
                 navigate('/manage-transactions');
             }
         },
-        onError: (e) => toast({ variant: 'destructive', title: 'Sale Failed', description: e.message })
+        onError: (e) => toast({ variant: 'destructive', title: 'Transaction Failed', description: e.message })
     });
 
-    // Validations for Sales
-    const selectedFuelStock = inventoryData?.find(i => i.fuel_type_id === salesForm.fuel_type_id);
-    const availableStock = (selectedFuelStock?.current_stock || 0) + (isEditMode ? originalQty : 0);
-    const requestedQty = parseFloat(salesForm.quantity) || 0;
-    const hasInsufficientStock = requestedQty > availableStock && (selectedFuelStock?.current_stock || 0) >= 0;
-
-    // ------------------------------------------
-    // TAB 3: PURCHASES (Petrol In)
-    // ------------------------------------------
-    const [purchaseForm, setPurchaseForm] = useState({
-        purchase_date: new Date().toISOString().split('T')[0],
-        party_id: '',
-        fuel_type_id: '',
-        quantity: '',
-        rate_per_unit: '',
-        is_credit: false,
-        notes: '',
-        is_paid_now: 'false',
-        payment_method: 'Cash'
-    });
-
-    const purchaseMutation = useMutation({
-        mutationFn: async (data: typeof purchaseForm) => {
-            if (!data.party_id) throw new Error("Please select a Supplier/Account");
-            const qty = parseFloat(data.quantity);
-            const rate = parseFloat(data.rate_per_unit);
-
-            const payload: any = {
-                purchase_date: data.purchase_date,
-                party_id: data.party_id,
-                fuel_type_id: data.fuel_type_id,
-                quantity: qty,
-                rate_per_unit: rate,
-                total_amount: qty * rate,
-                notes: data.notes,
-                payment_method: data.payment_method || 'Cash'
-            };
-
-            if (isEditMode && editVoucherNo) {
-                const { error } = await supabase.from('purchases').update(payload).eq('voucher_no', editVoucherNo);
-                if (error) throw error;
-            } else {
-                const { error } = await supabase.from('purchases').insert({
-                    ...payload,
-                    voucher_no: `PUR-${Date.now()}`,
-                    created_by: user?.id,
-                    is_paid_now: false // Force Credit-First
-                } as any);
-                if (error) throw error;
-            }
-            return true;
-        },
-        onSuccess: () => {
-            toast({
-                title: isEditMode ? 'Purchase Revised' : 'Purchase Recorded',
-                description: isEditMode ? 'Inventory and Ledger synchronized.' : 'Inventory added, Account credited.'
-            });
-            setPurchaseForm(prev => ({ ...prev, quantity: '', notes: '' }));
-            queryClient.invalidateQueries({ queryKey: ['roznamcha'] });
-            queryClient.invalidateQueries({ queryKey: ['transaction-history'] });
-            queryClient.invalidateQueries({ queryKey: ['calculated-inventory'] });
-            queryClient.invalidateQueries({ queryKey: ['all-accounts-fresh'] });
-            if (isEditMode) {
-                setIsEditMode(false);
-                setEditVoucherNo(null);
-                navigate('/manage-transactions');
-            }
-        },
-        onError: (e) => toast({ variant: 'destructive', title: 'Purchase Failed', description: e.message })
-    });
-
+    const handleTypeChange = (val: TransactionType) => {
+        setTxnType(val);
+        // Reset some fields that are specific
+        setForm(prev => ({
+            ...prev,
+            amount: '',
+            narration: '',
+            expense_account_id: '',
+            fuel_type_id: '',
+            quantity_lost: '',
+            rate_per_liter: ''
+        }));
+    };
 
     return (
         <DashboardLayout>
-            <div className="max-w-[1600px] mx-auto space-y-8 p-1">
-                {/* --- HEADER --- */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-6">
+            <div className="max-w-7xl mx-auto pb-20 px-6">
+                <div className="report-header mb-8 flex justify-between items-end">
                     <div>
-                        <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-slate-900 uppercase">
-                            {isEditMode ? "Voucher Revision" : "Financial Operations"}
-                        </h1>
-                        <p className="text-xs text-slate-500 font-medium mt-1">
-                            {isEditMode ? `Modifying original entry for ${editVoucherNo}. Changes will auto-reconcile stock.` : "Record payments, credit sales, and procurement."}
+                        <h1 className="report-title">{isEditMode ? "Modify Transaction" : "Voucher Factory"}</h1>
+                        <p className="report-subtitle">
+                            {isEditMode 
+                                ? `Revising existing voucher ${editVoucherNo}` 
+                                : "Unified terminal for processing administrative, operational, and inventory adjustments."}
                         </p>
                     </div>
                     {isEditMode && (
@@ -498,452 +371,501 @@ export default function ManageTransactions() {
                             onClick={() => {
                                 setIsEditMode(false);
                                 setEditVoucherNo(null);
-                                resetOnlineForm();
-                                setSalesForm(prev => ({ ...prev, quantity: '', notes: '' }));
-                                setPurchaseForm(prev => ({ ...prev, quantity: '', notes: '' }));
                                 navigate('/manage-transactions');
                             }}
                         >
-                            Abort Edit & Exit
+                            Cancel Edit
                         </Button>
                     )}
                 </div>
 
-                {/* --- TABS --- */}
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-8">
-                    <TabsList className="bg-slate-100/50 p-1 rounded-xl flex flex-col md:flex-row gap-2 h-auto w-full md:w-fit border border-slate-200">
-                        <TabsTrigger value="online" className="h-10 px-4 md:px-6 rounded-lg font-bold data-[state=active]:bg-slate-900 data-[state=active]:text-white transition-all shadow-sm w-full md:w-auto text-[11px] md:text-sm">
-                            <ArrowRightLeft className="mr-2 h-4 w-4" /> Transfer
-                        </TabsTrigger>
-                        <TabsTrigger value="sales" className="h-10 px-4 md:px-6 rounded-lg font-bold data-[state=active]:bg-emerald-600 data-[state=active]:text-white transition-all shadow-sm w-full md:w-auto text-[11px] md:text-sm">
-                            <ShoppingCart className="mr-2 h-4 w-4" /> Credit Sale
-                        </TabsTrigger>
-                        <TabsTrigger value="purchases" className="h-10 px-4 md:px-6 rounded-lg font-bold data-[state=active]:bg-rose-600 data-[state=active]:text-white transition-all shadow-sm w-full md:w-auto text-[11px] md:text-sm">
-                            <Truck className="mr-2 h-4 w-4" /> Purchase Entry
-                        </TabsTrigger>
-                    </TabsList>
-
-                    {/* --- TAB 1: ONLINE (PAYMENTS) --- */}
-                    <TabsContent value="online" className="animate-in fade-in slide-in-from-bottom-3 duration-500 space-y-8">
-
-                        {/* INPUT CARD */}
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                            <div className="lg:col-span-8 space-y-6">
-                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                                    <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                                        <h3 className="font-extrabold text-slate-700 text-sm uppercase tracking-wider flex items-center gap-2">
-                                            <Banknote className="h-4 w-4 text-slate-400" /> Payment Voucher
-                                        </h3>
-                                        {/* Date Navigator */}
-                                        <div className="flex items-center gap-2 bg-white rounded-lg border shadow-sm p-1">
-                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                                                const d = new Date(onlineForm.date);
-                                                d.setDate(d.getDate() - 1);
-                                                setOnlineForm({ ...onlineForm, date: d.toISOString().split('T')[0] });
-                                            }}><ChevronLeft className="h-3 w-3" /></Button>
-                                            <input
-                                                type="date"
-                                                value={onlineForm.date}
-                                                onChange={(e) => setOnlineForm({ ...onlineForm, date: e.target.value })}
-                                                className="h-6 px-1 border-none bg-transparent text-[10px] font-mono font-bold w-[110px] text-center focus:outline-none"
-                                            />
-                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                                                const d = new Date(onlineForm.date);
-                                                d.setDate(d.getDate() + 1);
-                                                setOnlineForm({ ...onlineForm, date: d.toISOString().split('T')[0] });
-                                            }}><ChevronRight className="h-3 w-3" /></Button>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-8">
-                                        <form onSubmit={(e) => { e.preventDefault(); onlineMutation.mutate(onlineForm); }} className="space-y-8">
-                                            {/* Transaction Flow Visualizer */}
-                                            <div className="flex flex-col md:flex-row gap-4 items-center bg-slate-50 p-6 rounded-xl border border-slate-100 relative">
-
-                                                {/* GIVER */}
-                                                <div className="w-full space-y-2 relative z-10">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Money From (Giver)</Label>
-                                                    <Select value={onlineForm.from_id} onValueChange={(val) => {
-                                                        const acc = allAccounts?.find(a => a.id === val);
-                                                        setOnlineForm(prev => ({ ...prev, from_id: val, from_type: acc?.type || '' }));
-                                                    }}>
-                                                        <SelectTrigger ref={partySelectRef} className="h-12 bg-white font-bold border-slate-200 shadow-sm focus:ring-slate-900">
-                                                            <SelectValue placeholder="Select Source..." />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="max-h-[400px]">
-                                                            <div className="px-2 py-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border-b mb-1">Source Selection</div>
-
-                                                            {/* Group: Assets (Cash/Bank) - STRICT: NO EXPENSES/SALARIES */}
-                                                            <div className="px-2 py-1 text-[9px] font-black text-emerald-600 uppercase tracking-tighter mt-2">Cash & Bank Accounts</div>
-                                                            {allAccounts?.filter(a =>
-                                                                a.type === 'account' &&
-                                                                a.originalType === 'asset' &&
-                                                                !a.name.toLowerCase().includes('salary')
-                                                            ).map(a => (
-                                                                <SelectItem key={a.id} value={a.id} className="font-bold text-xs">{a.name}</SelectItem>
-                                                            ))}
-
-                                                            {/* Group: Parties - STRICT: NO SALARY/EXPENSE */}
-                                                            <div className="px-2 py-1 text-[9px] font-black text-indigo-600 uppercase tracking-tighter mt-2">Trade Parties (Ledgers)</div>
-                                                            {allAccounts?.filter(a =>
-                                                                a.type === 'party' &&
-                                                                a.originalType !== 'expense' &&
-                                                                !a.name.toLowerCase().includes('salary')
-                                                            ).map(a => (
-                                                                <SelectItem key={a.id} value={a.id} className="font-bold text-xs">{a.name}</SelectItem>
-                                                            ))}
-
-                                                            {/* Group: Income Adjustment */}
-                                                            <div className="px-2 py-1 text-[9px] font-black text-amber-600 uppercase tracking-tighter mt-2">Income & Receipts</div>
-                                                            {allAccounts?.filter(a =>
-                                                                a.type === 'account' &&
-                                                                a.originalType === 'income' &&
-                                                                !a.name.toLowerCase().includes('salary')
-                                                            ).map(a => (
-                                                                <SelectItem key={a.id} value={a.id} className="font-medium text-xs italic">{a.name}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-
-                                                {/* DIRECTION ARROW */}
-                                                <div className="hidden md:flex flex-col items-center justify-center pt-6 text-slate-300">
-                                                    <ArrowRightLeft className="h-6 w-6" />
-                                                </div>
-
-                                                {/* RECEIVER */}
-                                                <div className="w-full space-y-2 relative z-10">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Money To (Receiver)</Label>
-                                                    <Select value={onlineForm.to_id} onValueChange={(val) => {
-                                                        const acc = allAccounts?.find(a => a.id === val);
-                                                        setOnlineForm(prev => ({ ...prev, to_id: val, to_type: acc?.type || '' }));
-                                                    }}>
-                                                        <SelectTrigger className="h-12 bg-white font-bold border-slate-200 shadow-sm focus:ring-slate-900">
-                                                            <SelectValue placeholder="Select Destination..." />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="max-h-[400px]">
-                                                            <div className="px-2 py-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border-b mb-1">Destination Selection</div>
-
-                                                            {/* Group: Expenses (Primary Receivers for Salaries/Bills) */}
-                                                            <div className="px-2 py-1 text-[9px] font-black text-rose-600 uppercase tracking-tighter mt-2">Salaries, Bills & Expenses</div>
-                                                            {allAccounts?.filter(a => a.type === 'account' && a.originalType === 'expense').map(a => (
-                                                                <SelectItem key={a.id} value={a.id} className="font-bold text-xs">{a.name}</SelectItem>
-                                                            ))}
-
-                                                            {/* Group: Parties */}
-                                                            <div className="px-2 py-1 text-[9px] font-black text-indigo-600 uppercase tracking-tighter mt-2">Trade Parties (Ledgers)</div>
-                                                            {allAccounts?.filter(a => a.type === 'party').map(a => (
-                                                                <SelectItem key={a.id} value={a.id} className="font-bold text-xs">{a.name}</SelectItem>
-                                                            ))}
-
-                                                            {/* Group: Assets (Internal Transfers) */}
-                                                            <div className="px-2 py-1 text-[9px] font-black text-emerald-600 uppercase tracking-tighter mt-2">Cash & Bank Accounts</div>
-                                                            {allAccounts?.filter(a => a.type === 'account' && a.originalType === 'asset').map(a => (
-                                                                <SelectItem key={a.id} value={a.id} className="font-bold text-xs">{a.name}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </div>
-
-                                            {/* DETAILS */}
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-4 md:gap-6 items-end">
-                                                <div className="md:col-span-4 space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Amount (PKR)</Label>
-                                                    <div className="relative">
-                                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Rs.</span>
-                                                        <Input
-                                                            className="h-14 pl-12 text-xl font-black tracking-tight border-slate-200 focus:border-slate-400 focus:ring-0"
-                                                            placeholder="0"
-                                                            type="number"
-                                                            value={onlineForm.amount}
-                                                            onChange={e => setOnlineForm({ ...onlineForm, amount: e.target.value })}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="md:col-span-4 space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Reference</Label>
-                                                    <Input className="h-14 font-medium border-slate-200" placeholder="#Ref-001" value={onlineForm.reference} onChange={e => setOnlineForm({ ...onlineForm, reference: e.target.value })} />
-                                                </div>
-                                                <div className="sm:col-span-2 md:col-span-4 flex items-end">
-                                                    <Button type="submit" className="h-14 w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-base shadow-slate-900/20 shadow-lg tracking-wide" disabled={onlineMutation.isPending}>
-                                                        {onlineMutation.isPending ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
-                                                        {onlineMutation.isPending ? "PROCESSING..." : (isEditMode ? "COMMIT REVISIONS" : "CONFIRM TRANSFER")}
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Remarks</Label>
-                                                <Input className="h-11 border-slate-200 bg-slate-50/50" placeholder="Optional notes..." value={onlineForm.remarks} onChange={e => setOnlineForm({ ...onlineForm, remarks: e.target.value })} />
-                                            </div>
-                                        </form>
-                                    </div>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    {/* ── LEFT: MAIN FORM ──────────────────────────────── */}
+                    <div className="lg:col-span-8">
+                        <div className="border border-slate-300 bg-white">
+                            <div className="bg-slate-900 px-6 py-6 border-b border-slate-800">
+                                <div className="flex flex-wrap gap-2">
+                                    {[
+                                        { id: 'ACTION_CENTER', label: 'Party Transfer', icon: Users, color: 'emerald' },
+                                        { id: 'EXPENSE', label: 'Standard Expense', icon: Wallet, color: 'slate' },
+                                        { id: 'SHRINKAGE', label: 'Fuel Loss', icon: AlertTriangle, color: 'rose' },
+                                        { id: 'ASSET_PURCHASE', label: 'Asset Entry', icon: Building, color: 'blue' },
+                                        { id: 'OWNER_WITHDRAWAL', label: 'Owner Out', icon: History, color: 'amber' },
+                                    ].map((mode) => (
+                                        <button
+                                            key={mode.id}
+                                            type="button"
+                                            onClick={() => handleTypeChange(mode.id as TransactionType)}
+                                            className={cn(
+                                                "flex items-center gap-3 px-4 py-2 text-[10px] font-black uppercase tracking-widest border transition-all",
+                                                txnType === mode.id 
+                                                    ? `bg-${mode.color}-600 border-${mode.color}-500 text-white shadow-[0_0_15px_rgba(0,0,0,0.3)]`
+                                                    : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500"
+                                            )}
+                                        >
+                                            <mode.icon className={cn("h-4 w-4", txnType === mode.id ? "text-white" : "text-slate-500")} />
+                                            {mode.label}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
 
-                            {/* HISTORY SIDEBAR */}
-                            <div className="lg:col-span-4 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2">
-                                        <History className="h-4 w-4" /> Recent Ledger
-                                    </h3>
-                                    <div className="flex items-center gap-2">
-                                        <Label htmlFor="hist-toggle" className="text-[10px] font-bold uppercase cursor-pointer">Filter Party</Label>
-                                        <Switch id="hist-toggle" checked={showPartyHistory} onCheckedChange={setShowPartyHistory} />
-                                    </div>
-                                </div>
-                                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-[500px] flex flex-col">
-                                    <div className="overflow-y-auto flex-1 p-0">
-                                        {historyData && historyData.length > 0 ? (
-                                            <div className="divide-y divide-slate-100">
-                                                {historyData.map((txn: any) => (
-                                                    <div key={txn.id} className="p-4 hover:bg-slate-50 transition-colors group">
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{txn.voucher_no}</span>
-                                                            <span className="text-[10px] font-bold text-slate-400">{txn.date}</span>
-                                                        </div>
-                                                        <div className="flex justify-between items-center mb-1">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-xs font-bold text-slate-700">{txn.from_name} <span className="text-slate-300 mx-1">→</span> {txn.to_name}</span>
-                                                            </div>
-                                                            <span className="font-extrabold text-slate-900">{formatPKR(txn.amount)}</span>
-                                                        </div>
-                                                        <p className="text-[10px] text-slate-400 line-clamp-1 italic">{txn.remarks}</p>
-                                                    </div>
-                                                ))}
+                            <div className="p-8">
+                                <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(form); }} className="space-y-8">
+                                    
+                                    {/* ── SHARED: DATE & SOURCE ────────────────────────── */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest flex items-center gap-2">
+                                                <Calendar className="h-3 w-3" /> Posting Date
+                                            </Label>
+                                            <Input 
+                                                type="date" 
+                                                value={form.date} 
+                                                onChange={e => setForm({ ...form, date: e.target.value })} 
+                                                className="h-11 rounded-none border-slate-300 font-bold" 
+                                            />
+                                        </div>
+
+                                        {txnType !== 'SHRINKAGE' && txnType !== 'ACTION_CENTER' && (
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest flex items-center gap-2">
+                                                    <Wallet className="h-3 w-3" /> Payment Source (Cash/Bank)
+                                                </Label>
+                                                <Select value={form.payment_account_id} onValueChange={(val) => setForm({ ...form, payment_account_id: val })}>
+                                                    <SelectTrigger className="h-11 rounded-none border-slate-300 font-bold focus:ring-0">
+                                                        <SelectValue placeholder="Select Cash/Bank..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="rounded-none border-slate-900">
+                                                        {paymentAccounts?.map(a => <SelectItem key={a.id} value={a.id} className="font-bold text-xs uppercase">{a.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
-                                        ) : (
-                                            <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8 text-center">
-                                                <AlertTriangle className="h-8 w-8 mb-2 opacity-20" />
-                                                <p className="text-xs font-medium">No transactions found for this date/filter.</p>
+                                        )}
+                                        {txnType === 'ACTION_CENTER' && (
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest flex items-center gap-2">
+                                                    <ArrowRightLeft className="h-3 w-3" /> Transfer Mode
+                                                </Label>
+                                                <div className="h-11 px-4 flex items-center bg-emerald-100 border border-emerald-200 text-emerald-900 font-black text-xs uppercase">
+                                                    {form.action_type === 'transfer' ? 'Party to Party Adjustment' : 
+                                                     form.action_type === 'receipt' ? 'Party to Cash/Bank Receipt' :
+                                                     form.action_type === 'payment' ? 'Cash/Bank to Party Payment' : 'Contra Entry'}
+                                                </div>
                                             </div>
                                         )}
                                     </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Confirmation Modal */}
-                        <AlertDialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-                            <AlertDialogContent className="bg-white border-none shadow-2xl rounded-2xl">
-                                <AlertDialogHeader>
-                                    <div className="mx-auto bg-green-100 h-16 w-16 rounded-full flex items-center justify-center mb-4">
-                                        <CheckCircle2 className="h-8 w-8 text-green-600" />
-                                    </div>
-                                    <AlertDialogTitle className="text-center text-xl font-black text-slate-900">Transaction Successful</AlertDialogTitle>
-                                    <AlertDialogDescription className="text-center font-medium text-slate-500">
-                                        The payment has been securely recorded in the ledger.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter className="sm:justify-center">
-                                    <AlertDialogAction className="bg-slate-900 hover:bg-slate-800 font-bold px-8">CLOSE</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </TabsContent>
+                                    {/* ── TYPE SPECIFIC CONTENT ────────────────────────── */}
+                                    <div className={cn(
+                                        "p-6 border space-y-8 transition-all",
+                                        txnType === 'ACTION_CENTER' ? "bg-emerald-50 border-emerald-100" :
+                                        txnType === 'SHRINKAGE' ? "bg-rose-50 border-rose-100" : 
+                                        txnType === 'ASSET_PURCHASE' ? "bg-blue-50 border-blue-100" :
+                                        txnType === 'OWNER_WITHDRAWAL' ? "bg-amber-50 border-amber-100" :
+                                        "bg-slate-50 border-slate-200"
+                                    )}>
 
-                    {/* --- TAB 2: SALES --- */}
-                    <TabsContent value="sales" className="animate-in fade-in slide-in-from-bottom-3 duration-500">
-                        <div className="grid grid-cols-1 lg:grid-cols-6 gap-8">
-                            <div className="lg:col-span-4 space-y-6">
-                                <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
-                                    <div className="bg-emerald-50/50 px-6 py-4 border-b border-emerald-100 flex items-center justify-between">
-                                        <h3 className="font-extrabold text-emerald-800 text-sm uppercase tracking-wider flex items-center gap-2">
-                                            <ShoppingCart className="h-4 w-4 text-emerald-600" /> Credit Sale (Udhaar)
-                                        </h3>
-                                        <Button variant="ghost" size="sm" onClick={() => { setQuickAddInitialType('trade_party'); setQuickAddInitialPartyType('customer'); setQuickAddOpen(true); }} className="text-emerald-700 hover:bg-emerald-100 text-xs font-bold gap-1">
-                                            <UserPlus className="h-3 w-3" /> New Customer
-                                        </Button>
-                                    </div>
-                                    <div className="p-8">
-                                        <form onSubmit={(e) => { e.preventDefault(); salesMutation.mutate(salesForm); }} className="space-y-6">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Sale Date</Label>
-                                                    <Input
-                                                        type="date"
-                                                        value={salesForm.sale_date}
-                                                        onChange={e => setSalesForm({ ...salesForm, sale_date: e.target.value })}
-                                                        className="h-12 border-emerald-100 font-bold text-slate-800"
-                                                    />
+                                        {/* 0. ACTION CENTER (TRANFERS/RECEIPTS/PAYMENTS) */}
+                                        {txnType === 'ACTION_CENTER' && (
+                                            <div className="space-y-8">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest">Movement Nature</Label>
+                                                        <Select value={form.action_type} onValueChange={(val: any) => setForm({ ...form, action_type: val })}>
+                                                            <SelectTrigger className="h-11 rounded-none border-emerald-300 bg-white font-bold text-emerald-900 shadow-sm">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="rounded-none border-emerald-900">
+                                                                <SelectItem value="transfer" className="font-bold text-xs uppercase">Party to Party (Adjustment)</SelectItem>
+                                                                <SelectItem value="receipt" className="font-bold text-xs uppercase">Party to Cash/Bank (Receipt)</SelectItem>
+                                                                <SelectItem value="payment" className="font-bold text-xs uppercase">Cash/Bank to Party (Payment)</SelectItem>
+                                                                <SelectItem value="contra" className="font-bold text-xs uppercase">Cash to Bank / Contra</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest">Amount to Transfer (PKR)</Label>
+                                                        <div className="relative">
+                                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-emerald-400 text-lg">Rs.</span>
+                                                            <Input
+                                                                className="h-11 rounded-none pl-12 text-2xl font-black num-audit border-emerald-300 bg-white text-emerald-900 focus:ring-0 shadow-sm"
+                                                                placeholder="0.00"
+                                                                type="number"
+                                                                value={form.amount}
+                                                                onChange={e => setForm({ ...form, amount: e.target.value })}
+                                                            />
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Customer Account</Label>
-                                                    <Select value={salesForm.party_id} onValueChange={(val) => setSalesForm({ ...salesForm, party_id: val })}>
-                                                        <SelectTrigger className="h-12 border-emerald-100 font-bold text-slate-800"><SelectValue placeholder="Select Customer..." /></SelectTrigger>
-                                                        <SelectContent>
-                                                            {allAccounts?.filter(a => a.type === 'party').map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </div>
 
-                                            <div className="grid grid-cols-2 gap-6">
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Fuel Type</Label>
-                                                    <Select value={salesForm.fuel_type_id} onValueChange={(val) => setSalesForm({ ...salesForm, fuel_type_id: val })}>
-                                                        <SelectTrigger className="h-12 border-emerald-100 font-bold"><SelectValue placeholder="Select Product..." /></SelectTrigger>
-                                                        <SelectContent>
-                                                            {fuelTypes?.map(f => {
-                                                                const stock = inventoryData?.find(i => i.fuel_type_id === f.id)?.current_stock || 0;
-                                                                return <SelectItem key={f.id} value={f.id}>{f.name} <span className="text-xs text-slate-400 ml-1">({formatNumber(stock)} L)</span></SelectItem>
-                                                            })}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Liters</Label>
-                                                    <Input className={cn("h-12 font-bold border-emerald-100", hasInsufficientStock ? "border-red-500 ring-1 ring-red-500" : "")} type="number" value={salesForm.quantity} onChange={e => setSalesForm({ ...salesForm, quantity: e.target.value })} />
-                                                    {hasInsufficientStock && <span className="text-[10px] text-red-600 font-black animate-pulse block text-right">⚠️ INSUFFICIENT STOCK</span>}
-                                                </div>
-                                            </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-4">
+                                                    {/* FROM ENTITY */}
+                                                    <div className="space-y-4">
+                                                        <div className="flex justify-between items-center border-b border-emerald-200 pb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <TrendingDown className="h-3 w-3 text-rose-500" />
+                                                                <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest">FROM (Sender / Source)</Label>
+                                                            </div>
+                                                            <div className="flex bg-slate-100 p-0.5 rounded-none border border-slate-200">
+                                                                <button 
+                                                                    type="button" 
+                                                                    className={cn("text-[8px] font-black uppercase px-3 py-1 transition-all", form.from_type === 'party' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+                                                                    onClick={() => setForm({ ...form, from_type: 'party', from_entity_id: '' })}
+                                                                >Party</button>
+                                                                <button 
+                                                                    type="button" 
+                                                                    className={cn("text-[8px] font-black uppercase px-3 py-1 transition-all", form.from_type === 'account' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+                                                                    onClick={() => setForm({ ...form, from_type: 'account', from_entity_id: '' })}
+                                                                >General Acc</button>
+                                                            </div>
+                                                        </div>
+                                                        <Select value={form.from_entity_id} onValueChange={(val) => setForm({ ...form, from_entity_id: val })}>
+                                                            <SelectTrigger className="h-12 rounded-none border-emerald-300 bg-white font-black text-xs uppercase text-emerald-900 shadow-sm">
+                                                                <SelectValue placeholder={`Select ${form.from_type}...`} />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="max-h-[300px] rounded-none border-emerald-900">
+                                                                {form.from_type === 'party' ? (
+                                                                    parties?.map(p => <SelectItem key={p.id} value={p.id} className="font-bold text-xs uppercase py-3 border-b border-slate-50 last:border-0"><Users className="h-3 w-3 inline mr-2 text-slate-400" /> {p.name}</SelectItem>)
+                                                                ) : (
+                                                                    allAccounts?.map(a => <SelectItem key={a.id} value={a.id} className="font-bold text-xs uppercase py-3 border-b border-slate-50 last:border-0"><Building className="h-3 w-3 inline mr-2 text-slate-400" /> {a.name}</SelectItem>)
+                                                                )}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <p className="text-[9px] text-emerald-400 font-bold uppercase italic">* This party's balance will be adjusted (CREDITED)</p>
+                                                    </div>
 
-                                            <div className="grid grid-cols-2 gap-6">
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Rate / Liter</Label>
-                                                    <Input className="h-12 font-bold border-emerald-100" type="number" step="0.01" value={salesForm.rate_per_unit} onChange={e => setSalesForm({ ...salesForm, rate_per_unit: e.target.value })} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Total</Label>
-                                                    <div className="h-12 bg-emerald-50 rounded-lg flex items-center justify-end px-4 font-mono text-lg font-bold text-emerald-800">
-                                                        {formatPKR((parseFloat(salesForm.quantity) || 0) * (parseFloat(salesForm.rate_per_unit) || 0))}
+                                                    {/* TO ENTITY */}
+                                                    <div className="space-y-4">
+                                                        <div className="flex justify-between items-center border-b border-emerald-200 pb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <TrendingUp className="h-3 w-3 text-emerald-500" />
+                                                                <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest">TO (Receiver / Target)</Label>
+                                                            </div>
+                                                            <div className="flex bg-slate-100 p-0.5 rounded-none border border-slate-200">
+                                                                <button 
+                                                                    type="button" 
+                                                                    className={cn("text-[8px] font-black uppercase px-3 py-1 transition-all", form.to_type === 'party' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+                                                                    onClick={() => setForm({ ...form, to_type: 'party', to_entity_id: '' })}
+                                                                >Party</button>
+                                                                <button 
+                                                                    type="button" 
+                                                                    className={cn("text-[8px] font-black uppercase px-3 py-1 transition-all", form.to_type === 'account' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600")}
+                                                                    onClick={() => setForm({ ...form, to_type: 'account', to_entity_id: '' })}
+                                                                >General Acc</button>
+                                                            </div>
+                                                        </div>
+                                                        <Select value={form.to_entity_id} onValueChange={(val) => setForm({ ...form, to_entity_id: val })}>
+                                                            <SelectTrigger className="h-12 rounded-none border-emerald-300 bg-white font-black text-xs uppercase text-emerald-900 shadow-sm">
+                                                                <SelectValue placeholder={`Select ${form.to_type}...`} />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="max-h-[300px] rounded-none border-emerald-900">
+                                                                {form.to_type === 'party' ? (
+                                                                    parties?.map(p => <SelectItem key={p.id} value={p.id} className="font-bold text-xs uppercase py-3 border-b border-slate-50 last:border-0"><Users className="h-3 w-3 inline mr-2 text-slate-400" /> {p.name}</SelectItem>)
+                                                                ) : (
+                                                                    allAccounts?.map(a => <SelectItem key={a.id} value={a.id} className="font-bold text-xs uppercase py-3 border-b border-slate-50 last:border-0"><Building className="h-3 w-3 inline mr-2 text-slate-400" /> {a.name}</SelectItem>)
+                                                                )}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <p className="text-[9px] text-emerald-400 font-bold uppercase italic">* This party's balance will be adjusted (DEBITED)</p>
                                                     </div>
                                                 </div>
                                             </div>
+                                        )}
 
-                                            <div className="space-y-2">
-                                                <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-wider pl-1">Details (Driver / Vehicle / Remarks)</Label>
-                                                <Textarea
-                                                    className="min-h-[80px] border-emerald-100 font-medium bg-emerald-50/20"
-                                                    placeholder="Example: Driver Sami, Truck #KPK-1234, Cell: 0312..."
-                                                    value={salesForm.notes}
-                                                    onChange={e => setSalesForm({ ...salesForm, notes: e.target.value })}
-                                                />
+                                        {/* 1. EXPENSE FLOW */}
+                                        {txnType === 'EXPENSE' && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between items-center">
+                                                        <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Expense Classification</Label>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => setIsAddModalOpen(true)}
+                                                            className="text-[9px] font-black text-slate-400 hover:text-slate-900 flex items-center gap-1 uppercase"
+                                                        >
+                                                            <PlusCircle className="h-2.5 w-2.5" /> Add New
+                                                        </button>
+                                                    </div>
+                                                    <Select value={form.expense_account_id} onValueChange={(val) => setForm({ ...form, expense_account_id: val })}>
+                                                        <SelectTrigger className="h-11 rounded-none border-slate-300 bg-white font-bold focus:ring-0">
+                                                            <SelectValue placeholder="Select Category..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="rounded-none border-slate-900">
+                                                            {expenseAccounts?.map(a => <SelectItem key={a.id} value={a.id} className="font-bold text-xs uppercase">{a.name}</SelectItem>)}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Amount (PKR)</Label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">Rs.</span>
+                                                        <Input
+                                                            className="h-11 rounded-none pl-12 text-xl font-black num-audit border-slate-300 focus:ring-0 focus:border-slate-900"
+                                                            placeholder="0.00"
+                                                            type="number"
+                                                            value={form.amount}
+                                                            onChange={e => setForm({ ...form, amount: e.target.value })}
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
+                                        )}
 
-                                            <Button type="submit" className="h-14 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base shadow-lg shadow-emerald-900/10 tracking-wide mt-4" disabled={salesMutation.isPending || hasInsufficientStock}>
-                                                {salesMutation.isPending ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <ShoppingCart className="h-5 w-5 mr-2" />}
-                                                {hasInsufficientStock ? "STOCK BLOCKED" : (isEditMode ? "UPDATE REVISED SALE" : "POST CREDIT SALE")}
-                                            </Button>
-                                        </form>
+                                        {/* 2. SHRINKAGE FLOW */}
+                                        {txnType === 'SHRINKAGE' && (
+                                            <>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] uppercase font-black text-rose-600 tracking-widest">Select Product</Label>
+                                                        <Select value={form.fuel_type_id} onValueChange={(val) => setForm({ ...form, fuel_type_id: val })}>
+                                                            <SelectTrigger className="h-11 rounded-none border-rose-300 bg-white font-bold text-rose-900 focus:ring-0">
+                                                                <SelectValue placeholder="Fuel Type..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="rounded-none border-slate-900">
+                                                                {fuelTypes?.map(f => <SelectItem key={f.id} value={f.id} className="font-bold text-xs uppercase">{f.name}</SelectItem>)}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] uppercase font-black text-rose-600 tracking-widest">Qty Lost (Liters)</Label>
+                                                        <div className="relative">
+                                                            <Input
+                                                                className="h-11 rounded-none pr-12 text-xl font-black num-audit border-rose-300 bg-white text-rose-900 focus:ring-0"
+                                                                placeholder="0.00"
+                                                                type="number"
+                                                                value={form.quantity_lost}
+                                                                onChange={e => setForm({ ...form, quantity_lost: e.target.value })}
+                                                            />
+                                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-rose-300 text-xs uppercase">Ltrs</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] uppercase font-black text-rose-600 tracking-widest">Avg Rate/Liter</Label>
+                                                        <div className="relative">
+                                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-rose-300 text-xs">Rs.</span>
+                                                            <Input
+                                                                className="h-11 rounded-none pl-10 text-xl font-black num-audit border-rose-300 bg-white text-rose-900 focus:ring-0"
+                                                                placeholder="0.00"
+                                                                type="number"
+                                                                value={form.rate_per_liter}
+                                                                onChange={e => setForm({ ...form, rate_per_liter: e.target.value })}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="p-4 bg-rose-100/50 border border-rose-200 flex items-center gap-3">
+                                                    <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0" />
+                                                    <p className="text-[10px] font-bold text-rose-800 uppercase tracking-tight">
+                                                        Warning: This operation will permanently reduce physical stock and debit 'Fuel Loss Expense'.
+                                                    </p>
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {/* 3. ASSET PURCHASE FLOW */}
+                                        {txnType === 'ASSET_PURCHASE' && (
+                                            <div className="space-y-8">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] uppercase font-black text-blue-600 tracking-widest">Asset Name / Title</Label>
+                                                        <Input
+                                                            className="h-11 rounded-none border-blue-300 focus:border-blue-600 font-bold text-blue-900 bg-white"
+                                                            placeholder="e.g. Perkins 50kVA Generator"
+                                                            value={form.asset_name}
+                                                            onChange={e => setForm({ ...form, asset_name: e.target.value })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] uppercase font-black text-blue-600 tracking-widest">Asset Category</Label>
+                                                        <Select value={form.asset_category} onValueChange={(val) => setForm({ ...form, asset_category: val })}>
+                                                            <SelectTrigger className="h-11 rounded-none border-blue-300 font-bold text-blue-900 bg-white">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="Equipment">Equipment</SelectItem>
+                                                                <SelectItem value="Vehicle">Vehicle</SelectItem>
+                                                                <SelectItem value="Furniture">Furniture</SelectItem>
+                                                                <SelectItem value="Machinery">Machinery</SelectItem>
+                                                                <SelectItem value="Building">Building</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-[10px] uppercase font-black text-blue-600 tracking-widest">Purchase Amount (PKR)</Label>
+                                                    <div className="relative">
+                                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-blue-300">Rs.</span>
+                                                        <Input
+                                                            className="h-11 rounded-none pl-12 text-xl font-black num-audit border-blue-300 focus:border-blue-600 focus:ring-0 text-blue-900 bg-white"
+                                                            placeholder="0.00"
+                                                            type="number"
+                                                            value={form.amount}
+                                                            onChange={e => setForm({ ...form, amount: e.target.value })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 4. OWNER WITHDRAWAL FLOW */}
+                                        {txnType === 'OWNER_WITHDRAWAL' && (
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] uppercase font-black text-amber-600 tracking-widest">Withdrawal Amount (PKR)</Label>
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-amber-300">Rs.</span>
+                                                    <Input
+                                                        className="h-11 rounded-none pl-12 text-xl font-black num-audit border-amber-300 focus:border-amber-600 focus:ring-0 text-amber-900 bg-white"
+                                                        placeholder="0.00"
+                                                        type="number"
+                                                        value={form.amount}
+                                                        onChange={e => setForm({ ...form, amount: e.target.value })}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* NARRATION FIELD (SHARED) */}
+                                        <div className="space-y-2 pt-4 border-t border-slate-200">
+                                            <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest flex items-center gap-2">
+                                                <PenTool className="h-3 w-3" /> Narration / Ledger Memo
+                                            </Label>
+                                            <Input
+                                                className="h-11 rounded-none bg-white font-bold border-slate-300 placeholder:font-medium placeholder:italic text-slate-900"
+                                                placeholder={
+                                                    txnType === 'SHRINKAGE' ? "Brief reason for stock write-off..." :
+                                                    txnType === 'ASSET_PURCHASE' ? "Describe vendor, warranty, or condition..." :
+                                                    "Enter brief description of this transaction..."
+                                                }
+                                                value={txnType === 'SHRINKAGE' ? form.reason : form.narration}
+                                                onChange={e => {
+                                                    if (txnType === 'SHRINKAGE') setForm({ ...form, reason: e.target.value });
+                                                    else setForm({ ...form, narration: e.target.value });
+                                                }}
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
 
-                            {/* Tips Panel */}
-                            <div className="lg:col-span-2 space-y-6">
-                                <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100/50">
-                                    <h4 className="font-bold text-emerald-800 mb-2 flex items-center gap-2"><ArrowRightLeft className="h-4 w-4" /> Accounting Note</h4>
-                                    <p className="text-xs text-emerald-700/80 leading-relaxed">
-                                        This creates a <strong>Credit Sale</strong>. The customer's balance will increase (Receivable). You must record a separate "Received" entry when they pay.
+                                    <Button 
+                                        type="submit" 
+                                        className={cn(
+                                            "h-12 w-full text-white font-black text-xs uppercase tracking-[0.2em] rounded-none shadow-sm transition-all",
+                                            txnType === 'ACTION_CENTER' ? "bg-emerald-600 hover:bg-emerald-700" :
+                                            txnType === 'EXPENSE' ? "bg-slate-900 hover:bg-black" :
+                                            txnType === 'SHRINKAGE' ? "bg-rose-600 hover:bg-rose-700" :
+                                            txnType === 'ASSET_PURCHASE' ? "bg-blue-600 hover:bg-blue-700" :
+                                            "bg-amber-600 hover:bg-amber-700"
+                                        )}
+                                        disabled={mutation.isPending}
+                                    >
+                                        {mutation.isPending ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                                        {mutation.isPending ? "PROCESSING..." : (txnType === 'ACTION_CENTER' ? "COMMIT MOVEMENT" : (isEditMode ? "COMMIT REVISIONS" : "FINALIZE TRANSACTION"))}
+                                    </Button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ── RIGHT: SIDEBAR (HISTORY) ────────────────────────── */}
+                    <div className="lg:col-span-4 space-y-6">
+                        <div className="border border-slate-300 bg-white flex flex-col h-full max-h-[800px]">
+                            <div className="px-6 py-3 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
+                                <h3 className="text-[10px] font-black uppercase text-slate-700 tracking-[0.2em] flex items-center gap-2">
+                                    <History className="h-3.5 w-3.5" /> Recent Factory Output
+                                </h3>
+                            </div>
+                            <div className="flex-1 overflow-y-auto">
+                                {recentVouchers && recentVouchers.length > 0 ? (
+                                    <div className="divide-y divide-slate-100">
+                                        {recentVouchers.map((v: any) => {
+                                            const isShrinkage = v.voucher_type === 'shrinkage';
+                                            const isAsset = v.voucher_type === 'asset';
+                                            const isAction = ['adjustment', 'receipt', 'payment'].includes(v.voucher_type);
+                                            const isWithdrawal = v.voucher_type === 'withdrawal';
+                                            
+                                            const amount = v.debit_amount || v.credit_amount || 0;
+                                            const name = v.party?.name || v.accounts?.name || 'General Entry';
+
+                                            return (
+                                                <div key={v.voucher_no} className="p-5 hover:bg-slate-50 transition-colors cursor-pointer group border-b border-slate-100 last:border-0" onClick={() => navigate(`/manage-transactions?edit=${v.voucher_no}`)}>
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={cn(
+                                                                "text-[9px] font-mono font-black border px-2 py-0.5 rounded-none",
+                                                                isAction ? "bg-emerald-50 border-emerald-200 text-emerald-600" :
+                                                                isShrinkage ? "bg-rose-50 border-rose-200 text-rose-600" :
+                                                                isAsset ? "bg-blue-50 border-blue-200 text-blue-600" :
+                                                                isWithdrawal ? "bg-amber-50 border-amber-200 text-amber-600" :
+                                                                "bg-slate-100 border-slate-200 text-slate-500"
+                                                            )}>
+                                                                {v.voucher_no}
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{v.posting_date}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <div className="flex-1 min-w-0 pr-4">
+                                                            {isAction ? (
+                                                                <p className="text-[11px] font-black text-emerald-700 uppercase leading-none mb-1 truncate flex items-center gap-1">
+                                                                    {v.accounts?.name || 'Party'} <ArrowRight className="h-2 w-2" /> {name}
+                                                                </p>
+                                                            ) : (
+                                                                <p className="text-[11px] font-black text-slate-800 uppercase leading-none mb-1 truncate">{name}</p>
+                                                            )}
+                                                            <p className="text-[10px] text-slate-400 line-clamp-1 italic font-medium">{v.narration}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <span className={cn(
+                                                                "text-sm font-black num-audit tracking-tight",
+                                                                isShrinkage ? "text-rose-600" : 
+                                                                isAction ? "text-emerald-700" :
+                                                                "text-slate-900"
+                                                            )}>
+                                                                {formatPKR(amount).replace('Rs. ', '')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="p-12 text-center opacity-20">
+                                        <AlertCircle className="h-10 w-10 text-slate-400 mx-auto mb-4" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest">Factory Idle</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* AUDIT NOTE */}
+                        <div className="border border-slate-900 p-6 bg-slate-900 text-white">
+                            <h4 className="text-[11px] font-black uppercase tracking-widest mb-3 border-b border-white/20 pb-2">Factory Governance</h4>
+                            <div className="space-y-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="h-4 w-4 rounded-full bg-emerald-500 shrink-0 mt-0.5" />
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">
+                                        All transactions recorded here are automatically posted to the general ledger and impact real-time financial statements.
+                                    </p>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <div className="h-4 w-4 rounded-full bg-rose-500 shrink-0 mt-0.5" />
+                                    <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">
+                                        Fuel shrinkage operations are audited against calculated stock levels. Over-recording is prevented by the core engine.
                                     </p>
                                 </div>
                             </div>
                         </div>
-                    </TabsContent>
-
-                    {/* --- TAB 3: PURCHASES --- */}
-                    <TabsContent value="purchases" className="animate-in fade-in slide-in-from-bottom-3 duration-500">
-                        <div className="grid grid-cols-1 lg:grid-cols-6 gap-8">
-                            <div className="lg:col-span-4 space-y-6">
-                                <div className="bg-white rounded-2xl border border-rose-100 shadow-sm overflow-hidden">
-                                    <div className="bg-rose-50/50 px-6 py-4 border-b border-rose-100 flex items-center justify-between">
-                                        <h3 className="font-extrabold text-rose-800 text-sm uppercase tracking-wider flex items-center gap-2">
-                                            <Truck className="h-4 w-4 text-rose-600" /> Stock Purchase
-                                        </h3>
-                                        <Button variant="ghost" size="sm" onClick={() => { setQuickAddInitialType('trade_party'); setQuickAddInitialPartyType('supplier'); setQuickAddOpen(true); }} className="text-rose-700 hover:bg-rose-100 text-xs font-bold gap-1">
-                                            <UserPlus className="h-3 w-3" /> New Supplier
-                                        </Button>
-                                    </div>
-                                    <div className="p-8">
-                                        <form onSubmit={(e) => { e.preventDefault(); purchaseMutation.mutate(purchaseForm); }} className="space-y-6">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Purchase Date</Label>
-                                                    <Input
-                                                        type="date"
-                                                        value={purchaseForm.purchase_date}
-                                                        onChange={e => setPurchaseForm({ ...purchaseForm, purchase_date: e.target.value })}
-                                                        className="h-12 border-rose-100 font-bold text-slate-800"
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Supplier Account</Label>
-                                                    <Select value={purchaseForm.party_id} onValueChange={(val) => setPurchaseForm({ ...purchaseForm, party_id: val })}>
-                                                        <SelectTrigger className="h-12 border-rose-100 font-bold text-slate-800"><SelectValue placeholder="Select Supplier..." /></SelectTrigger>
-                                                        <SelectContent>
-                                                            {allAccounts?.filter(a => a.type === 'party').map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-6">
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Fuel Type</Label>
-                                                    <Select value={purchaseForm.fuel_type_id} onValueChange={(val) => setPurchaseForm({ ...purchaseForm, fuel_type_id: val })}>
-                                                        <SelectTrigger className="h-12 border-rose-100 font-bold"><SelectValue placeholder="Select Fuel..." /></SelectTrigger>
-                                                        <SelectContent>
-                                                            {fuelTypes?.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Quantity (L)</Label>
-                                                    <Input className="h-12 font-bold border-rose-100" type="number" value={purchaseForm.quantity} onChange={e => setPurchaseForm({ ...purchaseForm, quantity: e.target.value })} />
-                                                </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-6">
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Cost Rate (PKR)</Label>
-                                                    <Input className="h-12 font-bold border-rose-100" type="number" step="0.01" value={purchaseForm.rate_per_unit} onChange={e => setPurchaseForm({ ...purchaseForm, rate_per_unit: e.target.value })} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-[10px] uppercase font-black text-slate-400 tracking-wider pl-1">Total Payable</Label>
-                                                    <div className="h-12 bg-rose-50 rounded-lg flex items-center justify-end px-4 font-mono text-lg font-bold text-rose-800">
-                                                        {formatPKR((parseFloat(purchaseForm.quantity) || 0) * (parseFloat(purchaseForm.rate_per_unit) || 0))}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <Label className="text-[10px] uppercase font-black text-rose-600 tracking-wider pl-1">Details (Vessel / Truck / Driver / Remarks)</Label>
-                                                <Textarea
-                                                    className="min-h-[80px] border-rose-100 font-medium bg-rose-50/20"
-                                                    placeholder="Example: PSO Supply, Driver Naveed, Truck #ISB-556, Notes..."
-                                                    value={purchaseForm.notes}
-                                                    onChange={e => setPurchaseForm({ ...purchaseForm, notes: e.target.value })}
-                                                />
-                                            </div>
-
-                                            <Button type="submit" className="h-14 w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-base shadow-lg shadow-rose-900/10 tracking-wide mt-4" disabled={purchaseMutation.isPending}>
-                                                {purchaseMutation.isPending ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <Truck className="h-5 w-5 mr-2" />}
-                                                {isEditMode ? "COMMIT PURCHASE UPDATES" : "POST STOCK ENTRY"}
-                                            </Button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </TabsContent>
-                </Tabs>
+                    </div>
+                </div>
             </div>
 
             <UnifiedAddAccountModal
-                isOpen={quickAddOpen}
-                onOpenChange={setQuickAddOpen}
-                initialType={quickAddInitialType}
-                initialPartyType={quickAddInitialPartyType}
+                isOpen={isAddModalOpen}
+                onOpenChange={setIsAddModalOpen}
+                initialType="operating_expense"
                 onSuccess={(id) => {
-                    if (activeTab === 'sales') {
-                        setSalesForm(prev => ({ ...prev, party_id: id }));
-                    } else if (activeTab === 'purchases') {
-                        setPurchaseForm(prev => ({ ...prev, party_id: id }));
-                    } else {
-                        // For 'online' (transfer), we don't know if it's from or to, 
-                        // so we just let the dropdown refresh and user can pick it.
-                    }
+                    setForm(prev => ({ ...prev, expense_account_id: id }));
                 }}
             />
         </DashboardLayout>

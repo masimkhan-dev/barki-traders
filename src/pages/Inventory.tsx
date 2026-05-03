@@ -21,9 +21,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatNumber } from '@/lib/format';
-import { Fuel, AlertTriangle, TrendingUp, TrendingDown, Loader2, Plus, Edit, Package } from 'lucide-react';
+import { Fuel, AlertTriangle, TrendingUp, TrendingDown, Loader2, Plus, Edit, Package, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInventory } from '@/hooks/useInventory';
+import { useNavigate } from 'react-router-dom';
 
 interface FuelType {
   id: string;
@@ -34,6 +35,7 @@ interface FuelType {
 }
 
 export default function Inventory() {
+  const navigate = useNavigate();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingFuelType, setEditingFuelType] = useState<FuelType | null>(null);
   const [formData, setFormData] = useState({
@@ -271,6 +273,17 @@ export default function Inventory() {
                               style={{ width: `${isNegative ? 100 : percentage}%` }}
                             />
                           </div>
+                        </div>
+
+                        <div className="mt-auto pt-6 flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            className="flex-1 rounded-none h-8 text-[9px] font-black uppercase tracking-widest border-slate-200 hover:border-rose-400 hover:text-rose-600 hover:bg-rose-50 group"
+                            onClick={() => navigate(`/manage-transactions?type=SHRINKAGE&fuel_type_id=${item.fuel_type_id}`)}
+                          >
+                            Record Shrinkage
+                            <ArrowRight className="h-3 w-3 ml-2 opacity-0 group-hover:opacity-100 transition-all" />
+                          </Button>
                         </div>
                       </div>
                     );
