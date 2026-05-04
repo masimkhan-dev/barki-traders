@@ -17,6 +17,8 @@ const ManageTransactions = lazy(() => import("./pages/ManageTransactions"));
 const Users = lazy(() => import("./pages/Users"));
 const Expenses = lazy(() => import("./pages/Expenses"));
 const AccountStatement = lazy(() => import("./pages/AccountStatement"));
+const Sales = lazy(() => import("./pages/Sales"));
+const Purchases = lazy(() => import("./pages/Purchases"));
 const TrialBalance = lazy(() => import("./pages/TrialBalance"));
 const BalanceSheet = lazy(() => import("./pages/BalanceSheet"));
 const ProfitLossReport = lazy(() => import("./pages/ProfitLossReport"));
@@ -99,8 +101,8 @@ function AppRoutes() {
         {/* Deprecated: <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} /> */}
         {/* Deprecated: <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} /> */}
         <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-        {/* Deprecated: <Route path="/purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} /> */}
-        {/* Deprecated: <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} /> */}
+        <Route path="/purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
+        <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
         <Route path="/ledger" element={<ProtectedRoute><Ledger /></ProtectedRoute>} />
         <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
         <Route path="/reports" element={<Navigate to="/reports/account-statement" replace />} />

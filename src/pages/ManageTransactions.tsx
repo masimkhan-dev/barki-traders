@@ -40,7 +40,7 @@ import {
 import { UnifiedAddAccountModal } from '@/components/accounting/UnifiedAddAccountModal';
 import { cn } from '@/lib/utils';
 
-type TransactionType = 'EXPENSE' | 'ACTION_CENTER' | 'SHRINKAGE' | 'ASSET_PURCHASE' | 'OWNER_WITHDRAWAL';
+type TransactionType = 'SALE' | 'PURCHASE' | 'EXPENSE' | 'ACTION_CENTER' | 'SHRINKAGE' | 'ASSET_PURCHASE' | 'OWNER_WITHDRAWAL';
 
 interface EntityOption {
     id: string;
@@ -55,7 +55,7 @@ export default function ManageTransactions() {
     const queryClient = useQueryClient();
     const { toast } = useToast();
     
-    const [txnType, setTxnType] = useState<TransactionType>('EXPENSE');
+    const [txnType, setTxnType] = useState<TransactionType>('SALE');
     const [isEditMode, setIsEditMode] = useState(false);
     const [editVoucherNo, setEditVoucherNo] = useState<string | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -79,8 +79,42 @@ export default function ManageTransactions() {
         from_type: 'party' as 'party' | 'account',
         to_entity_id: '',
         to_type: 'account' as 'party' | 'account',
-        action_type: 'transfer' as 'transfer' | 'receipt' | 'payment' | 'contra'
+        action_type: 'transfer' as 'transfer' | 'receipt' | 'payment' | 'contra',
+        // Sale/Purchase specific
+        party_id: '',
+        quantity: '',
+        rate: '',
+        is_credit: true,
+        is_paid_now: false,
+        payment_method: 'Cash'
     });
+
+    const resetForm = () => {
+        setForm({
+            date: new Date().toISOString().split('T')[0],
+            expense_account_id: '',
+            payment_account_id: '',
+            amount: '',
+            narration: '',
+            asset_name: '',
+            asset_category: 'Equipment',
+            fuel_type_id: '',
+            quantity_lost: '',
+            rate_per_liter: '',
+            reason: 'Tanker Delivery Shortage',
+            from_entity_id: '',
+            from_type: 'party',
+            to_entity_id: '',
+            to_type: 'account',
+            action_type: 'transfer',
+            party_id: '',
+            quantity: '',
+            rate: '',
+            is_credit: true,
+            is_paid_now: false,
+            payment_method: 'Cash'
+        });
+    };
 
     // ── Load URL Params & Edit Mode ─────────────────────────────
     useEffect(() => {
@@ -93,6 +127,10 @@ export default function ManageTransactions() {
             if (fuelIdParam) {
                 setForm(prev => ({ ...prev, fuel_type_id: fuelIdParam }));
             }
+        } else if (typeParam === 'SALE') {
+            setTxnType('SALE');
+        } else if (typeParam === 'PURCHASE') {
+            setTxnType('PURCHASE');
         }
 
         if (!vNo) return;
@@ -108,6 +146,10 @@ export default function ManageTransactions() {
                 // but currently it's just ledger + inventory. We'll pre-fill what we can from ledger.
             } else if (vNo.startsWith('EXP-')) {
                 setTxnType('EXPENSE');
+            } else if (vNo.startsWith('SAL-')) {
+                setTxnType('SALE');
+            } else if (vNo.startsWith('PUR-')) {
+                setTxnType('PURCHASE');
             }
 
             const { data: entries } = await supabase.from('ledger_entries').select('*').eq('voucher_no', vNo);
@@ -206,7 +248,7 @@ export default function ManageTransactions() {
                     accounts(name),
                     party:parties(name)
                 `)
-                .in('voucher_type', ['adjustment', 'expense', 'receipt', 'payment', 'shrinkage', 'asset', 'withdrawal'])
+                .in('voucher_type', ['sale', 'purchase', 'adjustment', 'expense', 'receipt', 'payment', 'shrinkage', 'asset', 'withdrawal'])
                 .order('created_at', { ascending: false })
                 .limit(15);
 
@@ -228,6 +270,59 @@ export default function ManageTransactions() {
     // ── Mutation ───────────────────────────────────────────────
     const mutation = useMutation({
         mutationFn: async (payload: typeof form) => {
+            if (txnType === 'SALE') {
+                if (!payload.party_id || !payload.fuel_type_id || !payload.quantity || !payload.rate) {
+                    throw new Error("Customer, Fuel Type, Quantity, and Rate are required.");
+                }
+                
+                const { data: vNo } = await supabase.rpc('generate_voucher_no', { prefix: 'SAL' });
+                const qty = parseFloat(payload.quantity);
+                const rate = parseFloat(payload.rate);
+                const total = qty * rate;
+
+                const { data, error } = await supabase.from('sales').insert({
+                    voucher_no: vNo,
+                    sale_date: payload.date,
+                    party_id: payload.party_id,
+                    fuel_type_id: payload.fuel_type_id,
+                    quantity: qty,
+                    rate_per_unit: rate,
+                    total_amount: total,
+                    is_credit: payload.is_credit,
+                    notes: payload.narration
+                }).select().single();
+                
+                if (error) throw error;
+                return data;
+            }
+
+            if (txnType === 'PURCHASE') {
+                if (!payload.party_id || !payload.fuel_type_id || !payload.quantity || !payload.rate) {
+                    throw new Error("Supplier, Fuel Type, Quantity, and Rate are required.");
+                }
+
+                const { data: vNo } = await supabase.rpc('generate_voucher_no', { prefix: 'PUR' });
+                const qty = parseFloat(payload.quantity);
+                const rate = parseFloat(payload.rate);
+                const total = qty * rate;
+
+                const { data, error } = await supabase.from('purchases').insert({
+                    voucher_no: vNo,
+                    purchase_date: payload.date,
+                    party_id: payload.party_id,
+                    fuel_type_id: payload.fuel_type_id,
+                    quantity: qty,
+                    rate_per_unit: rate,
+                    total_amount: total,
+                    is_paid_now: payload.is_paid_now,
+                    payment_method: payload.payment_method,
+                    notes: payload.narration
+                }).select().single();
+
+                if (error) throw error;
+                return data;
+            }
+
             if (txnType === 'ACTION_CENTER') {
                 if (!payload.from_entity_id || !payload.to_entity_id || !payload.amount) {
                     throw new Error("Source, Destination, and Amount are required.");
@@ -317,13 +412,7 @@ export default function ManageTransactions() {
                 description: 'The record has been committed to the ledger and inventory.'
             });
             // Reset form partly
-            setForm(prev => ({ 
-                ...prev, 
-                amount: '', 
-                narration: '', 
-                quantity_lost: '', 
-                asset_name: '' 
-            }));
+            resetForm();
             queryClient.invalidateQueries({ queryKey: ['roznamcha'] });
             queryClient.invalidateQueries({ queryKey: ['recent-factory-vouchers'] });
             queryClient.invalidateQueries({ queryKey: ['calculated-inventory'] });
@@ -347,7 +436,10 @@ export default function ManageTransactions() {
             expense_account_id: '',
             fuel_type_id: '',
             quantity_lost: '',
-            rate_per_liter: ''
+            rate_per_liter: '',
+            party_id: '',
+            quantity: '',
+            rate: ''
         }));
     };
 
@@ -386,6 +478,8 @@ export default function ManageTransactions() {
                             <div className="bg-slate-900 px-6 py-6 border-b border-slate-800">
                                 <div className="flex flex-wrap gap-2">
                                     {[
+                                        { id: 'SALE', label: 'Fuel Sale', icon: TrendingUp, color: 'emerald' },
+                                        { id: 'PURCHASE', label: 'Fuel Purchase', icon: TrendingDown, color: 'rose' },
                                         { id: 'ACTION_CENTER', label: 'Party Transfer', icon: Users, color: 'emerald' },
                                         { id: 'EXPENSE', label: 'Standard Expense', icon: Wallet, color: 'slate' },
                                         { id: 'SHRINKAGE', label: 'Fuel Loss', icon: AlertTriangle, color: 'rose' },
@@ -395,7 +489,12 @@ export default function ManageTransactions() {
                                         <button
                                             key={mode.id}
                                             type="button"
-                                            onClick={() => handleTypeChange(mode.id as TransactionType)}
+                                            onClick={() => {
+                                                setTxnType(mode.id as TransactionType);
+                                                if (!isEditMode) {
+                                                    setForm(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
+                                                }
+                                            }}
                                             className={cn(
                                                 "flex items-center gap-3 px-4 py-2 text-[10px] font-black uppercase tracking-widest border transition-all",
                                                 txnType === mode.id 
@@ -427,7 +526,7 @@ export default function ManageTransactions() {
                                             />
                                         </div>
 
-                                        {txnType !== 'SHRINKAGE' && txnType !== 'ACTION_CENTER' && (
+                                        {txnType !== 'SHRINKAGE' && txnType !== 'ACTION_CENTER' && txnType !== 'SALE' && txnType !== 'PURCHASE' && (
                                             <div className="space-y-2">
                                                 <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest flex items-center gap-2">
                                                     <Wallet className="h-3 w-3" /> Payment Source (Cash/Bank)
@@ -438,6 +537,23 @@ export default function ManageTransactions() {
                                                     </SelectTrigger>
                                                     <SelectContent className="rounded-none border-slate-900">
                                                         {paymentAccounts?.map(a => <SelectItem key={a.id} value={a.id} className="font-bold text-xs uppercase">{a.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+                                        {(txnType === 'SALE' || txnType === 'PURCHASE') && (
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest flex items-center gap-2">
+                                                    <Users className="h-3 w-3" /> {txnType === 'SALE' ? 'Select Customer' : 'Select Supplier'}
+                                                </Label>
+                                                <Select value={form.party_id} onValueChange={(val) => setForm({ ...form, party_id: val })}>
+                                                    <SelectTrigger className="h-11 rounded-none border-slate-300 font-bold focus:ring-0">
+                                                        <SelectValue placeholder={`Search ${txnType === 'SALE' ? 'Customer' : 'Supplier'}...`} />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="rounded-none border-slate-900 max-h-[300px]">
+                                                        {parties?.filter(p => txnType === 'SALE' ? p.type === 'customer' : p.type === 'supplier').map(p => (
+                                                            <SelectItem key={p.id} value={p.id} className="font-bold text-xs uppercase">{p.name}</SelectItem>
+                                                        ))}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -465,6 +581,87 @@ export default function ManageTransactions() {
                                         txnType === 'OWNER_WITHDRAWAL' ? "bg-amber-50 border-amber-100" :
                                         "bg-slate-50 border-slate-200"
                                     )}>
+
+                                        {/* 0. SALE & PURCHASE FLOW */}
+                                        {(txnType === 'SALE' || txnType === 'PURCHASE') && (
+                                            <div className="space-y-8">
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Fuel Type</Label>
+                                                        <Select value={form.fuel_type_id} onValueChange={(val) => setForm({ ...form, fuel_type_id: val })}>
+                                                            <SelectTrigger className="h-11 rounded-none border-slate-300 bg-white font-bold focus:ring-0">
+                                                                <SelectValue placeholder="Select Fuel..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="rounded-none border-slate-900">
+                                                                {fuelTypes?.map(f => <SelectItem key={f.id} value={f.id} className="font-bold text-xs uppercase">{f.name}</SelectItem>)}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Quantity ({fuelTypes?.find(f => f.id === form.fuel_type_id)?.unit || 'Ltrs'})</Label>
+                                                        <Input
+                                                            className="h-11 rounded-none text-xl font-black num-audit border-slate-300 bg-white focus:ring-0"
+                                                            placeholder="0.00"
+                                                            type="number"
+                                                            value={form.quantity}
+                                                            onChange={e => setForm({ ...form, quantity: e.target.value })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Rate per Unit</Label>
+                                                        <div className="relative">
+                                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-xs">Rs.</span>
+                                                            <Input
+                                                                className="h-11 rounded-none pl-10 text-xl font-black num-audit border-slate-300 bg-white focus:ring-0"
+                                                                placeholder="0.00"
+                                                                type="number"
+                                                                value={form.rate}
+                                                                onChange={e => setForm({ ...form, rate: e.target.value })}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-white border border-slate-200">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-black uppercase text-slate-400">Estimated Total</span>
+                                                        <span className="text-2xl font-black text-slate-900 num-audit">
+                                                            {formatPKR(parseFloat(form.quantity || '0') * parseFloat(form.rate || '0'))}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {txnType === 'SALE' ? (
+                                                        <div className="flex items-center gap-3">
+                                                            <Label className="text-[10px] font-black uppercase text-slate-600">Credit Sale?</Label>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => setForm({ ...form, is_credit: !form.is_credit })}
+                                                                className={cn(
+                                                                    "px-6 py-2 text-[10px] font-black uppercase tracking-widest border transition-all",
+                                                                    form.is_credit ? "bg-rose-600 border-rose-500 text-white" : "bg-emerald-600 border-emerald-500 text-white"
+                                                                )}
+                                                            >
+                                                                {form.is_credit ? 'YES (UDHAAR)' : 'NO (CASH)'}
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-3">
+                                                            <Label className="text-[10px] font-black uppercase text-slate-600">Paid Now?</Label>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => setForm({ ...form, is_paid_now: !form.is_paid_now })}
+                                                                className={cn(
+                                                                    "px-6 py-2 text-[10px] font-black uppercase tracking-widest border transition-all",
+                                                                    form.is_paid_now ? "bg-emerald-600 border-emerald-500 text-white" : "bg-rose-600 border-rose-500 text-white"
+                                                                )}
+                                                            >
+                                                                {form.is_paid_now ? 'PAID FULL' : 'ON CREDIT'}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* 0. ACTION CENTER (TRANFERS/RECEIPTS/PAYMENTS) */}
                                         {txnType === 'ACTION_CENTER' && (

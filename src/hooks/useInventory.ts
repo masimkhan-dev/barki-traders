@@ -37,6 +37,13 @@ export function useInventory() {
 
       if (sError) throw sError;
 
+      // Fetch current stock from the inventory table (Disposable Cache)
+      const { data: currentStock, error: iError } = await supabase
+        .from('inventory')
+        .select('fuel_type_id, quantity');
+
+      if (iError) throw iError;
+
       // Calculate stock for each fuel type
       const stockMap: Record<string, FuelStock> = {};
 
@@ -66,9 +73,11 @@ export function useInventory() {
         }
       });
 
-      // Calculate current stock
-      Object.values(stockMap).forEach(stock => {
-        stock.current_stock = stock.total_purchased - stock.total_sold;
+      // Set current stock from the actual inventory table records
+      currentStock?.forEach(item => {
+        if (stockMap[item.fuel_type_id]) {
+          stockMap[item.fuel_type_id].current_stock = Number(item.quantity);
+        }
       });
 
       return Object.values(stockMap);
