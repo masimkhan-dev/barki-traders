@@ -369,12 +369,12 @@ export default function ManageTransactions() {
                     throw new Error("Customer, Fuel Type, Quantity, and Rate are required.");
                 }
                 
-                const { data: vNo } = await supabase.rpc('generate_voucher_no', { prefix: 'SAL' });
+                const vNo = isEditMode ? editVoucherNo : (await supabase.rpc('generate_voucher_no', { prefix: 'SAL' })).data;
                 const qty = parseFloat(payload.quantity);
                 const rate = parseFloat(payload.rate);
                 const total = qty * rate;
 
-                const { data, error } = await supabase.from('sales').insert({
+                const { data, error } = await supabase.from('sales').upsert({
                     voucher_no: vNo,
                     sale_date: payload.date,
                     party_id: payload.party_id,
@@ -384,7 +384,7 @@ export default function ManageTransactions() {
                     total_amount: total,
                     is_credit: payload.is_credit,
                     notes: payload.narration
-                }).select().single();
+                }, { onConflict: 'voucher_no' }).select().single();
                 
                 if (error) throw error;
                 return data;
@@ -395,12 +395,12 @@ export default function ManageTransactions() {
                     throw new Error("Supplier, Fuel Type, Quantity, and Rate are required.");
                 }
 
-                const { data: vNo } = await supabase.rpc('generate_voucher_no', { prefix: 'PUR' });
+                const vNo = isEditMode ? editVoucherNo : (await supabase.rpc('generate_voucher_no', { prefix: 'PUR' })).data;
                 const qty = parseFloat(payload.quantity);
                 const rate = parseFloat(payload.rate);
                 const total = qty * rate;
 
-                const { data, error } = await supabase.from('purchases').insert({
+                const { data, error } = await supabase.from('purchases').upsert({
                     voucher_no: vNo,
                     purchase_date: payload.date,
                     party_id: payload.party_id,
@@ -411,7 +411,7 @@ export default function ManageTransactions() {
                     is_paid_now: payload.is_paid_now,
                     payment_method: payload.payment_method,
                     notes: payload.narration
-                }).select().single();
+                }, { onConflict: 'voucher_no' }).select().single();
 
                 if (error) throw error;
                 return data;
@@ -421,10 +421,16 @@ export default function ManageTransactions() {
                 if (!payload.from_entity_id || !payload.to_entity_id || !payload.amount) {
                     throw new Error("Source, Destination, and Amount are required.");
                 }
-                if (payload.from_entity_id === payload.to_entity_id && payload.from_type === payload.to_type) {
-                    throw new Error("Source and Destination cannot be the same.");
+                
+                const vNo = isEditMode ? editVoucherNo : (await supabase.rpc('generate_voucher_no', { prefix: 'VCH' })).data;
+                
+                // If editing action center, delete old ledger entries first (compliance bypass should be set in DB)
+                if (isEditMode) {
+                    await supabase.from('ledger_entries').delete().eq('voucher_no', vNo);
                 }
+
                 const { data, error } = await (supabase as any).rpc('create_manage_transaction', {
+                    p_voucher_no: vNo,
                     p_transaction_type: payload.action_type,
                     p_from_type: payload.from_type,
                     p_from_entity_id: payload.from_entity_id,
