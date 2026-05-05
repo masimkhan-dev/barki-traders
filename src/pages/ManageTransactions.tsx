@@ -226,20 +226,39 @@ export default function ManageTransactions() {
             // 4. Generic Ledger (EXPENSE / ACTION_CENTER)
             const { data: entries } = await supabase.from('ledger_entries').select('*').eq('voucher_no', vNo);
             if (entries && entries.length >= 2) {
-                const debitEntry = entries.find(e => e.debit_amount > 0);
+                // In accounting, Credit is Source (From), Debit is Target (To)
                 const creditEntry = entries.find(e => e.credit_amount > 0);
+                const debitEntry = entries.find(e => e.debit_amount > 0);
 
-                setForm(prev => ({
-                    ...prev,
-                    date: debitEntry?.posting_date || new Date().toISOString().split('T')[0],
-                    expense_account_id: debitEntry?.account_id || '',
-                    payment_account_id: creditEntry?.account_id || '',
-                    amount: String(Math.max(debitEntry?.debit_amount || 0, creditEntry?.credit_amount || 0)),
-                    narration: debitEntry?.narration || '',
-                }));
-                
-                if (vNo.startsWith('EXP-')) setTxnType('EXPENSE');
-                else setTxnType('ACTION_CENTER');
+                if (vNo.startsWith('EXP-')) {
+                    setTxnType('EXPENSE');
+                    setForm(prev => ({
+                        ...prev,
+                        date: debitEntry?.posting_date || new Date().toISOString().split('T')[0],
+                        expense_account_id: debitEntry?.account_id || '',
+                        payment_account_id: creditEntry?.account_id || '',
+                        amount: String(creditEntry?.credit_amount || 0),
+                        narration: debitEntry?.narration || '',
+                    }));
+                } else {
+                    setTxnType('ACTION_CENTER');
+                    setForm(prev => ({
+                        ...prev,
+                        date: debitEntry?.posting_date || new Date().toISOString().split('T')[0],
+                        amount: String(debitEntry?.debit_amount || 0),
+                        narration: debitEntry?.narration || '',
+                        // Source (From)
+                        from_type: creditEntry?.party_id ? 'party' : 'account',
+                        from_entity_id: creditEntry?.party_id || creditEntry?.account_id || '',
+                        // Target (To)
+                        to_type: debitEntry?.party_id ? 'party' : 'account',
+                        to_entity_id: debitEntry?.party_id || debitEntry?.account_id || '',
+                        // Determine action type for backend compatibility
+                        action_type: creditEntry?.party_id && debitEntry?.party_id ? 'transfer' :
+                                    creditEntry?.party_id ? 'receipt' :
+                                    debitEntry?.party_id ? 'payment' : 'contra'
+                    }));
+                }
             }
         };
         loadTransaction();
@@ -631,12 +650,10 @@ export default function ManageTransactions() {
                                         {txnType === 'ACTION_CENTER' && (
                                             <div className="space-y-2">
                                                 <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest flex items-center gap-2">
-                                                    <ArrowRightLeft className="h-3 w-3" /> Transfer Mode
+                                                    <ArrowRightLeft className="h-3 w-3" /> Movement Terminal
                                                 </Label>
-                                                <div className="h-11 px-4 flex items-center bg-emerald-100 border border-emerald-200 text-emerald-900 font-black text-xs uppercase">
-                                                    {form.action_type === 'transfer' ? 'Party to Party Adjustment' : 
-                                                     form.action_type === 'receipt' ? 'Party to Cash/Bank Receipt' :
-                                                     form.action_type === 'payment' ? 'Cash/Bank to Party Payment' : 'Contra Entry'}
+                                                <div className="h-11 px-4 flex items-center bg-emerald-600 border border-emerald-700 text-white font-black text-xs uppercase tracking-tighter">
+                                                    Simplified Transfer: Party | Cash | Bank
                                                 </div>
                                             </div>
                                         )}
@@ -705,30 +722,16 @@ export default function ManageTransactions() {
                                             </div>
                                         )}
 
-                                        {/* 0. ACTION CENTER (TRANFERS/RECEIPTS/PAYMENTS) */}
+                                        {/* 0. ACTION CENTER (SIMPLIFIED TRANSFERS) */}
                                         {txnType === 'ACTION_CENTER' && (
                                             <div className="space-y-8">
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                    <div className="space-y-2">
-                                                        <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest">Movement Nature</Label>
-                                                        <Select value={form.action_type} onValueChange={(val: any) => setForm({ ...form, action_type: val })}>
-                                                            <SelectTrigger className="h-11 rounded-none border-emerald-300 bg-white font-bold text-emerald-900 shadow-sm">
-                                                                <SelectValue />
-                                                            </SelectTrigger>
-                                                            <SelectContent className="rounded-none border-emerald-900">
-                                                                <SelectItem value="transfer" className="font-bold text-xs uppercase">Party to Party (Adjustment)</SelectItem>
-                                                                <SelectItem value="receipt" className="font-bold text-xs uppercase">Party to Cash/Bank (Receipt)</SelectItem>
-                                                                <SelectItem value="payment" className="font-bold text-xs uppercase">Cash/Bank to Party (Payment)</SelectItem>
-                                                                <SelectItem value="contra" className="font-bold text-xs uppercase">Cash to Bank / Contra</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest">Amount to Transfer (PKR)</Label>
+                                                    <div className="space-y-2 md:col-span-2">
+                                                        <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest">Amount to Move (PKR)</Label>
                                                         <div className="relative">
                                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-emerald-400 text-lg">Rs.</span>
                                                             <Input
-                                                                className="h-11 rounded-none pl-12 text-2xl font-black num-audit border-emerald-300 bg-white text-emerald-900 focus:ring-0 shadow-sm"
+                                                                className="h-14 rounded-none pl-12 text-3xl font-black num-audit border-emerald-300 bg-white text-emerald-900 focus:ring-0 shadow-sm"
                                                                 placeholder="0.00"
                                                                 type="number"
                                                                 value={form.amount}
@@ -744,34 +747,28 @@ export default function ManageTransactions() {
                                                         <div className="flex justify-between items-center border-b border-emerald-200 pb-2">
                                                             <div className="flex items-center gap-2">
                                                                 <TrendingDown className="h-3 w-3 text-rose-500" />
-                                                                <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest">FROM (Sender / Source)</Label>
-                                                            </div>
-                                                            <div className="flex bg-slate-100 p-0.5 rounded-none border border-slate-200">
-                                                                <button 
-                                                                    type="button" 
-                                                                    className={cn("text-[8px] font-black uppercase px-3 py-1 transition-all", form.from_type === 'party' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600")}
-                                                                    onClick={() => setForm({ ...form, from_type: 'party', from_entity_id: '' })}
-                                                                >Party</button>
-                                                                <button 
-                                                                    type="button" 
-                                                                    className={cn("text-[8px] font-black uppercase px-3 py-1 transition-all", form.from_type === 'account' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600")}
-                                                                    onClick={() => setForm({ ...form, from_type: 'account', from_entity_id: '' })}
-                                                                >General Acc</button>
+                                                                <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest">SENDER (Paisa Nikla)</Label>
                                                             </div>
                                                         </div>
-                                                        <Select value={form.from_entity_id} onValueChange={(val) => setForm({ ...form, from_entity_id: val })}>
+                                                        <Select 
+                                                            value={form.from_entity_id} 
+                                                            onValueChange={(val) => {
+                                                                const isParty = parties?.some(p => p.id === val);
+                                                                setForm({ ...form, from_entity_id: val, from_type: isParty ? 'party' : 'account' });
+                                                            }}
+                                                        >
                                                             <SelectTrigger className="h-12 rounded-none border-emerald-300 bg-white font-black text-xs uppercase text-emerald-900 shadow-sm">
-                                                                <SelectValue placeholder={`Select ${form.from_type}...`} />
+                                                                <SelectValue placeholder="Select Sender (Who paid?)" />
                                                             </SelectTrigger>
                                                             <SelectContent className="max-h-[300px] rounded-none border-emerald-900">
-                                                                {form.from_type === 'party' ? (
-                                                                    parties?.map(p => <SelectItem key={p.id} value={p.id} className="font-bold text-xs uppercase py-3 border-b border-slate-50 last:border-0"><Users className="h-3 w-3 inline mr-2 text-slate-400" /> {p.name}</SelectItem>)
-                                                                ) : (
-                                                                    allAccounts?.map(a => <SelectItem key={a.id} value={a.id} className="font-bold text-xs uppercase py-3 border-b border-slate-50 last:border-0"><Building className="h-3 w-3 inline mr-2 text-slate-400" /> {a.name}</SelectItem>)
-                                                                )}
+                                                                <div className="p-2 bg-slate-100 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Parties / Customers / Suppliers</div>
+                                                                {parties?.map(p => <SelectItem key={p.id} value={p.id} className="font-bold text-xs uppercase py-3 border-b border-slate-50 last:border-0"><Users className="h-3 w-3 inline mr-2 text-slate-400" /> {p.name}</SelectItem>)}
+                                                                <div className="p-2 bg-slate-100 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Cash / Bank / Assets</div>
+                                                                {allAccounts?.filter(a => a.account_type === 'asset' || a.account_type === 'bank' || a.account_type === 'cash').map(a => (
+                                                                    <SelectItem key={a.id} value={a.id} className="font-bold text-xs uppercase py-3 border-b border-slate-50 last:border-0"><Building className="h-3 w-3 inline mr-2 text-slate-400" /> {a.name}</SelectItem>
+                                                                ))}
                                                             </SelectContent>
                                                         </Select>
-                                                        <p className="text-[9px] text-emerald-400 font-bold uppercase italic">* This party's balance will be adjusted (CREDITED)</p>
                                                     </div>
 
                                                     {/* TO ENTITY */}
@@ -779,34 +776,28 @@ export default function ManageTransactions() {
                                                         <div className="flex justify-between items-center border-b border-emerald-200 pb-2">
                                                             <div className="flex items-center gap-2">
                                                                 <TrendingUp className="h-3 w-3 text-emerald-500" />
-                                                                <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest">TO (Receiver / Target)</Label>
-                                                            </div>
-                                                            <div className="flex bg-slate-100 p-0.5 rounded-none border border-slate-200">
-                                                                <button 
-                                                                    type="button" 
-                                                                    className={cn("text-[8px] font-black uppercase px-3 py-1 transition-all", form.to_type === 'party' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600")}
-                                                                    onClick={() => setForm({ ...form, to_type: 'party', to_entity_id: '' })}
-                                                                >Party</button>
-                                                                <button 
-                                                                    type="button" 
-                                                                    className={cn("text-[8px] font-black uppercase px-3 py-1 transition-all", form.to_type === 'account' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600")}
-                                                                    onClick={() => setForm({ ...form, to_type: 'account', to_entity_id: '' })}
-                                                                >General Acc</button>
+                                                                <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest">RECEIVER (Paisa Aya)</Label>
                                                             </div>
                                                         </div>
-                                                        <Select value={form.to_entity_id} onValueChange={(val) => setForm({ ...form, to_entity_id: val })}>
+                                                        <Select 
+                                                            value={form.to_entity_id} 
+                                                            onValueChange={(val) => {
+                                                                const isParty = parties?.some(p => p.id === val);
+                                                                setForm({ ...form, to_entity_id: val, to_type: isParty ? 'party' : 'account' });
+                                                            }}
+                                                        >
                                                             <SelectTrigger className="h-12 rounded-none border-emerald-300 bg-white font-black text-xs uppercase text-emerald-900 shadow-sm">
-                                                                <SelectValue placeholder={`Select ${form.to_type}...`} />
+                                                                <SelectValue placeholder="Select Receiver (Who got paid?)" />
                                                             </SelectTrigger>
                                                             <SelectContent className="max-h-[300px] rounded-none border-emerald-900">
-                                                                {form.to_type === 'party' ? (
-                                                                    parties?.map(p => <SelectItem key={p.id} value={p.id} className="font-bold text-xs uppercase py-3 border-b border-slate-50 last:border-0"><Users className="h-3 w-3 inline mr-2 text-slate-400" /> {p.name}</SelectItem>)
-                                                                ) : (
-                                                                    allAccounts?.map(a => <SelectItem key={a.id} value={a.id} className="font-bold text-xs uppercase py-3 border-b border-slate-50 last:border-0"><Building className="h-3 w-3 inline mr-2 text-slate-400" /> {a.name}</SelectItem>)
-                                                                )}
+                                                                <div className="p-2 bg-slate-100 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Parties / Customers / Suppliers</div>
+                                                                {parties?.map(p => <SelectItem key={p.id} value={p.id} className="font-bold text-xs uppercase py-3 border-b border-slate-50 last:border-0"><Users className="h-3 w-3 inline mr-2 text-slate-400" /> {p.name}</SelectItem>)}
+                                                                <div className="p-2 bg-slate-100 text-[9px] font-bold text-slate-500 uppercase tracking-widest">Cash / Bank / Assets</div>
+                                                                {allAccounts?.filter(a => a.account_type === 'asset' || a.account_type === 'bank' || a.account_type === 'cash').map(a => (
+                                                                    <SelectItem key={a.id} value={a.id} className="font-bold text-xs uppercase py-3 border-b border-slate-50 last:border-0"><Building className="h-3 w-3 inline mr-2 text-slate-400" /> {a.name}</SelectItem>
+                                                                ))}
                                                             </SelectContent>
                                                         </Select>
-                                                        <p className="text-[9px] text-emerald-400 font-bold uppercase italic">* This party's balance will be adjusted (DEBITED)</p>
                                                     </div>
                                                 </div>
                                             </div>
