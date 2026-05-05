@@ -621,7 +621,7 @@ export default function ManageTransactions() {
                                                         <SelectValue placeholder={`Search ${txnType === 'SALE' ? 'Customer' : 'Supplier'}...`} />
                                                     </SelectTrigger>
                                                     <SelectContent className="rounded-none border-slate-900 max-h-[300px]">
-                                                        {parties?.filter(p => txnType === 'SALE' ? p.type === 'customer' : p.type === 'supplier').map(p => (
+                                                        {parties?.map(p => (
                                                             <SelectItem key={p.id} value={p.id} className="font-bold text-xs uppercase">{p.name}</SelectItem>
                                                         ))}
                                                     </SelectContent>
