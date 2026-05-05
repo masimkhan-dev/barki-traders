@@ -116,6 +116,16 @@ export default function ManageTransactions() {
         });
     };
 
+    const handleTabChange = (type: TransactionType) => {
+        if (isEditMode) {
+            setIsEditMode(false);
+            setEditVoucherNo(null);
+            navigate('/manage-transactions');
+        }
+        setTxnType(type);
+        resetForm();
+    };
+
     // ── Load URL Params & Edit Mode ─────────────────────────────
     useEffect(() => {
         const vNo = searchParams.get('edit');
@@ -139,19 +149,81 @@ export default function ManageTransactions() {
             setIsEditMode(true);
             setEditVoucherNo(vNo);
 
-            // Determine type by voucher prefix
-            if (vNo.startsWith('SHR-')) {
-                setTxnType('SHRINKAGE');
-                // For shrinkage, we'd need to fetch from some specific table if it was stored there,
-                // but currently it's just ledger + inventory. We'll pre-fill what we can from ledger.
-            } else if (vNo.startsWith('EXP-')) {
-                setTxnType('EXPENSE');
-            } else if (vNo.startsWith('SAL-')) {
+            // 1. If it's a SALE
+            if (vNo.startsWith('SAL-')) {
                 setTxnType('SALE');
-            } else if (vNo.startsWith('PUR-')) {
-                setTxnType('PURCHASE');
+                const { data: sale } = await supabase
+                    .from('sales')
+                    .select('*')
+                    .eq('voucher_no', vNo)
+                    .single();
+                
+                if (sale) {
+                    setForm(prev => ({
+                        ...prev,
+                        date: sale.sale_date,
+                        party_id: sale.party_id,
+                        fuel_type_id: sale.fuel_type_id,
+                        quantity: String(sale.quantity),
+                        rate: String(sale.rate_per_unit),
+                        amount: String(sale.total_amount),
+                        narration: sale.notes || '',
+                        is_credit: sale.is_credit,
+                        payment_method: 'Cash' // Default or fetch if available
+                    }));
+                }
+                return;
             }
 
+            // 2. If it's a PURCHASE
+            if (vNo.startsWith('PUR-')) {
+                setTxnType('PURCHASE');
+                const { data: purchase } = await supabase
+                    .from('purchases')
+                    .select('*')
+                    .eq('voucher_no', vNo)
+                    .single();
+                
+                if (purchase) {
+                    setForm(prev => ({
+                        ...prev,
+                        date: purchase.purchase_date,
+                        party_id: purchase.party_id,
+                        fuel_type_id: purchase.fuel_type_id,
+                        quantity: String(purchase.quantity),
+                        rate: String(purchase.rate_per_unit),
+                        amount: String(purchase.total_amount),
+                        narration: purchase.notes || '',
+                        is_paid_now: purchase.is_paid_now,
+                        payment_method: purchase.payment_method || 'Cash'
+                    }));
+                }
+                return;
+            }
+
+            // 3. If it's a SHRINKAGE
+            if (vNo.startsWith('SHR-')) {
+                setTxnType('SHRINKAGE');
+                const { data: entries } = await supabase
+                    .from('ledger_entries')
+                    .select('*')
+                    .eq('voucher_no', vNo);
+                
+                if (entries && entries.length > 0) {
+                    const first = entries[0];
+                    // Shrinkage details are often in narration or we might need a specific table
+                    // For now, let's parse from narration or assume common values
+                    setForm(prev => ({
+                        ...prev,
+                        date: first.posting_date,
+                        amount: String(first.debit_amount || first.credit_amount),
+                        narration: first.narration || '',
+                    }));
+                }
+                return;
+            }
+
+            // 4. Generic Ledger (EXPENSE / ACTION_CENTER)
             const { data: entries } = await supabase.from('ledger_entries').select('*').eq('voucher_no', vNo);
             if (entries && entries.length >= 2) {
                 const debitEntry = entries.find(e => e.debit_amount > 0);
@@ -165,6 +237,9 @@ export default function ManageTransactions() {
                     amount: String(Math.max(debitEntry?.debit_amount || 0, creditEntry?.credit_amount || 0)),
                     narration: debitEntry?.narration || '',
                 }));
+                
+                if (vNo.startsWith('EXP-')) setTxnType('EXPENSE');
+                else setTxnType('ACTION_CENTER');
             }
         };
         loadTransaction();
@@ -248,7 +323,7 @@ export default function ManageTransactions() {
                     accounts(name),
                     party:parties(name)
                 `)
-                .in('voucher_type', ['sale', 'purchase', 'adjustment', 'expense', 'receipt', 'payment', 'shrinkage', 'asset', 'withdrawal'])
+                .in('voucher_type', ['sale', 'purchase', 'adjustment', 'receipt', 'payment', 'opening'] as any[])
                 .order('created_at', { ascending: false })
                 .limit(15);
 
@@ -489,12 +564,7 @@ export default function ManageTransactions() {
                                         <button
                                             key={mode.id}
                                             type="button"
-                                            onClick={() => {
-                                                setTxnType(mode.id as TransactionType);
-                                                if (!isEditMode) {
-                                                    setForm(prev => ({ ...prev, date: new Date().toISOString().split('T')[0] }));
-                                                }
-                                            }}
+                                            onClick={() => handleTabChange(mode.id as TransactionType)}
                                             className={cn(
                                                 "flex items-center gap-3 px-4 py-2 text-[10px] font-black uppercase tracking-widest border transition-all",
                                                 txnType === mode.id 
@@ -630,35 +700,7 @@ export default function ManageTransactions() {
                                                         </span>
                                                     </div>
                                                     
-                                                    {txnType === 'SALE' ? (
-                                                        <div className="flex items-center gap-3">
-                                                            <Label className="text-[10px] font-black uppercase text-slate-600">Credit Sale?</Label>
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => setForm({ ...form, is_credit: !form.is_credit })}
-                                                                className={cn(
-                                                                    "px-6 py-2 text-[10px] font-black uppercase tracking-widest border transition-all",
-                                                                    form.is_credit ? "bg-rose-600 border-rose-500 text-white" : "bg-emerald-600 border-emerald-500 text-white"
-                                                                )}
-                                                            >
-                                                                {form.is_credit ? 'YES (UDHAAR)' : 'NO (CASH)'}
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center gap-3">
-                                                            <Label className="text-[10px] font-black uppercase text-slate-600">Paid Now?</Label>
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => setForm({ ...form, is_paid_now: !form.is_paid_now })}
-                                                                className={cn(
-                                                                    "px-6 py-2 text-[10px] font-black uppercase tracking-widest border transition-all",
-                                                                    form.is_paid_now ? "bg-emerald-600 border-emerald-500 text-white" : "bg-rose-600 border-rose-500 text-white"
-                                                                )}
-                                                            >
-                                                                {form.is_paid_now ? 'PAID FULL' : 'ON CREDIT'}
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                                    {/* Forced to Credit (Udhaar) - Toggle removed per user request */}
                                                 </div>
                                             </div>
                                         )}
