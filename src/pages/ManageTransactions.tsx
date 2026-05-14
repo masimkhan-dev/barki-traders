@@ -49,6 +49,33 @@ interface EntityOption {
     category?: string;
 }
 
+const TODAY = new Date().toISOString().split('T')[0];
+
+const INITIAL_FORM_STATE = {
+    date: TODAY,
+    expense_account_id: '',
+    payment_account_id: '',
+    amount: '',
+    narration: '',
+    asset_name: '',
+    asset_category: 'Equipment',
+    fuel_type_id: '',
+    quantity_lost: '',
+    rate_per_liter: '',
+    reason: 'Tanker Delivery Shortage',
+    from_entity_id: '',
+    from_type: 'party' as 'party' | 'account',
+    to_entity_id: '',
+    to_type: 'account' as 'party' | 'account',
+    action_type: 'transfer' as 'transfer' | 'receipt' | 'payment' | 'contra',
+    party_id: '',
+    quantity: '',
+    rate: '',
+    is_credit: true,
+    is_paid_now: false,
+    payment_method: 'Cash'
+};
+
 export default function ManageTransactions() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -60,59 +87,12 @@ export default function ManageTransactions() {
     const [editVoucherNo, setEditVoucherNo] = useState<string | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-    const [form, setForm] = useState({
-        date: new Date().toISOString().split('T')[0],
-        expense_account_id: '',
-        payment_account_id: '',
-        amount: '',
-        narration: '',
-        // Asset specific
-        asset_name: '',
-        asset_category: 'Equipment',
-        // Shrinkage specific
-        fuel_type_id: '',
-        quantity_lost: '',
-        rate_per_liter: '',
-        reason: 'Tanker Delivery Shortage',
-        // Action Center specific
-        from_entity_id: '',
-        from_type: 'party' as 'party' | 'account',
-        to_entity_id: '',
-        to_type: 'account' as 'party' | 'account',
-        action_type: 'transfer' as 'transfer' | 'receipt' | 'payment' | 'contra',
-        // Sale/Purchase specific
-        party_id: '',
-        quantity: '',
-        rate: '',
-        is_credit: true,
-        is_paid_now: false,
-        payment_method: 'Cash'
-    });
+    const [form, setForm] = useState(INITIAL_FORM_STATE);
 
-    const resetForm = () => {
+    const resetForm = (dateToKeep: string = TODAY) => {
         setForm({
-            date: new Date().toISOString().split('T')[0],
-            expense_account_id: '',
-            payment_account_id: '',
-            amount: '',
-            narration: '',
-            asset_name: '',
-            asset_category: 'Equipment',
-            fuel_type_id: '',
-            quantity_lost: '',
-            rate_per_liter: '',
-            reason: 'Tanker Delivery Shortage',
-            from_entity_id: '',
-            from_type: 'party',
-            to_entity_id: '',
-            to_type: 'account',
-            action_type: 'transfer',
-            party_id: '',
-            quantity: '',
-            rate: '',
-            is_credit: true,
-            is_paid_now: false,
-            payment_method: 'Cash'
+            ...INITIAL_FORM_STATE,
+            date: dateToKeep
         });
     };
 
@@ -123,7 +103,7 @@ export default function ManageTransactions() {
             navigate('/manage-transactions');
         }
         setTxnType(type);
-        resetForm();
+        resetForm(form.date);
     };
 
     // ── Load URL Params & Edit Mode ─────────────────────────────
@@ -506,13 +486,13 @@ export default function ManageTransactions() {
                 return data;
             }
         },
-        onSuccess: () => {
+        onSuccess: (data, variables) => {
             toast({
                 title: 'Transaction Posted',
                 description: 'The record has been committed to the ledger and inventory.'
             });
-            // Reset form partly
-            resetForm();
+            // Reset form but keep the date used in this successful transaction
+            resetForm(variables.date);
             queryClient.invalidateQueries({ queryKey: ['roznamcha'] });
             queryClient.invalidateQueries({ queryKey: ['recent-factory-vouchers'] });
             queryClient.invalidateQueries({ queryKey: ['calculated-inventory'] });
