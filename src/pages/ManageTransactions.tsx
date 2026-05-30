@@ -275,15 +275,15 @@ export default function ManageTransactions() {
         if (editData && isEditMode) {
             setForm(prev => ({
                 ...prev,
-                date: editData.sale_date || editData.purchase_date || TODAY,
-                party_id: editData.party_id || '',
-                fuel_type_id: editData.fuel_type_id || '',
-                quantity: editData.quantity?.toString() || '',
-                rate: editData.rate_per_unit?.toString() || '',
-                narration: editData.notes || '',
-                is_credit: editData.is_credit ?? true,
-                is_paid_now: editData.is_paid_now ?? false,
-                payment_method: editData.payment_method || 'Cash',
+                date: (editData as any).sale_date || (editData as any).purchase_date || TODAY,
+                party_id: (editData as any).party_id || '',
+                fuel_type_id: (editData as any).fuel_type_id || '',
+                quantity: (editData as any).quantity?.toString() || '',
+                rate: (editData as any).rate_per_unit?.toString() || '',
+                narration: (editData as any).notes || '',
+                is_credit: (editData as any).is_credit ?? true,
+                is_paid_now: (editData as any).is_paid_now ?? false,
+                payment_method: (editData as any).payment_method || 'Cash',
             }));
         }
     }, [editData, isEditMode]);
@@ -670,10 +670,10 @@ export default function ManageTransactions() {
     const deleteMutation = useMutation({
         mutationFn: async () => {
             if (!editVoucherNo) throw new Error('No voucher selected for deletion.');
-            const { data, error } = await supabase.rpc('delete_transaction_safely', {
+            const { data, error } = await (supabase as any).rpc('delete_transaction_safely', {
                 p_voucher_no: editVoucherNo,
             });
-            return assertRpcSuccess(data, error, 'Delete failed.');
+            return assertRpcSuccess(data as any, error, 'Delete failed.');
         },
         onSuccess: async () => {
             toast({ title: 'Transaction Deleted', description: `Voucher ${editVoucherNo} was safely deleted.` });
