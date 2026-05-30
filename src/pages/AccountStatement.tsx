@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { ReversalModal } from '@/components/modals/ReversalModal';
+import { PHASE1_EDIT_DELETE_MESSAGE } from '@/lib/phase1-readonly';
 import { formatPKR, formatNumber } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import {
@@ -1119,11 +1120,10 @@ export default function AccountStatement() {
                           <div className="flex items-center justify-between">
                             <span>{row.voucher_no}</span>
                             <button
-                              onClick={() => {
-                                setSelectedVoucher(row.voucher_no);
-                                setRevModalOpen(true);
-                              }}
-                              className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-rose-600 print:hidden"
+                              type="button"
+                              title="Reversal disabled (Phase 1)"
+                              onClick={() => toast.error(PHASE1_EDIT_DELETE_MESSAGE)}
+                              className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-300 print:hidden"
                             >
                               <RotateCcw className="h-3 w-3" />
                             </button>

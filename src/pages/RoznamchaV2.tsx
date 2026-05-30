@@ -29,9 +29,11 @@ import {
     FlaskConical,
     BookOpen,
     ChevronDown,
+    Trash2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { toastEditDeleteDisabled } from '@/lib/phase1-readonly';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
@@ -81,6 +83,37 @@ export default function RoznamchaV2() {
     const toggleExpand = (voucherNo: string) => {
         setExpandedVoucher(prev => prev === voucherNo ? null : voucherNo);
     };
+
+    const deleteMutation = useMutation({
+        mutationFn: async (voucherNo: string) => {
+            const { data, error } = await supabase.rpc('delete_transaction_safely', {
+                p_voucher_no: voucherNo,
+            });
+            if (error) throw error;
+            if (data && (data as any).success === false) {
+                throw new Error((data as any).error || 'Delete failed.');
+            }
+            return data;
+        },
+        onSuccess: () => {
+            toast({ title: 'Transaction Deleted', description: 'The voucher has been safely deleted and stock/ledger restored.' });
+            queryClient.invalidateQueries({ queryKey: ['roznamcha'] });
+            queryClient.invalidateQueries({ queryKey: ['roznamcha-v2'] });
+            queryClient.invalidateQueries({ queryKey: ['roznamcha-v3'] });
+            queryClient.invalidateQueries({ queryKey: ['calculated-inventory'] });
+            queryClient.invalidateQueries({ queryKey: ['recent-factory-vouchers'] });
+            queryClient.invalidateQueries({ queryKey: ['sales'] });
+            queryClient.invalidateQueries({ queryKey: ['purchases'] });
+            queryClient.invalidateQueries({ queryKey: ['ledger_entries'] });
+            queryClient.invalidateQueries({ queryKey: ['party-statement'] });
+            queryClient.invalidateQueries({ queryKey: ['party-statement-v8'] });
+            queryClient.invalidateQueries({ queryKey: ['all-accounts-fresh'] });
+            queryClient.invalidateQueries({ queryKey: ['transaction-history'] });
+        },
+        onError: (e: any) => {
+            toast({ variant: 'destructive', title: 'Delete Failed', description: e.message });
+        }
+    });
 
     const { data: queryResult, isLoading } = useQuery({
         queryKey: ['roznamcha-v2', selectedDate],
@@ -498,21 +531,43 @@ export default function RoznamchaV2() {
                                                             </button>
                                                         </td>
                                                         <td className="center-align print:hidden">
-                                                            <Button
-                                                                variant="ghost" size="icon"
-                                                                className="h-7 w-7 text-slate-400 hover:text-slate-900"
-                                                                onClick={() => {
-                                                                    if (t.type === 'sale' || t.type === 'purchase' || t.type === 'transfer' || t.type === 'manage_transaction') {
-                                                                        navigate(`/manage-transactions?edit=${t.voucher_no}`);
-                                                                    } else if (t.type === 'receipt' || t.type === 'payment') {
-                                                                        navigate(`/expenses?edit=${t.voucher_no}`);
-                                                                    } else {
-                                                                        toast({ title: 'System Notice', description: 'Journal entries must be reversed for security.' });
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <Edit2 className="h-3.5 w-3.5" />
-                                                            </Button>
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                <Button
+                                                                    variant="ghost" size="icon"
+                                                                    className="h-7 w-7 text-slate-400 hover:text-slate-900"
+                                                                    disabled={deleteMutation.isPending}
+                                                                    onClick={() => {
+                                                                        if (t.type === 'sale' || t.type === 'purchase') {
+                                                                            navigate(`/manage-transactions?edit=${t.voucher_no}&type=${t.type.toUpperCase()}`);
+                                                                        } else {
+                                                                            toast({
+                                                                                title: 'Direct edit unsupported',
+                                                                                description: 'Direct editing is only supported for Sales and Purchases. For other types, please delete and create a new entry.'
+                                                                            });
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <Edit2 className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                                {(role === 'admin' || role === 'accountant') && (
+                                                                    <Button
+                                                                        variant="ghost" size="icon"
+                                                                        className="h-7 w-7 text-slate-300 hover:text-rose-600"
+                                                                        disabled={deleteMutation.isPending}
+                                                                        onClick={() => {
+                                                                            if (window.confirm(`Are you sure you want to permanently delete voucher ${t.voucher_no}? This will safely revert inventory and ledger entries.`)) {
+                                                                                deleteMutation.mutate(t.voucher_no);
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        {deleteMutation.isPending ? (
+                                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                        ) : (
+                                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                                        )}
+                                                                    </Button>
+                                                                )}
+                                                            </div>
                                                         </td>
 
                                                         {/* ✅ NEW: Ledger drill-down toggle button */}

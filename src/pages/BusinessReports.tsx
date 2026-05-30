@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
+import { debugLog } from '@/lib/debug-log';
+import { toastEditDeleteDisabled } from '@/lib/phase1-readonly';
+import { useToast } from '@/hooks/use-toast';
 import { formatPKR, formatNumber } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,7 +20,8 @@ import {
     Calendar,
     ArrowUpRight,
     ArrowDownLeft,
-    Loader2
+    Loader2,
+    Edit2
 } from 'lucide-react';
 
 // Helper: Classic Date Format (DD-MM-YY)
@@ -47,6 +52,8 @@ const exportToCSV = (data: any[], filename: string) => {
 };
 
 export default function BusinessReports() {
+    const navigate = useNavigate();
+    const { toast } = useToast();
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
 
@@ -69,6 +76,15 @@ export default function BusinessReports() {
                 .lte('sale_date', endDate)
                 .order('sale_date', { ascending: false });
             if (error) throw error;
+            // #region agent log
+            debugLog(
+                'BusinessReports.tsx:salesQuery',
+                'sales report fetched',
+                { startDate, endDate, rowCount: data?.length ?? 0 },
+                'A,C',
+                'pre-fix'
+            );
+            // #endregion
             return data;
         },
         staleTime: 0
@@ -89,6 +105,15 @@ export default function BusinessReports() {
                 .lte('purchase_date', endDate)
                 .order('purchase_date', { ascending: false });
             if (error) throw error;
+            // #region agent log
+            debugLog(
+                'BusinessReports.tsx:purchasesQuery',
+                'purchases report fetched',
+                { startDate, endDate, rowCount: data?.length ?? 0 },
+                'A,C',
+                'pre-fix'
+            );
+            // #endregion
             return data;
         },
         staleTime: 0
@@ -262,12 +287,13 @@ export default function BusinessReports() {
                                             <th className="right-align w-32">Qty (L)</th>
                                             <th className="right-align w-32">Rate</th>
                                             <th className="right-align w-40">Total Amount</th>
+                                            <th className="w-24 center-align print:hidden">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {loadingSales ? (
                                             <tr>
-                                                <td colSpan={7} className="py-24 bg-slate-50/50">
+                                                <td colSpan={8} className="py-24 bg-slate-50/50">
                                                     <div className="flex flex-col items-center justify-center gap-4">
                                                         <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
                                                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Auditing Sales Activity...</span>
@@ -283,6 +309,18 @@ export default function BusinessReports() {
                                                 <td className="right-align num-audit font-bold">{formatNumber(row.quantity)}</td>
                                                 <td className="right-align num-audit text-slate-400">{formatNumber(row.rate_per_unit)}</td>
                                                 <td className="right-align num-audit font-bold text-assets">{formatNumber(row.total_amount)}</td>
+                                                <td className="center-align print:hidden">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-7 rounded-none border-slate-200 font-bold uppercase text-[9px] tracking-wider text-slate-400 cursor-not-allowed opacity-60"
+                                                        onClick={() => toastEditDeleteDisabled(toast)}
+                                                        title="Edit disabled (Phase 1)"
+                                                    >
+                                                        <Edit2 className="h-3 w-3 mr-1" />
+                                                        Edit
+                                                    </Button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -290,6 +328,7 @@ export default function BusinessReports() {
                                         <tr className="border-t-2 border-slate-900">
                                             <td colSpan={6} className="px-4 py-3 right-align uppercase text-xs">Gross Sales for Period:</td>
                                             <td className="px-4 py-3 right-align text-xl text-assets num-audit underline decoration-double">{formatPKR(sales?.reduce((s, r) => s + (Number(r.total_amount) || 0), 0) || 0)}</td>
+                                            <td className="print:hidden"></td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -309,12 +348,13 @@ export default function BusinessReports() {
                                             <th className="right-align w-32">Qty (L)</th>
                                             <th className="right-align w-32">Rate</th>
                                             <th className="right-align w-40">Total Amount</th>
+                                            <th className="w-24 center-align print:hidden">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {loadingPurchases ? (
                                             <tr>
-                                                <td colSpan={7} className="py-24 bg-slate-50/50">
+                                                <td colSpan={8} className="py-24 bg-slate-50/50">
                                                     <div className="flex flex-col items-center justify-center gap-4">
                                                         <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
                                                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Auditing Purchase Records...</span>
@@ -330,6 +370,18 @@ export default function BusinessReports() {
                                                 <td className="right-align num-audit font-bold">{formatNumber(row.quantity)}</td>
                                                 <td className="right-align num-audit text-slate-400">{formatNumber(row.rate_per_unit)}</td>
                                                 <td className="right-align num-audit font-bold text-liabilities">{formatNumber(row.total_amount)}</td>
+                                                <td className="center-align print:hidden">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-7 rounded-none border-slate-200 font-bold uppercase text-[9px] tracking-wider text-slate-400 cursor-not-allowed opacity-60"
+                                                        onClick={() => toastEditDeleteDisabled(toast)}
+                                                        title="Edit disabled (Phase 1)"
+                                                    >
+                                                        <Edit2 className="h-3 w-3 mr-1" />
+                                                        Edit
+                                                    </Button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -337,6 +389,7 @@ export default function BusinessReports() {
                                         <tr className="border-t-2 border-slate-900">
                                             <td colSpan={6} className="px-4 py-3 right-align uppercase text-xs">Gross Procurement for Period:</td>
                                             <td className="px-4 py-3 right-align text-xl text-liabilities num-audit underline decoration-double">{formatPKR(purchases?.reduce((s, r) => s + (Number(r.total_amount) || 0), 0) || 0)}</td>
+                                            <td className="print:hidden"></td>
                                         </tr>
                                     </tfoot>
                                 </table>

@@ -14,6 +14,48 @@
   <meta property="og:title" content="Naveed Musazai | Audit Ledger" />
   <meta property="og:description" content="Secure and Professional Financial Management" />
   <meta property="og:type" content="website" />
+  <script>
+    (function () {
+      function isWalletExtensionNoise(value) {
+        var text = "";
+
+        try {
+          if (value && typeof value === "object") {
+            text = [
+              value.message,
+              value.stack,
+              value.reason && value.reason.message,
+              value.reason && value.reason.stack,
+              value.cause && value.cause.message,
+              value.cause && value.cause.stack
+            ].filter(Boolean).join(" ");
+          } else {
+            text = String(value || "");
+          }
+        } catch (_error) {
+          text = String(value || "");
+        }
+
+        return /MetaMask|ethereum|inpage\.js|contentscript\.js|Failed to connect to MetaMask|MetaMask extension not found/i.test(text);
+      }
+
+      window.addEventListener("error", function (event) {
+        if (
+          isWalletExtensionNoise(event.error) ||
+          isWalletExtensionNoise(event.message) ||
+          isWalletExtensionNoise(event.filename)
+        ) {
+          event.preventDefault();
+        }
+      }, true);
+
+      window.addEventListener("unhandledrejection", function (event) {
+        if (isWalletExtensionNoise(event.reason)) {
+          event.preventDefault();
+        }
+      }, true);
+    })();
+  </script>
 </head>
 
 <body>

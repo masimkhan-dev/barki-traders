@@ -39,6 +39,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { ReversalModal } from '@/components/modals/ReversalModal';
+import { PHASE1_EDIT_DELETE_MESSAGE, toastEditDeleteDisabled } from '@/lib/phase1-readonly';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 
@@ -81,23 +82,28 @@ export default function Roznamcha() {
   const [itemToDelete, setItemToDelete] = useState<DailyTransaction | null>(null);
 
   const deleteMutation = useMutation({
-    mutationFn: async (t: DailyTransaction) => {
-      let table: any = 'ledger_entries';
-      if (t.type === 'sale') table = 'sales';
-      else if (t.type === 'purchase') table = 'purchases';
-      else if (t.type === 'receipt' || t.type === 'payment') {
-        const { data: pay } = await supabase.from('payments').select('id').eq('voucher_no', t.voucher_no).maybeSingle();
-        table = pay ? 'payments' : 'ledger_entries';
-      }
-
-      const { error } = await supabase.from(table).delete().eq('voucher_no', t.voucher_no);
+    mutationFn: async (item: DailyTransaction) => {
+      const { data, error } = await supabase.rpc('delete_transaction_safely', {
+        p_voucher_no: item.voucher_no,
+      });
       if (error) throw error;
-      return true;
+      if (data && (data as any).success === false) {
+        throw new Error((data as any).error || 'Delete failed.');
+      }
+      return data;
     },
     onSuccess: () => {
-      toast({ title: 'Transaction Terminated', description: 'The entry has been successfully scrubbed and balanced reverted.' });
+      toast({ title: 'Transaction Terminated', description: 'The entry has been safely cancelled through database RPC.' });
       queryClient.invalidateQueries({ queryKey: ['roznamcha'] });
+      queryClient.invalidateQueries({ queryKey: ['roznamcha-v2'] });
+      queryClient.invalidateQueries({ queryKey: ['roznamcha-v3'] });
       queryClient.invalidateQueries({ queryKey: ['calculated-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-factory-vouchers'] });
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      queryClient.invalidateQueries({ queryKey: ['ledger_entries'] });
+      queryClient.invalidateQueries({ queryKey: ['party-statement'] });
+      queryClient.invalidateQueries({ queryKey: ['party-statement-v8'] });
       queryClient.invalidateQueries({ queryKey: ['all-accounts-fresh'] });
       queryClient.invalidateQueries({ queryKey: ['transaction-history'] });
       setDeleteConfirmOpen(false);
@@ -426,7 +432,10 @@ export default function Roznamcha() {
                               <div className="flex items-center justify-between">
                                 <span>{shortVoucherId(t.voucher_no)}</span>
                                 <button
-                                  onClick={() => { setSelectedVoucher(t.voucher_no); setRevModalOpen(true); }}
+                                  onClick={() => {
+                                    setItemToDelete(t);
+                                    setDeleteConfirmOpen(true);
+                                  }}
                                   className="opacity-0 group-hover/rev:opacity-100 p-1 hover:text-rose-600 transition-all print:hidden"
                                   title="Reverse Transaction"
                                 >
@@ -493,12 +502,13 @@ export default function Roznamcha() {
                                   size="icon"
                                   className="h-7 w-7 text-slate-400 hover:text-slate-900"
                                   onClick={() => {
-                                    if (t.type === 'sale' || t.type === 'purchase' || t.type === 'transfer') {
-                                      navigate(`/manage-transactions?edit=${t.voucher_no}`);
-                                    } else if (t.type === 'receipt' || t.type === 'payment') {
-                                      navigate(`/expenses?edit=${t.voucher_no}`);
+                                    if (t.type === 'sale' || t.type === 'purchase') {
+                                      navigate(`/manage-transactions?edit=${t.voucher_no}&type=${t.type.toUpperCase()}`);
                                     } else {
-                                      toast({ title: 'System Notice', description: 'Journal entries must be reversed for security.' });
+                                      toast({
+                                        title: 'Direct edit unsupported',
+                                        description: 'Direct editing is only supported for Sales and Purchases. For other types, please delete and create a new entry.'
+                                      });
                                     }
                                   }}
                                 >
@@ -509,7 +519,10 @@ export default function Roznamcha() {
                                     variant="ghost"
                                     size="icon"
                                     className="h-7 w-7 text-slate-300 hover:text-rose-600"
-                                    onClick={() => { setItemToDelete(t); setDeleteConfirmOpen(true); }}
+                                    onClick={() => {
+                                      setItemToDelete(t);
+                                      setDeleteConfirmOpen(true);
+                                    }}
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
@@ -557,7 +570,7 @@ export default function Roznamcha() {
                             {t.credit > 0 && <span className="num-audit font-black text-rose-700">{formatPKR(t.credit)} <span className="text-[8px] text-slate-400 uppercase">Out</span></span>}
                           </div>
                           <div className="flex gap-1.5">
-                            <button onClick={() => { setSelectedVoucher(t.voucher_no); setRevModalOpen(true); }} className="p-1.5 text-slate-300"><RotateCcw className="h-4 w-4" /></button>
+                            <button type="button" onClick={() => { setItemToDelete(t); setDeleteConfirmOpen(true); }} className="p-1.5 text-slate-300"><RotateCcw className="h-4 w-4" /></button>
                             <button onClick={() => !t.reconciled && reconcileMutation.mutate(t.voucher_no)} className={cn("p-1.5", t.reconciled ? "text-emerald-600" : "text-slate-200")}><ShieldCheck className="h-4 w-4" /></button>
                           </div>
                         </div>

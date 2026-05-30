@@ -12,10 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, AlertTriangle, RotateCcw } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { PHASE1_EDIT_DELETE_MESSAGE } from '@/lib/phase1-readonly';
 
 interface ReversalModalProps {
     voucherNo: string | null;
@@ -27,20 +26,10 @@ export function ReversalModal({ voucherNo, isOpen, onClose }: ReversalModalProps
     const [reason, setReason] = useState('');
     const queryClient = useQueryClient();
     const { toast } = useToast();
-    const { isAdmin } = useAuth();
-
     const mutation = useMutation({
         mutationFn: async () => {
             if (!voucherNo) return;
-            if (!reason.trim()) throw new Error("Please provide a reason for reversal.");
-
-            const { data, error } = await (supabase as any).rpc('reverse_transaction', {
-                p_voucher_no: voucherNo,
-                p_reason: reason
-            });
-
-            if (error) throw error;
-            return data;
+            throw new Error(PHASE1_EDIT_DELETE_MESSAGE);
         },
         onSuccess: (data) => {
             toast({
@@ -77,6 +66,9 @@ export function ReversalModal({ voucherNo, isOpen, onClose }: ReversalModalProps
                 </DialogHeader>
 
                 <div className="py-6 space-y-4">
+                    <div className="p-4 bg-rose-50 border-l-4 border-rose-400 rounded text-rose-900 text-sm">
+                        <p className="font-bold">{PHASE1_EDIT_DELETE_MESSAGE}</p>
+                    </div>
                     <div className="p-4 bg-amber-50 border-l-4 border-amber-400 rounded flex gap-3 text-amber-800 text-sm">
                         <AlertTriangle className="h-5 w-5 shrink-0" />
                         <p><strong>Dhyan dein:</strong> Stock aur accounts balance wapas purani halat mein aa jayein ge.</p>
@@ -100,9 +92,9 @@ export function ReversalModal({ voucherNo, isOpen, onClose }: ReversalModalProps
                         variant="destructive"
                         className="font-bold tracking-tight"
                         onClick={() => mutation.mutate()}
-                        disabled={mutation.isPending || !reason.trim()}
+                        disabled
                     >
-                        {mutation.isPending ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : "REVERSE ENTRY"}
+                        REVERSE DISABLED
                     </Button>
                 </DialogFooter>
             </DialogContent>

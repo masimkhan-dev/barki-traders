@@ -1,16 +1,24 @@
 
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import { toastEditDeleteDisabled } from '@/lib/phase1-readonly';
 
 export default function ExpensesRedirect() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { toast } = useToast();
 
     useEffect(() => {
-        // Redirect to the new consolidated ManageTransactions page
+        if (searchParams.get('edit')) {
+            toastEditDeleteDisabled(toast);
+            navigate('/manage-transactions', { replace: true });
+            return;
+        }
+
         const query = searchParams.toString();
         navigate(`/manage-transactions${query ? '?' + query : ''}`, { replace: true });
-    }, [navigate, searchParams]);
+    }, [navigate, searchParams, toast]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50">

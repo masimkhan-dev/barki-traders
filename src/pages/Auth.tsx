@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -41,11 +41,12 @@ export default function Auth() {
     fullName: '',
   });
 
-  // Redirect if already logged in with a role
-  if (!authLoading && user && role) {
-    navigate(role === 'accountant' ? '/roznamcha' : '/dashboard');
-    return null;
-  }
+  // ✅ Redirect when auth + role both ready (handles async role fetch after login)
+  useEffect(() => {
+    if (!authLoading && user && role) {
+      navigate(role === 'accountant' ? '/roznamcha' : '/dashboard', { replace: true });
+    }
+  }, [user, role, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

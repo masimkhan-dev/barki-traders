@@ -12,7 +12,7 @@
 // 7. NO totals strip. NO net movement. NO counters.
 // ============================================================
 
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { toastEditDeleteDisabled } from '@/lib/phase1-readonly';
 import { cn } from '@/lib/utils';
 
 // ✅ Single source of truth — update here if new cash/bank account added
@@ -38,7 +39,7 @@ const CASH_BANK_CODES = ['1000', '1010'];
 const CASH_CODES = ['1000'];
 const BANK_CODES = ['1010'];
 
-type FlowType = 'deposit' | 'payment' | 'transfer' | 'journal';
+type FlowType = 'deposit' | 'payment' | 'transfer' | 'sale' | 'purchase' | 'journal';
 
 interface DailyRow {
     id: string;
@@ -74,9 +75,10 @@ function cleanRemarks(raw: string): string {
 function shortVoucherId(voucher_no: string): string {
     if (!voucher_no) return '#—';
     const parts = voucher_no.split('-');
+    const prefix = parts[0] || 'VCH';
     const last = parts[parts.length - 1];
-    // Shorten extremely long system IDs (anything over 7 chars in the last part)
-    return last.length > 7 ? `#${last.slice(-5)}` : `#${last}`;
+    const seq = last.length > 7 ? last.slice(-5) : last;
+    return `${prefix}·${seq}`;
 }
 
 // ── Flow type badge config ───────────────────────────────────
@@ -84,6 +86,8 @@ const FLOW_CONFIG: Record<FlowType, { label: string; cls: string }> = {
     deposit: { label: 'Deposit', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
     payment: { label: 'Payment', cls: 'bg-rose-100 text-rose-700 border-rose-200' },
     transfer: { label: 'Transfer', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+    sale: { label: 'Sale', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    purchase: { label: 'Purchase', cls: 'bg-sky-100 text-sky-700 border-sky-200' },
     journal: { label: 'Journal', cls: 'bg-slate-100 text-slate-500 border-slate-200' },
 };
 
@@ -95,6 +99,37 @@ export default function RoznamchaV3() {
     const [selectedDate, setSelectedDate] = useState(
         new Date().toISOString().split('T')[0]
     );
+
+    const deleteMutation = useMutation({
+        mutationFn: async (voucherNo: string) => {
+            const { data, error } = await supabase.rpc('delete_transaction_safely', {
+                p_voucher_no: voucherNo,
+            });
+            if (error) throw error;
+            if (data && (data as any).success === false) {
+                throw new Error((data as any).error || 'Delete failed.');
+            }
+            return data;
+        },
+        onSuccess: () => {
+            toast({ title: 'Transaction Deleted', description: 'The voucher has been safely deleted and stock/ledger restored.' });
+            queryClient.invalidateQueries({ queryKey: ['roznamcha'] });
+            queryClient.invalidateQueries({ queryKey: ['roznamcha-v2'] });
+            queryClient.invalidateQueries({ queryKey: ['roznamcha-v3'] });
+            queryClient.invalidateQueries({ queryKey: ['calculated-inventory'] });
+            queryClient.invalidateQueries({ queryKey: ['recent-factory-vouchers'] });
+            queryClient.invalidateQueries({ queryKey: ['sales'] });
+            queryClient.invalidateQueries({ queryKey: ['purchases'] });
+            queryClient.invalidateQueries({ queryKey: ['ledger_entries'] });
+            queryClient.invalidateQueries({ queryKey: ['party-statement'] });
+            queryClient.invalidateQueries({ queryKey: ['party-statement-v8'] });
+            queryClient.invalidateQueries({ queryKey: ['all-accounts-fresh'] });
+            queryClient.invalidateQueries({ queryKey: ['transaction-history'] });
+        },
+        onError: (e: any) => {
+            toast({ variant: 'destructive', title: 'Delete Failed', description: e.message });
+        }
+    });
     const [expandedVoucher, setExpandedVoucher] = useState<string | null>(null);
 
     const toggleExpand = (vNo: string) =>
@@ -134,21 +169,29 @@ export default function RoznamchaV3() {
 
             if (error) throw error;
 
-            // Fetch fuel details for sale/purchase vouchers on this date
-            const [salesRes, purchasesRes] = await Promise.all([
-                supabase
-                    .from('sales')
-                    .select(`voucher_no, quantity, rate_per_unit, total_amount, fuel_types(name)`)
-                    .eq('sale_date', selectedDate),
-                supabase
-                    .from('purchases')
-                    .select(`voucher_no, quantity, rate_per_unit, total_amount, fuel_types(name)`)
-                    .eq('purchase_date', selectedDate)
-            ]);
+            const entries = (data || []) as any[];
+            const voucherNos = Array.from(new Set(entries.map(entry => entry.voucher_no).filter(Boolean)));
+
+            const [salesRes, purchasesRes] = voucherNos.length > 0
+                ? await Promise.all([
+                    supabase
+                        .from('sales')
+                        .select(`voucher_no, quantity, rate_per_unit, total_amount, fuel_types(name)`)
+                        .in('voucher_no', voucherNos),
+                    supabase
+                        .from('purchases')
+                        .select(`voucher_no, quantity, rate_per_unit, total_amount, fuel_types(name)`)
+                        .in('voucher_no', voucherNos)
+                ])
+                : [{ data: [], error: null }, { data: [], error: null }];
+
+            if (salesRes.error) throw salesRes.error;
+            if (purchasesRes.error) throw purchasesRes.error;
 
             const fuelDetailMap = new Map<string, any>();
             (salesRes.data || []).forEach((s: any) => {
                 fuelDetailMap.set(s.voucher_no, {
+                    source_type: 'sale',
                     fuel_name: s.fuel_types?.name,
                     quantity: s.quantity,
                     rate_per_unit: s.rate_per_unit,
@@ -157,14 +200,13 @@ export default function RoznamchaV3() {
             });
             (purchasesRes.data || []).forEach((p: any) => {
                 fuelDetailMap.set(p.voucher_no, {
+                    source_type: 'purchase',
                     fuel_name: p.fuel_types?.name,
                     quantity: p.quantity,
                     rate_per_unit: p.rate_per_unit,
                     total_amount: p.total_amount
                 });
             });
-
-            const entries = (data || []) as any[];
 
             // ── Group by voucher_no ────────────────────────────
             const groupedMap = new Map<string, {
@@ -195,11 +237,21 @@ export default function RoznamchaV3() {
 
             groupedMap.forEach((group) => {
                 const { rows, voucher_no } = group;
+                const sourceDetail = fuelDetailMap.get(voucher_no);
 
+                const creditEntries = rows.filter((e: any) => Number(e.credit_amount) > 0);
+                const debitEntries = rows.filter((e: any) => Number(e.debit_amount) > 0);
                 // Credit side = FROM (money source)
-                const creditEntry = rows.find((e: any) => Number(e.credit_amount) > 0);
+                const creditEntry = creditEntries[0];
                 // Debit side  = TO   (money destination)
-                const debitEntry = rows.find((e: any) => Number(e.debit_amount) > 0);
+                const debitEntry = debitEntries[0];
+                const isInventoryEntry = (entry: any) => {
+                    const name = String(entry.accounts?.name || '').toLowerCase();
+                    return entry.accounts?.code === '1200' || name.includes('inventory');
+                };
+                const isLegacyPurchase = !sourceDetail
+                    && debitEntries.some(isInventoryEntry)
+                    && creditEntries.some((entry: any) => entry.party?.name);
 
                 const fromName = (
                     creditEntry?.party?.name || creditEntry?.accounts?.name || '—'
@@ -214,7 +266,13 @@ export default function RoznamchaV3() {
                 const isDebitCash = debitEntry && CASH_BANK_CODES.includes(debitEntry.accounts?.code);
 
                 let flow_type: FlowType;
-                if (isCreditCash && isDebitCash) {
+                if (sourceDetail?.source_type === 'sale') {
+                    flow_type = 'sale';
+                } else if (sourceDetail?.source_type === 'purchase') {
+                    flow_type = 'purchase';
+                } else if (isLegacyPurchase) {
+                    flow_type = 'purchase';
+                } else if (isCreditCash && isDebitCash) {
                     flow_type = 'transfer';   // Cash ↔ Bank: internal
                 } else if (!isCreditCash && isDebitCash) {
                     flow_type = 'deposit';    // Party → Bank/Cash: money came in
@@ -226,13 +284,15 @@ export default function RoznamchaV3() {
 
                 // Amount = prioritize the entry with a party (Sale/Purchase rate) over internal entries like COGS
                 const partyEntry = rows.find((e: any) => e.party?.name);
-                const amount = partyEntry 
-                    ? Math.max(Number(partyEntry.debit_amount) || 0, Number(partyEntry.credit_amount) || 0)
-                    : Math.max(
+                const amount = sourceDetail?.total_amount ?? (
+                    partyEntry
+                        ? Math.max(Number(partyEntry.debit_amount) || 0, Number(partyEntry.credit_amount) || 0)
+                        : Math.max(
                         ...rows.map((e: any) =>
                             Math.max(Number(e.debit_amount) || 0, Number(e.credit_amount) || 0)
                         )
-                    );
+                    )
+                );
 
                 dailyRows.push({
                     id: group.id,
@@ -245,12 +305,12 @@ export default function RoznamchaV3() {
                     flow_type,
                     amount,
                     remarks: group.narration,
-                    type: group.type,
+                    type: sourceDetail?.source_type ?? (isLegacyPurchase ? 'purchase' : group.type),
                     is_reversed: group.is_reversed,
-                    fuel_name: fuelDetailMap.get(voucher_no)?.fuel_name,
-                    quantity: fuelDetailMap.get(voucher_no)?.quantity,
-                    rate_per_unit: fuelDetailMap.get(voucher_no)?.rate_per_unit,
-                    total_amount: fuelDetailMap.get(voucher_no)?.total_amount,
+                    fuel_name: sourceDetail?.fuel_name,
+                    quantity: sourceDetail?.quantity,
+                    rate_per_unit: sourceDetail?.rate_per_unit,
+                    total_amount: sourceDetail?.total_amount,
                 });
             });
 
@@ -271,26 +331,6 @@ export default function RoznamchaV3() {
 
     const rows = queryResult?.rows ?? [];
     const rawEntriesByVoucher = queryResult?.rawEntriesByVoucher ?? {};
-
-    // ─────────────────────────────────────────────────────────
-    // DELETE
-    // ─────────────────────────────────────────────────────────
-    const deleteMutation = useMutation({
-        mutationFn: async (voucherNo: string) => {
-            const { error } = await supabase
-                .from('ledger_entries')
-                .delete()
-                .eq('voucher_no', voucherNo);
-            if (error) throw error;
-        },
-        onSuccess: () => {
-            toast({ title: 'Entry Deleted' });
-            queryClient.invalidateQueries({ queryKey: ['roznamcha-v3'] });
-            queryClient.invalidateQueries({ queryKey: ['roznamcha'] });
-        },
-        onError: (e: any) =>
-            toast({ variant: 'destructive', title: 'Error', description: e.message }),
-    });
 
     const formatDate = (d: string) => {
         const [y, m, day] = d.split('-');
@@ -384,16 +424,17 @@ export default function RoznamchaV3() {
                                         const flowCfg = FLOW_CONFIG[row.flow_type];
 
                                         return (
-                                            <>
+                                            <Fragment key={row.voucher_no}>
                                                 {/* ── Main row ──────────────────────────────── */}
                                                 <tr
-                                                    key={row.id}
                                                     className={cn(
                                                         'transition-colors border-l-2',
                                                         // ── Left accent border by flow type (visible on hover only via opacity trick)
                                                         row.flow_type === 'deposit' && 'border-l-emerald-300 hover:border-l-emerald-500 hover:bg-emerald-50/30',
                                                         row.flow_type === 'payment' && 'border-l-rose-300 hover:border-l-rose-500 hover:bg-rose-50/30',
                                                         row.flow_type === 'transfer' && 'border-l-blue-300 hover:border-l-blue-500 hover:bg-blue-50/20',
+                                                        row.flow_type === 'sale' && 'border-l-emerald-300 hover:border-l-emerald-500 hover:bg-emerald-50/30',
+                                                        row.flow_type === 'purchase' && 'border-l-sky-300 hover:border-l-sky-500 hover:bg-sky-50/30',
                                                         row.flow_type === 'journal' && 'border-l-slate-200 hover:border-l-slate-400 hover:bg-slate-50/60',
                                                         isVoid && 'opacity-40',
                                                         isExpanded && 'bg-indigo-50/30 border-l-indigo-400'
@@ -463,9 +504,10 @@ export default function RoznamchaV3() {
                                                     {/* Amount — right-aligned, comma, no Rs */}
                                                     <td className={cn(
                                                         'px-3 py-3 align-top text-right font-black tabular-nums text-base tracking-tight',
-                                                        row.flow_type === 'deposit' ? 'text-emerald-700' :
+                                                        row.flow_type === 'deposit' || row.flow_type === 'sale' ? 'text-emerald-700' :
                                                             row.flow_type === 'payment' ? 'text-rose-700' :
                                                                 row.flow_type === 'transfer' ? 'text-blue-700' :
+                                                                    row.flow_type === 'purchase' ? 'text-sky-700' :
                                                                     'text-slate-400',
                                                         isVoid && 'line-through'
                                                     )}>
@@ -477,33 +519,39 @@ export default function RoznamchaV3() {
                                                         <div className="flex items-center justify-end gap-0.5">
                                                             <Button
                                                                 variant="ghost" size="icon"
-                                                                className="h-6 w-6 text-slate-300 hover:text-slate-700"
-                                                                title="Edit"
+                                                                className="h-6 w-6 text-slate-300 hover:text-slate-900"
+                                                                title="Edit transaction"
+                                                                disabled={deleteMutation.isPending}
                                                                 onClick={() => {
-                                                                    if (['sale', 'purchase', 'transfer', 'manage_transaction', 'munshi_voucher'].includes(row.type)) {
-                                                                        navigate(`/manage-transactions?edit=${row.voucher_no}`);
-                                                                    } else if (['receipt', 'payment'].includes(row.type)) {
-                                                                        navigate(`/expenses?edit=${row.voucher_no}`);
+                                                                    if (row.type === 'sale' || row.type === 'purchase') {
+                                                                        navigate(`/manage-transactions?edit=${row.voucher_no}&type=${row.type.toUpperCase()}`);
                                                                     } else {
-                                                                        toast({ title: 'Reverse this entry to edit.' });
+                                                                        toast({
+                                                                            title: 'Direct edit unsupported',
+                                                                            description: 'Direct editing is only supported for Sales and Purchases. For other types, please delete and create a new entry.'
+                                                                        });
                                                                     }
                                                                 }}
                                                             >
                                                                 <Edit2 className="h-3 w-3" />
                                                             </Button>
-                                                            {(role === 'admin') && (
+                                                            {role === 'admin' && (
                                                                 <Button
                                                                     variant="ghost" size="icon"
-                                                                    className="h-6 w-6 text-slate-200 hover:text-rose-500"
-                                                                    title="Delete"
+                                                                    className="h-6 w-6 text-slate-300 hover:text-rose-600"
+                                                                    title="Delete transaction"
                                                                     disabled={deleteMutation.isPending}
                                                                     onClick={() => {
-                                                                        if (confirm(`Delete ${row.voucher_no}?`)) {
+                                                                        if (window.confirm(`Are you sure you want to permanently delete voucher ${row.voucher_no}? This will safely revert inventory and ledger entries.`)) {
                                                                             deleteMutation.mutate(row.voucher_no);
                                                                         }
                                                                     }}
                                                                 >
-                                                                    <Trash2 className="h-3 w-3" />
+                                                                    {deleteMutation.isPending ? (
+                                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                                    ) : (
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    )}
                                                                 </Button>
                                                             )}
                                                         </div>
@@ -512,7 +560,7 @@ export default function RoznamchaV3() {
 
                                                 {/* ── Expandable journal drill-down ─────────── */}
                                                 {isExpanded && (
-                                                    <tr key={`${row.id}-drill`}>
+                                                    <tr>
                                                         <td colSpan={5} className="px-5 py-3 bg-indigo-50/40">
                                                             <div className="border border-indigo-200 rounded overflow-hidden">
                                                                 {/* Header */}
@@ -598,7 +646,7 @@ export default function RoznamchaV3() {
                                                         </td>
                                                     </tr>
                                                 )}
-                                            </>
+                                            </Fragment>
                                         );
                                     })}
                                 </tbody>

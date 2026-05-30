@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { debugLog } from '@/lib/debug-log';
 
 interface FuelStock {
   fuel_type_id: string;
@@ -73,14 +74,43 @@ export function useInventory() {
         }
       });
 
-      // Set current stock from the actual inventory table records
+      // Set current stock from inventory cache; if drifted, trust voucher sums (source of truth)
       currentStock?.forEach(item => {
         if (stockMap[item.fuel_type_id]) {
           stockMap[item.fuel_type_id].current_stock = Number(item.quantity);
         }
       });
 
-      return Object.values(stockMap);
+      Object.values(stockMap).forEach(row => {
+        const computed = row.total_purchased - row.total_sold;
+        if (Math.abs(computed - row.current_stock) > 0.001) {
+          row.current_stock = computed;
+        }
+      });
+
+      const result = Object.values(stockMap);
+
+      // #region agent log
+      const mismatches = result
+        .map(s => ({
+          fuel: s.fuel_type_name,
+          computed: s.total_purchased - s.total_sold,
+          cached: s.current_stock,
+          drift: Math.abs(s.total_purchased - s.total_sold - s.current_stock),
+        }))
+        .filter(m => m.drift > 0.001);
+      if (mismatches.length > 0) {
+        debugLog(
+          'useInventory.ts:queryFn',
+          'inventory drift detected',
+          { mismatchCount: mismatches.length, samples: mismatches.slice(0, 3) },
+          'B,E',
+          'pre-fix'
+        );
+      }
+      // #endregion
+
+      return result;
     },
     staleTime: 30000, // Cache for 30 seconds
   });

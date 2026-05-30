@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -26,41 +26,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  const fetchInProgress = useRef<Record<string, boolean>>({});
+
   const fetchUserRole = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) {
-        // User might not have a role yet
+      if (!userId) {
         setRole(null);
         return;
       }
 
-      setRole(data?.role as AppRole);
-    } catch (error) {
-      console.error('Error fetching role:', error);
+      // Prevent concurrent/duplicate requests for the same user
+      if (fetchInProgress.current[userId]) return;
+      fetchInProgress.current[userId] = true;
+
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      fetchInProgress.current[userId] = false;
+
+      if (error) {
+        // User might not have a role yet or RLS blocked access
+        setRole(null);
+        return;
+      }
+
+      setRole((data?.role as AppRole) ?? null);
+    } catch (err) {
+      console.error('Error fetching role:', err);
       setRole(null);
+      if (userId) fetchInProgress.current[userId] = false;
     }
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    let active = true;
+
+    // Set up auth state listener.
+    // In Supabase JS v2, onAuthStateChange fires an 'INITIAL_SESSION' event immediately upon subscription,
+    // which provides the current session. Thus, we do not need to call supabase.auth.getSession()
+    // concurrently, avoiding duplicate requests and rate limiting (429 status code) on refresh token.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!active) return;
+
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Defer role fetch to avoid deadlock
         if (session?.user) {
-          setTimeout(() => {
-            fetchUserRole(session.user.id).then(() => {
-              setLoading(false);
-            });
-          }, 0);
+          fetchUserRole(session.user.id).finally(() => {
+            if (active) setLoading(false);
+          });
         } else {
           setRole(null);
           setLoading(false);
@@ -68,21 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        fetchUserRole(session.user.id).then(() => {
-          setLoading(false);
-        });
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {

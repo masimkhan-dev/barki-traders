@@ -312,6 +312,8 @@ export default function Ledger() {
                 <th className="w-[80px]">Date</th>
                 <th className="w-[100px]">Reference</th>
                 <th>Particulars</th>
+                <th className="w-[60px] right-align">Qty</th>
+                <th className="w-[60px] right-align">Rate</th>
                 <th className="w-[100px] right-align">Debit (PKR)</th>
                 <th className="w-[100px] right-align">Credit (PKR)</th>
                 <th className="w-[110px] right-align">Balance</th>
@@ -329,6 +331,8 @@ export default function Ledger() {
                       {entry.particulars.replace(/^Ref: N\/A - /, "").replace(/Adjustment/, "Adjustment").replace(/SOLIDIFICATION/, "Adjustment").replace(/OPENING BALANCE/, "OP-BAL").trim()}
                       {entry.fuel_name && <span className="ml-2 font-medium text-slate-400 italic text-[6.5pt]">({entry.fuel_name})</span>}
                     </td>
+                    <td className="right-align font-mono">{entry.qty ? formatNumber(entry.qty) : '—'}</td>
+                    <td className="right-align font-mono">{entry.rate ? formatNumber(entry.rate) : '—'}</td>
                     <td className="right-align">{(entry.debit || 0) > 0 ? formatNumber(entry.debit) : '—'}</td>
                     <td className="right-align">{(entry.credit || 0) > 0 ? formatNumber(entry.credit) : '—'}</td>
                     <td className="right-align font-black text-black">{formatNumber(Math.abs(balance))}</td>
@@ -339,7 +343,7 @@ export default function Ledger() {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={3} className="text-right font-black uppercase text-[7pt] px-4">Period Movement Totals:</td>
+                <td colSpan={5} className="text-right font-black uppercase text-[7pt] px-4">Period Movement Totals:</td>
                 <td className="right-align font-black border-t-2 border-black">{formatNumber(stats.totalDebit)}</td>
                 <td className="right-align font-black border-t-2 border-black">{formatNumber(stats.totalCredit)}</td>
                 <td className="right-align font-black border-t-2 border-black bg-slate-50">{formatNumber(Math.abs(stats.closing))}</td>
@@ -485,6 +489,8 @@ export default function Ledger() {
                           <th className="w-28 !text-white">Date</th>
                           <th className="w-32 !text-white">Voucher No</th>
                           <th className="!text-white">Particulars / Journal Details</th>
+                          <th className="right-align w-20 !text-white">Qty</th>
+                          <th className="right-align w-20 !text-white">Rate</th>
                           <th className="right-align w-32 !text-white">Debit (Out)</th>
                           <th className="right-align w-32 !text-white">Credit (In)</th>
                           <th className="right-align w-40 bg-slate-950 !text-white">Balance</th>
@@ -503,6 +509,8 @@ export default function Ledger() {
                                   {entry.fuel_name && <span className="text-[8px] font-black text-slate-400 uppercase mt-1">Product: {entry.fuel_name}</span>}
                                 </div>
                               </td>
+                              <td className="right-align num-audit font-bold text-slate-600">{entry.qty ? formatNumber(entry.qty) : '—'}</td>
+                              <td className="right-align num-audit font-bold text-slate-600">{entry.rate ? formatNumber(entry.rate) : '—'}</td>
                               <td className="right-align num-audit font-bold text-liabilities">{(entry.debit || 0) > 0 ? formatNumber(entry.debit) : '—'}</td>
                               <td className="right-align num-audit font-bold text-assets">{(entry.credit || 0) > 0 ? formatNumber(entry.credit) : '—'}</td>
                               <td className="right-align bg-slate-50/50">

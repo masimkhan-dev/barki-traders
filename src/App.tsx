@@ -32,17 +32,19 @@ const ChartOfAccounts = lazy(() => import("./pages/ChartOfAccounts"));
 import { Loader2 } from "lucide-react";
 import ScrollToTop from "./components/ScrollToTop";
 
-// FIX: Infinite Retry Storm (Circuit Breaker)
+// FIX: Infinite Retry Storm (Circuit Breaker) + MetaMask/429 prevention
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: (failureCount, error: any) => {
-        if (error?.status === 404 || error?.status === 400) return false;
+        // Never retry on client/auth errors; 1 retry max for network blips
+        if (error?.status === 404 || error?.status === 400 || error?.status === 401 || error?.status === 429) return false;
         return failureCount < 1;
       },
-      refetchOnWindowFocus: true, // Auto-refresh when user comes back to the tab
-      staleTime: 0, // ALWAYS consider data stale in a financial system
-      gcTime: 1000 * 60 * 10, // Keep in memory for 10 mins
+      refetchOnWindowFocus: false, // Prevent refetch storms when switching tabs/devtools (triggers token refresh → 429)
+      refetchOnReconnect: true,    // Do refetch on network reconnect (safe)
+      staleTime: 0,                // Always consider data stale in a financial system
+      gcTime: 1000 * 60 * 10,     // Keep unused data in cache for 10 mins
     },
   },
 });
