@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Printer, Scale, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { BrandTitle } from '@/components/brand/BrandTitle';
 
 export default function BalanceSheet() {
     const [asOfDate, setAsOfDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -102,7 +103,7 @@ function BalanceSheetHeader({ asOfDate, setAsOfDate }: { asOfDate: string, setAs
                     <Scale className="h-6 w-6 text-blue-600" />
                     <span className="bg-slate-900 text-white text-[10px] px-2 py-0.5 font-black uppercase tracking-widest">Live Audit Mode</span>
                 </div>
-                <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Naveed Musazai</h1>
+                <BrandTitle variant="report" className="text-3xl font-black text-slate-900 uppercase tracking-tighter !text-inherit" />
                 <p className="text-slate-500 font-bold text-sm tracking-wide">Statement of Financial Position (Balance Sheet)</p>
             </div>
             <div className="flex flex-wrap items-center gap-4 print:hidden">

@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import { formatPKR, formatDate } from '@/lib/format';
+import { getPrintHeaderTitle } from '@/lib/client-config';
 
 interface PrintVoucherProps {
   voucher: {
@@ -38,7 +39,7 @@ export const PrintVoucher = forwardRef<HTMLDivElement, PrintVoucherProps>(
       <div ref={ref} className="print-voucher p-4 bg-white text-black min-w-[300px] max-w-[400px] font-mono text-sm">
         {/* Header */}
         <div className="text-center border-b border-black pb-2 mb-3">
-          <h1 className="text-lg font-bold">NAVEED MUSAZAI FUEL</h1>
+          <h1 className="text-lg font-bold">{getPrintHeaderTitle()}</h1>
           <p className="text-xs">{getVoucherTitle(voucher.voucher_type)}</p>
         </div>
 

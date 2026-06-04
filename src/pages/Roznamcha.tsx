@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from '@/integrations/supabase/client';
 import { formatPKR, formatDate } from '@/lib/format';
+import { BrandTitle } from '@/components/brand/BrandTitle';
 import {
   Loader2,
   CalendarDays,
@@ -313,7 +314,7 @@ export default function Roznamcha() {
         <div className="sticky-filter-bar print:hidden px-4">
           <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
             <div className="report-header mb-0">
-              <h1 className="report-title">Naveed Musazai real</h1>
+              <BrandTitle variant="report" />
               <p className="report-subtitle">Daily Cash & Bank Book — Roznamcha</p>
             </div>
 

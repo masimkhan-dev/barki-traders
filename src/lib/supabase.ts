@@ -1,12 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
+import { env, getAuthStorageKey } from '@/lib/env';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+const supabaseUrl = env.supabaseUrl;
+const supabaseAnonKey = env.supabaseAnonKey;
 
 // ─── Token Refresh De-duplication ────────────────────────────────────────────
 // Problem: Supabase uses single-use refresh tokens (rotation). If two concurrent
@@ -76,7 +73,7 @@ if (!globalThis.__supabase_singleton__) {
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: true,
-      storageKey: 'fuel-trust-auth',
+      storageKey: getAuthStorageKey(),
       debug: false,
     },
     global: {

@@ -9,6 +9,8 @@ import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { BrandTitle } from '@/components/brand/BrandTitle';
+import { clientConfig, getCopyrightText } from '@/lib/client-config';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -132,7 +134,7 @@ export default function Auth() {
             <Building2 className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tight uppercase leading-none">NAVEED<br /><span className="text-slate-500">MUSAZAI</span></h1>
+            <BrandTitle variant="stacked" className="text-xl" secondaryClassName="text-slate-500" />
           </div>
         </div>
 
@@ -170,7 +172,7 @@ export default function Auth() {
 
         {/* Footer */}
         <div className="relative z-10 text-xs text-slate-500 font-medium tracking-widest uppercase">
-          &copy; {new Date().getFullYear()} Naveed Musazai Enterprise.
+          {getCopyrightText()}
         </div>
       </div>
 
@@ -183,8 +185,8 @@ export default function Auth() {
             <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-slate-900 mb-4">
               <Building2 className="h-6 w-6 text-white" />
             </div>
-            <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900">Naveed Musazai</h1>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">Audit Ledger System</p>
+            <BrandTitle variant="report" className="text-2xl font-black uppercase tracking-tight text-slate-900 !text-inherit" />
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">{clientConfig.TAGLINE}</p>
           </div>
 
           <div className="mb-8">

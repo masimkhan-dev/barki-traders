@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Building2, Lock, Loader2, CheckCircle2, KeyRound } from 'lucide-react';
+import { BrandTitle } from '@/components/brand/BrandTitle';
+import { clientConfig } from '@/lib/client-config';
 
 export default function ResetPassword() {
     const navigate = useNavigate();
@@ -50,10 +52,10 @@ export default function ResetPassword() {
 
                 <div className="text-center mb-10">
                     <div className="inline-flex h-14 w-14 items-center justify-center rounded-none bg-slate-900 mb-4 border border-white/10 p-2 shadow-xl">
-                        <img src="/logo.svg" alt="Naveed Musazai" className="h-full w-full object-contain filter brightness-110" />
+                        <img src={clientConfig.LOGO_PATH} alt={clientConfig.BUSINESS_NAME} className="h-full w-full object-contain filter brightness-110" />
                     </div>
-                    <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900 leading-none">Naveed<br /><span className="text-slate-500">Musazai</span></h1>
-                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-500 mt-4 pl-1">Audit Ledger System</p>
+                    <BrandTitle variant="stacked" className="text-2xl text-slate-900 tracking-tight" secondaryClassName="text-slate-500" />
+                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-500 mt-4 pl-1">{clientConfig.TAGLINE}</p>
                 </div>
 
                 <div className="mb-8">

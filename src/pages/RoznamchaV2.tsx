@@ -36,6 +36,7 @@ import { useToast } from '@/hooks/use-toast';
 import { toastEditDeleteDisabled } from '@/lib/phase1-readonly';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { BrandTitle } from '@/components/brand/BrandTitle';
 
 // ✅ RULE 1: Single source of truth for Cash/Bank account codes
 // Update this array if a new bank/cash account is added to the chart of accounts
@@ -342,7 +343,7 @@ export default function RoznamchaV2() {
                 <div className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm print:hidden px-4 py-3">
                     <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
                         <div>
-                            <h1 className="text-lg font-black text-slate-900 uppercase tracking-tighter">Naveed Musazai</h1>
+                            <BrandTitle variant="report" className="text-lg font-black text-slate-900 uppercase tracking-tighter !text-inherit" />
                             <p className="text-xs text-slate-500 font-medium">Daily Cash & Bank Book — Roznamcha V2</p>
                         </div>
 

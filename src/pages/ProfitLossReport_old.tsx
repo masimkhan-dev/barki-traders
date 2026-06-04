@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Printer, TrendingDown, Landmark, Minus, Plus, Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { BrandTitle } from '@/components/brand/BrandTitle';
 
 export default function ProfitLossReport() {
     // Default to current month
@@ -82,7 +83,7 @@ export default function ProfitLossReport() {
                                     <Landmark className="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <h1 className="report-title text-2xl font-black tracking-tight text-slate-900">Naveed Musazai</h1>
+                                    <BrandTitle variant="report" className="text-2xl font-black tracking-tight text-slate-900 !text-inherit" />
                                     <p className="report-subtitle text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px]">Consolidated Financial Performance Review</p>
                                 </div>
                             </div>

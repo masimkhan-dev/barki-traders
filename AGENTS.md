@@ -8,7 +8,7 @@ This file helps AI coding agents understand the repository quickly and follow th
 - Styling: Tailwind CSS, Shadcn/UI, Tailwind Typography
 - API/Backend: Supabase client from the browser plus SQL/RPC stored procedures
 - Architecture: Single-page app with pages, components, contexts, and utility libraries
-- Database schema and migrations live in `supabase/migrations` and `sql_archive`
+- Database schema: single bootstrap `00_MASTER_BASELINE_BARKI_TRADERS.sql` in `supabase/migrations/` and `sql_archive/`
 
 ## Key directories
 - `src/` — main application code
@@ -19,7 +19,7 @@ This file helps AI coding agents understand the repository quickly and follow th
   - `src/integrations/supabase/` — Supabase client wrapper and typed DB schema
 - `public/` — static assets
 - `supabase/` — Supabase project config, migrations, and scripts
-- `sql_archive/` — SQL diagnosis and ledger repair scripts
+- `sql_archive/` — copy of the Barki master baseline SQL (see `supabase/migrations/README.md`)
 
 ## Build and validation commands
 - `npm install`
@@ -44,7 +44,7 @@ This file helps AI coding agents understand the repository quickly and follow th
 - Keep UI changes modular; update components and pages without broad rewrites.
 - Prefer type-safe changes with TypeScript and avoid weakening `any` unless absolutely necessary.
 - Do not add or assume a separate Node/Express backend; the repository is a frontend client that talks to Supabase.
-- When database logic is needed, check `supabase/migrations/` and `sql_archive/` before editing application code.
+- When database logic is needed, start from `supabase/migrations/00_MASTER_BASELINE_BARKI_TRADERS.sql`; add new numbered SQL files for Barki-only changes.
 
 ## Useful docs
 - Project summary and setup: [README.md](README.md)

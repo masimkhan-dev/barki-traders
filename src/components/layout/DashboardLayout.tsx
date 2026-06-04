@@ -21,6 +21,7 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { BrandTitle } from '@/components/brand/BrandTitle';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -64,7 +65,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-slate-400" />
               <div className="flex flex-col">
-                <span className="font-black tracking-widest text-slate-900 uppercase text-[10px]">NAVEED MUSAZAI</span>
+                <BrandTitle variant="compact" className="text-slate-900 text-[10px] tracking-widest" />
                 <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Verified Audit Terminal</span>
               </div>
             </div>

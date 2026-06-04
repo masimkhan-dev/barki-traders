@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useReactToPrint } from 'react-to-print';
 import { useRef } from 'react';
+import { BrandTitle } from '@/components/brand/BrandTitle';
 
 interface CustomerStatementProps {
   customerId: string;
@@ -88,7 +89,7 @@ export function CustomerStatement({ customerId, customerName, openingBalance }: 
       <div ref={printRef} className="p-4 bg-white rounded-lg">
         {/* Statement Header for Print - Matches Munshi Style */}
         <div className="mb-6 border-b pb-4">
-          <h1 className="text-2xl font-bold text-center mb-1 uppercase tracking-wide">Naveed Musazai</h1>
+          <BrandTitle variant="report" className="text-2xl font-bold text-center mb-1 uppercase tracking-wide !text-inherit" />
           <h2 className="text-lg font-semibold text-center mb-6 text-gray-600">ACCOUNT STATEMENT</h2>
 
           <div className="flex justify-between text-sm bg-gray-50 p-4 rounded border border-gray-100">

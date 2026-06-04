@@ -28,6 +28,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { clientConfig } from '@/lib/client-config';
+import { BrandTitle } from '@/components/brand/BrandTitle';
 
 interface NavItem {
   label: string;
@@ -99,13 +101,15 @@ export function Sidebar({ className, onItemClick }: { className?: string, onItem
           <Link to="/" onClick={onItemClick} className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-none bg-slate-900 border border-white/10 overflow-hidden p-1.5">
-                <img src="/logo.svg" alt="Naveed Musazai" className="h-full w-full object-contain filter brightness-110" />
+                <img src={clientConfig.LOGO_PATH} alt={clientConfig.BUSINESS_NAME} className="h-full w-full object-contain filter brightness-110" />
               </div>
-              <h1 className="text-xl font-black text-white tracking-tighter leading-none uppercase">
-                NAVEED <br /> <span className="text-slate-500">MUSAZAI</span>
-              </h1>
+              <BrandTitle
+                variant="stacked"
+                className="text-xl text-white tracking-tighter"
+                secondaryClassName="text-slate-500"
+              />
             </div>
-            <p className="text-[9px] text-slate-600 font-black uppercase tracking-[0.4em] mt-4 pl-1">Audit Ledger System</p>
+            <p className="text-[9px] text-slate-600 font-black uppercase tracking-[0.4em] mt-4 pl-1">{clientConfig.TAGLINE}</p>
           </Link>
         </div>
 

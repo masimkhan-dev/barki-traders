@@ -1,12 +1,14 @@
+import { clientConfig } from '@/lib/client-config';
+
 /**
  * Format a number as Pakistani Rupees
  */
 export function formatPKR(amount: number | null | undefined): string {
-  if (amount === null || amount === undefined) return 'PKR 0';
+  if (amount === null || amount === undefined) return `${clientConfig.CURRENCY} 0`;
   
-  return new Intl.NumberFormat('en-PK', {
+  return new Intl.NumberFormat(clientConfig.LOCALE, {
     style: 'currency',
-    currency: 'PKR',
+    currency: clientConfig.CURRENCY,
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(amount);
@@ -18,7 +20,7 @@ export function formatPKR(amount: number | null | undefined): string {
 export function formatNumber(num: number | null | undefined): string {
   if (num === null || num === undefined) return '0';
   
-  return new Intl.NumberFormat('en-PK').format(num);
+  return new Intl.NumberFormat(clientConfig.LOCALE).format(num);
 }
 
 /**
@@ -29,7 +31,7 @@ export function formatDate(date: string | Date | null | undefined): string {
   
   const d = typeof date === 'string' ? new Date(date) : date;
   
-  return new Intl.DateTimeFormat('en-PK', {
+  return new Intl.DateTimeFormat(clientConfig.LOCALE, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -52,7 +54,7 @@ export function formatDateTime(date: string | Date | null | undefined): string {
   
   const d = typeof date === 'string' ? new Date(date) : date;
   
-  return new Intl.DateTimeFormat('en-PK', {
+  return new Intl.DateTimeFormat(clientConfig.LOCALE, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',

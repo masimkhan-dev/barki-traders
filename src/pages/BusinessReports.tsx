@@ -7,6 +7,7 @@ import { debugLog } from '@/lib/debug-log';
 import { toastEditDeleteDisabled } from '@/lib/phase1-readonly';
 import { useToast } from '@/hooks/use-toast';
 import { formatPKR, formatNumber } from '@/lib/format';
+import { BrandTitle } from '@/components/brand/BrandTitle';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
@@ -173,7 +174,7 @@ export default function BusinessReports() {
                 <div className="sticky-filter-bar print:hidden px-4">
                     <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
                         <div className="report-header mb-0">
-                            <h1 className="report-title">Naveed Musazai</h1>
+                            <BrandTitle variant="report" />
                             <p className="report-subtitle">Transactional Analysis & Audit Center</p>
                         </div>
 

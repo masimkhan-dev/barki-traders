@@ -1,6 +1,9 @@
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { applyClientBranding } from '@/lib/apply-client-branding';
+
+applyClientBranding();
 
 const walletNoisePattern =
   /MetaMask|ethereum|inpage\.js|contentscript\.js|Failed to connect to MetaMask|MetaMask extension not found/i;

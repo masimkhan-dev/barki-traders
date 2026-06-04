@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatPKR, formatDate, formatNumber } from '@/lib/format';
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { BrandTitle } from '@/components/brand/BrandTitle';
 import { Loader2, X, BookOpen, RotateCcw, Calendar, Download, Printer, Check, ChevronsUpDown } from 'lucide-react';
 import { ReversalModal } from '@/components/modals/ReversalModal';
 import { Card } from '@/components/ui/card';
@@ -239,7 +240,7 @@ export default function Ledger() {
         <div className="print-only">
           <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-6">
             <div>
-              <h1 className="text-xl font-black text-black leading-none uppercase tracking-tight">Naveed Musazai</h1>
+              <BrandTitle variant="report" className="text-xl font-black text-black leading-none uppercase tracking-tight !text-inherit" />
               <p className="text-[7.5pt] font-bold text-slate-500 mt-1 uppercase">Official Financial Report | General Ledger</p>
             </div>
             <div className="text-right">
