@@ -8,7 +8,7 @@ This file helps AI coding agents understand the repository quickly and follow th
 - Styling: Tailwind CSS, Shadcn/UI, Tailwind Typography
 - API/Backend: Supabase client from the browser plus SQL/RPC stored procedures
 - Architecture: Single-page app with pages, components, contexts, and utility libraries
-- Database schema: single bootstrap `00_MASTER_BASELINE_BARKI_TRADERS.sql` in `supabase/migrations/` and `sql_archive/`
+- Database schema: single bootstrap `supabase/migrations/00_MASTER_BASELINE_BARKI_TRADERS.sql`
 
 ## Key directories
 - `src/` — main application code
@@ -19,7 +19,7 @@ This file helps AI coding agents understand the repository quickly and follow th
   - `src/integrations/supabase/` — Supabase client wrapper and typed DB schema
 - `public/` — static assets
 - `supabase/` — Supabase project config, migrations, and scripts
-- `sql_archive/` — copy of the Barki master baseline SQL (see `supabase/migrations/README.md`)
+- `supabase/migrations/` — Barki master baseline SQL and README
 
 ## Build and validation commands
 - `npm install`
