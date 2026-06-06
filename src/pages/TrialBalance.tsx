@@ -6,16 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatPKR } from '@/lib/format';
 import { BrandTitle } from '@/components/brand/BrandTitle';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import {
     Printer,
-    FileSpreadsheet,
-    Calculator,
-    CheckCircle2,
-    AlertCircle,
-    ArrowUpRight,
-    ArrowDownLeft,
-    Search,
     Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -82,10 +74,10 @@ export default function TrialBalance() {
     return (
 
         <DashboardLayout>
-            <div className="max-w-full mx-auto pb-20 print:p-0 overflow-hidden">
+            <div className="max-w-full mx-auto pb-20 print:p-0 overflow-visible">
 
-                {/* STICKY FILTER BAR */}
-                <div className="sticky-filter-bar print:hidden px-4">
+                {/* FILTER BAR */}
+                <div className="report-filter-bar print:hidden px-4">
                     <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
                         <div className="report-header mb-0">
                             <BrandTitle variant="report" />
@@ -108,9 +100,9 @@ export default function TrialBalance() {
                     </div>
                 </div>
 
-                <div className="px-4 space-y-6">
+                <div className="px-4 pt-6 space-y-6 relative z-0">
                     {/* SUMMARY BOXES */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-4">
+                    <div className="trial-summary-grid mb-4">
                         <div className="summary-card">
                             <span className="summary-label">Total Debit (In)</span>
                             <span className="summary-value text-assets">{formatPKR(totals.debit)}</span>
@@ -128,7 +120,7 @@ export default function TrialBalance() {
                             <span className="summary-value text-liabilities">{formatPKR(totals.closing_cr)}</span>
                         </div>
                         <div className={cn(
-                            "summary-card border-l-4",
+                            "summary-card trial-status-card border-l-4",
                             isBalanced ? "border-l-emerald-500 bg-emerald-50/20" : "border-l-rose-500 bg-rose-50/20"
                         )}>
                             <span className="summary-label">{isBalanced ? "Audit Status: CLEAN" : "Audit Status: MISMATCHED"}</span>
