@@ -1,23 +1,26 @@
-# Database migrations — Barki Traders
+# Database Migrations - Barki Traders
 
-This folder is the **only** migration source for the Barki Traders Supabase project.
+This folder is the migration source for the Barki Traders Supabase project.
 
-## Apply on a new Supabase project
+## Production release guidance
 
-1. Open **Supabase Dashboard → SQL Editor**
-2. Run the full contents of `00_MASTER_BASELINE_BARKI_TRADERS.sql` once
-3. Create an admin user in **Authentication**, then:
+- Current linked Supabase project ref: `afuhxibzrjazwdcuzthq`.
+- For a brand-new Supabase project, run `00_MASTER_BASELINE_FINAL_NEW_CLIENT.sql` once.
+- For an existing project that already has the original baseline, apply only the reviewed numbered patch files in order.
+- Do not run both baseline files on the same database.
+- Do not re-apply archived migrations from git history.
+
+## Safety notes
+
+- `05_FIX_AVCO_AND_REPAIR_INVENTORY_GL.sql` defines `repair_inventory_gl_from_wac()` but does not auto-run it.
+- Run repair functions manually only after a database backup and operator approval.
+- Avoid one-off `FIX_*.sql` changes after this release; add the next numbered migration with a clear purpose.
+
+## Admin bootstrap
+
+After creating the first auth user, assign the admin role:
 
 ```sql
 INSERT INTO public.user_roles (user_id, role)
 VALUES ('YOUR-USER-UUID', 'admin');
 ```
-
-## Do not
-
-- Re-apply old archived migrations from git history (removed intentionally)
-- Run scripts in `supabase/scripts/` unless you know they apply to Barki
-
-## Adding changes
-
-Add new numbered files after baseline, e.g. `01_barki_reports.sql`, instead of one-off `FIX_*.sql` files.

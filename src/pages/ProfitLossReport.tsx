@@ -73,7 +73,7 @@ export default function ProfitLossReport() {
         return (
             <DashboardLayout>
                 <div className="max-w-4xl mx-auto p-8">
-                    <div className="bg-rose-50 p-8 rounded-3xl border border-rose-100 shadow-sm">
+                    <div className="bg-rose-50 p-8 rounded-none border-2 border-rose-200 shadow-none">
                         <h2 className="text-rose-900 font-black uppercase text-xs tracking-widest mb-2">Financial Engine Error</h2>
                         <p className="text-rose-700 font-bold text-sm">{(error as Error).message}</p>
                     </div>
@@ -84,12 +84,12 @@ export default function ProfitLossReport() {
 
     return (
         <DashboardLayout>
-            <div className="max-w-5xl mx-auto pb-32 print:p-0 animate-in fade-in duration-700">
+            <div className="max-w-5xl mx-auto pb-32 print:p-0">
                 {/* STICKY FILTER BAR */}
-                <div className="sticky-filter-bar print:hidden px-6 backdrop-blur-xl bg-white/90 border-b border-slate-200/60 z-30 transition-all">
+                <div className="sticky-filter-bar print:hidden px-6 bg-white border-b border-slate-300 z-30 transition-none">
                     <div className="max-w-5xl mx-auto flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 py-6">
                         <div className="flex items-center gap-4">
-                            <div className="bg-slate-900 p-3 rounded-2xl text-white shadow-xl shadow-slate-200">
+                            <div className="bg-slate-900 p-3 rounded-none text-white shadow-none">
                                 <TrendingUp className="h-6 w-6" />
                             </div>
                             <div>
@@ -98,20 +98,21 @@ export default function ProfitLossReport() {
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-4 bg-slate-50 p-2.5 border border-slate-200/80 shadow-inner rounded-2xl">
+                        <div className="flex flex-wrap items-center gap-4 bg-slate-50 p-2.5 border border-slate-200 shadow-none rounded-none">
                             <div className="flex items-center gap-4 px-3">
                                 <div className="flex flex-col">
-                                    <label className="text-[9px] font-black uppercase text-slate-400 mb-1 tracking-widest">Start Period</label>
-                                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-10 px-4 border-none bg-white rounded-xl shadow-sm font-black text-[11px] text-slate-700 focus:ring-2 focus:ring-slate-900" />
+                                    <label className="text-[11px] font-black uppercase text-slate-500 mb-1 tracking-widest">Start Period</label>
+                                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-10 px-4 border border-slate-300 bg-white rounded-none shadow-none font-black text-[11px] text-slate-700 focus:ring-2 focus:ring-slate-900" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <label className="text-[9px] font-black uppercase text-slate-400 mb-1 tracking-widest">End Period</label>
-                                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-10 px-4 border-none bg-white rounded-xl shadow-sm font-black text-[11px] text-slate-700 focus:ring-2 focus:ring-slate-900" />
+                                    <label className="text-[11px] font-black uppercase text-slate-500 mb-1 tracking-widest">End Period</label>
+                                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-10 px-4 border border-slate-300 bg-white rounded-none shadow-none font-black text-[11px] text-slate-700 focus:ring-2 focus:ring-slate-900" />
                                 </div>
                             </div>
                             <Button
-                                className="h-11 px-8 rounded-xl bg-slate-900 hover:bg-black text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl shadow-slate-200 transition-all hover:scale-[1.02]"
+                                className="h-11 px-8 rounded-none bg-slate-900 hover:bg-black text-white font-black uppercase text-[11px] tracking-widest gap-2 shadow-none transition-none hover:scale-100"
                                 onClick={() => window.print()}
+                                aria-label="Print profit and loss report"
                             >
                                 <Printer className="h-4 w-4" /> Export Report
                             </Button>
@@ -121,7 +122,7 @@ export default function ProfitLossReport() {
 
                 <div className="px-6 mt-10 space-y-12">
                     {isLoading || !report ? (
-                        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-100">
+                        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 bg-slate-50/50 rounded-none border-2 border-dashed border-slate-200">
                             <Loader2 className="h-12 w-12 animate-spin text-slate-300" />
                             <div className="text-center">
                                 <span className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 block">Compiling Ledger Data</span>
@@ -132,28 +133,28 @@ export default function ProfitLossReport() {
                         <div className="space-y-10 print:space-y-6">
                             {/* PROFIT SUMMARY CARDS - HIDDEN ON PRINT */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
-                                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
-                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 group-hover:text-emerald-500 transition-colors">Gross Profit</p>
+                                <div className="summary-card">
+                                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">Gross Profit</p>
                                     <h3 className="text-2xl font-black text-slate-900">{formatPKR(report.grossProfit)}</h3>
                                     <div className="mt-4 flex items-center justify-between">
                                         <span className="text-[8px] font-bold uppercase text-slate-300">Margin Analysis</span>
                                         <PieChart className="h-4 w-4 text-slate-200" />
                                     </div>
                                 </div>
-                                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
-                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 group-hover:text-rose-500 transition-colors">Operating Burn</p>
+                                <div className="summary-card">
+                                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 mb-2">Operating Burn</p>
                                     <h3 className="text-2xl font-black text-slate-900">{formatPKR(report.totalExpenses)}</h3>
-                                    <div className="mt-4 h-1 w-full bg-slate-50 rounded-full overflow-hidden">
+                                    <div className="mt-4 h-1 w-full bg-slate-50 rounded-none overflow-hidden">
                                         <div className="h-full bg-rose-400/30" style={{ width: '40%' }}></div>
                                     </div>
                                 </div>
                                 <div className={cn(
-                                    "p-6 rounded-[2rem] border shadow-sm transition-all duration-500",
+                                    "p-6 rounded-none border shadow-none transition-none",
                                     report.netIncome >= 0 ? "bg-emerald-50 border-emerald-100/50 text-emerald-900" : "bg-rose-50 border-rose-100/50 text-rose-900"
                                 )}>
-                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Net Bottom Line</p>
+                                    <p className="text-[11px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Net Bottom Line</p>
                                     <h3 className="text-2xl font-black tracking-tighter">{formatPKR(report.netIncome)}</h3>
-                                    <p className="text-[9px] font-bold uppercase mt-4 tracking-wider flex items-center gap-1">
+                                    <p className="text-[11px] font-bold uppercase mt-4 tracking-wider flex items-center gap-1">
                                         {report.netIncome >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                                         {report.netIncome >= 0 ? "Profitable Period" : "Loss Detected"}
                                     </p>
@@ -161,7 +162,7 @@ export default function ProfitLossReport() {
                             </div>
 
                             {/* MAIN REPORT TABLE */}
-                            <div className="bg-white border-2 border-slate-50 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-slate-200/50 print:border-none print:shadow-none">
+                            <div className="bg-white border border-slate-300 rounded-none overflow-hidden shadow-none print:border-none print:shadow-none">
                                 <table className="w-full border-collapse">
                                     <thead>
                                         <tr className="bg-slate-900 text-white border-b border-white/10 print:bg-slate-100 print:text-black">
@@ -186,8 +187,8 @@ export default function ProfitLossReport() {
 
                                                     {/* LINE ITEMS */}
                                                     {section.items.map((item, i) => (
-                                                        <tr key={`${code}-${i}`} className="group hover:bg-slate-50/50 transition-colors">
-                                                            <td className="px-14 py-3.5 font-bold uppercase text-slate-500 text-[11px] tracking-tight group-hover:text-slate-900 transition-colors border-b border-slate-50/50">
+                                                        <tr key={`${code}-${i}`} className="hover:bg-slate-50/50 transition-none">
+                                                            <td className="px-14 py-3.5 font-bold uppercase text-slate-700 text-[11px] tracking-tight border-b border-slate-50/50">
                                                                 {item.account_name}
                                                             </td>
                                                             <td className={cn(
@@ -216,7 +217,7 @@ export default function ProfitLossReport() {
                                                     {isCOGS && (
                                                         <tr className="bg-emerald-50/40 font-black border-y-4 border-white">
                                                             <td className="px-10 py-6 uppercase text-emerald-900 text-[11px] tracking-[0.3em] flex items-center gap-2">
-                                                                <div className="w-2 h-4 bg-emerald-500 rounded-full" />
+                                                                <div className="w-2 h-4 bg-emerald-500 rounded-none" />
                                                                 Gross Profit (Margin)
                                                             </td>
                                                             <td className="text-right px-10 py-6 text-xl tabular-nums text-emerald-900 tracking-tighter">
@@ -230,7 +231,7 @@ export default function ProfitLossReport() {
                                     </tbody>
                                     <tfoot>
                                         <tr className={cn(
-                                            "font-black text-2xl print:text-lg transition-all duration-700",
+                                            "font-black text-2xl print:text-lg transition-none",
                                             report.netIncome >= 0 ? "bg-slate-900 text-white" : "bg-rose-900 text-white"
                                         )}>
                                             <td className="px-10 py-10 uppercase tracking-[0.4em] border-r border-white/5">

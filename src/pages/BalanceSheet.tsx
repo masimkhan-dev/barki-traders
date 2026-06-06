@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { Fragment, useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { supabase } from '@/integrations/supabase/client';
@@ -68,7 +68,7 @@ export default function BalanceSheet() {
         return (
             <DashboardLayout>
                 <div className="max-w-4xl mx-auto p-8">
-                    <div className="bg-rose-50 p-8 rounded-3xl border border-rose-100 shadow-sm">
+                    <div className="bg-rose-50 p-8 rounded-none border-2 border-rose-200 shadow-none">
                         <h2 className="text-rose-900 font-black uppercase text-xs tracking-widest mb-2">Accounting Engine Fault</h2>
                         <p className="text-rose-700 font-bold text-sm">{(error as Error).message}</p>
                     </div>
@@ -79,12 +79,12 @@ export default function BalanceSheet() {
 
     return (
         <DashboardLayout>
-            <div className="max-w-5xl mx-auto pb-32 print:p-0 animate-in fade-in duration-700">
+            <div className="max-w-5xl mx-auto pb-32 print:p-0">
                 {/* STICKY HEADER */}
-                <div className="sticky-filter-bar print:hidden px-6 backdrop-blur-xl bg-white/90 border-b border-slate-200/60 z-30 transition-all">
+                <div className="sticky-filter-bar print:hidden px-6 bg-white border-b border-slate-300 z-30 transition-none">
                     <div className="max-w-5xl mx-auto flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 py-6">
                         <div className="flex items-center gap-4">
-                            <div className="bg-slate-900 p-3 rounded-2xl text-white shadow-xl shadow-slate-200">
+                            <div className="bg-slate-900 p-3 rounded-none text-white shadow-none">
                                 <Scale className="h-6 w-6" />
                             </div>
                             <div>
@@ -93,14 +93,15 @@ export default function BalanceSheet() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4 bg-slate-50 p-2.5 border border-slate-200/80 shadow-inner rounded-2xl">
-                            <div className="flex flex-col px-4">
-                                <label className="text-[9px] font-black uppercase text-slate-400 mb-1 tracking-widest text-center">As Of Date</label>
-                                <input type="date" value={asOfDate} onChange={e => setAsOfDate(e.target.value)} className="h-10 px-4 border-none bg-white rounded-xl shadow-sm font-black text-[11px] text-slate-700 focus:ring-2 focus:ring-slate-900" />
+                        <div className="flex w-full lg:w-auto flex-col sm:flex-row sm:items-end gap-3 bg-slate-50 p-3 border border-slate-200 shadow-none rounded-none">
+                            <div className="flex flex-col sm:px-4">
+                                <label className="text-[11px] font-black uppercase text-slate-500 mb-1 tracking-normal sm:text-center">As Of Date</label>
+                                <input type="date" value={asOfDate} onChange={e => setAsOfDate(e.target.value)} className="h-10 px-4 border border-slate-300 bg-white rounded-none shadow-none font-black text-[11px] text-slate-700 focus:ring-2 focus:ring-slate-900" />
                             </div>
                             <Button
-                                className="h-11 px-10 rounded-xl bg-slate-900 hover:bg-black text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-xl shadow-slate-200 transition-all active:scale-95"
+                                className="h-11 w-full sm:w-auto px-8 lg:px-10 rounded-none bg-slate-900 hover:bg-black text-white font-black uppercase text-[11px] tracking-widest gap-2 shadow-none transition-none active:scale-100"
                                 onClick={() => window.print()}
+                                aria-label="Print balance sheet"
                             >
                                 <Printer className="h-4 w-4" /> Print Statement
                             </Button>
@@ -110,18 +111,18 @@ export default function BalanceSheet() {
 
                 <div className="px-6 mt-10 space-y-12">
                     {isLoading || !report ? (
-                        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-100">
+                        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 bg-slate-50/50 rounded-none border-2 border-dashed border-slate-200">
                             <Loader2 className="h-12 w-12 animate-spin text-slate-200" />
                             <div className="text-center">
-                                <span className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 block animate-pulse">Reconciling Ledger State</span>
+                                <span className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 block">Reconciling Ledger State</span>
                             </div>
                         </div>
                     ) : (
                         <div className="space-y-12">
                             {/* BALANCE CHECK AND SUMMARY CARDS */}
                             {!report.isBalanced && (
-                                <div className="bg-rose-50 border-2 border-rose-100 p-6 rounded-3xl flex items-center gap-6 animate-bounce print:hidden">
-                                    <div className="bg-rose-600 p-3 rounded-2xl text-white shadow-lg shadow-rose-200">
+                                <div className="bg-rose-50 border-2 border-rose-200 p-6 rounded-none flex items-center gap-6 print:hidden">
+                                    <div className="bg-rose-600 p-3 rounded-none text-white shadow-none">
                                         <AlertCircle className="h-6 w-6" />
                                     </div>
                                     <div>
@@ -132,37 +133,37 @@ export default function BalanceSheet() {
                             )}
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 print:hidden">
-                                <section className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm group">
+                                <section className="summary-card">
                                     <div className="flex items-center gap-3 mb-4">
-                                        <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600"><Wallet className="h-4 w-4" /></div>
-                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-emerald-500 transition-colors">Total Solvency</p>
+                                        <div className="bg-emerald-50 p-2 rounded-none text-emerald-600 border border-emerald-100"><Wallet className="h-4 w-4" /></div>
+                                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Total Solvency</p>
                                     </div>
                                     <h3 className="text-2xl font-black text-slate-900 tracking-tighter">{formatPKR(report.totalAssets)}</h3>
-                                    <p className="text-[9px] font-bold text-slate-300 uppercase mt-2">Combined Asset Value</p>
+                                    <p className="text-[11px] font-bold text-slate-400 uppercase mt-2">Combined Asset Value</p>
                                 </section>
-                                <section className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm group">
+                                <section className="summary-card">
                                     <div className="flex items-center gap-3 mb-4">
-                                        <div className="bg-slate-50 p-2 rounded-lg text-slate-600"><Landmark className="h-4 w-4" /></div>
-                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-slate-900 transition-colors">Risk Exposure</p>
+                                        <div className="bg-slate-50 p-2 rounded-none text-slate-600 border border-slate-200"><Landmark className="h-4 w-4" /></div>
+                                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Risk Exposure</p>
                                     </div>
                                     <h3 className="text-2xl font-black text-slate-900 tracking-tighter">{formatPKR(report.totalLiabilities)}</h3>
-                                    <p className="text-[9px] font-bold text-slate-300 uppercase mt-2">Total Outstanding Debt</p>
+                                    <p className="text-[11px] font-bold text-slate-400 uppercase mt-2">Total Outstanding Debt</p>
                                 </section>
-                                <section className="bg-slate-900 p-6 rounded-[2rem] shadow-xl shadow-slate-200 group overflow-hidden relative">
-                                    <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                                <section className="bg-slate-900 p-6 rounded-none shadow-none overflow-hidden relative border border-slate-900">
+                                    <div className="absolute -right-4 -top-4 opacity-10">
                                         <ShieldCheck className="h-24 w-24 text-white" />
                                     </div>
                                     <div className="flex items-center gap-3 mb-4">
-                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Net Worth (Equity)</p>
+                                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Net Worth (Equity)</p>
                                     </div>
                                     <h3 className="text-2xl font-black text-white tracking-tighter">{formatPKR(report.totalEquity)}</h3>
-                                    <p className="text-[9px] font-bold text-emerald-400 uppercase mt-2 tracking-widest">Owner's Net Position</p>
+                                    <p className="text-[11px] font-bold text-emerald-400 uppercase mt-2 tracking-widest">Owner's Net Position</p>
                                 </section>
                             </div>
 
                             {/* MAIN TABLE DESIGN */}
-                            <div className="bg-white border-2 border-slate-50 rounded-[2.5rem] overflow-hidden shadow-2xl shadow-slate-200/50 print:border-none print:shadow-none">
-                                <table className="w-full border-collapse">
+                            <div className="audit-table-shell rounded-none shadow-none print:border-none print:shadow-none">
+                                <table className="w-full min-w-[720px] border-collapse">
                                     <thead>
                                         <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-black">
                                             <th className="text-left px-10 py-6 text-[11px] font-black uppercase tracking-[0.3em]">Accounting Head</th>
@@ -176,11 +177,11 @@ export default function BalanceSheet() {
                                         {Object.keys(report.sections).filter(c => c === '10' || c === '15').sort().map(code => {
                                             const section = report.sections[code];
                                             return Object.entries(section.groups).map(([groupName, group]) => (
-                                                <div key={`${code}-${groupName}`} className="contents">
+                                                <Fragment key={`${code}-${groupName}`}>
                                                     <tr className="bg-slate-50/40"><td colSpan={2} className="px-12 py-3 font-black text-slate-400 uppercase text-[10px] tracking-[0.2em]">{groupName}</td></tr>
                                                     {group.items.map((item, i) => (
-                                                        <tr key={`${item.account_name}-${i}`} className="group hover:bg-slate-50/50 transition-colors">
-                                                            <td className="px-16 py-3 font-bold uppercase text-slate-600 text-[11px] group-hover:text-slate-900 transition-colors border-b border-slate-50/50">{item.account_name}</td>
+                                                        <tr key={`${item.account_name}-${i}`} className="hover:bg-slate-50/50 transition-none">
+                                                            <td className="px-16 py-3 font-bold uppercase text-slate-700 text-[11px] border-b border-slate-50/50">{item.account_name}</td>
                                                             <td className="text-right px-10 py-3 font-black tabular-nums text-slate-900 border-b border-slate-50/50">{formatNumber(item.balance)}</td>
                                                         </tr>
                                                     ))}
@@ -188,7 +189,7 @@ export default function BalanceSheet() {
                                                         <td className="px-12 py-3 uppercase text-slate-400 font-bold text-[9px] tracking-widest italic">Total {groupName}</td>
                                                         <td className="text-right px-10 py-3 font-black text-sm tabular-nums text-slate-900">{formatNumber(group.total)}</td>
                                                     </tr>
-                                                </div>
+                                                </Fragment>
                                             ));
                                         })}
 
@@ -203,11 +204,11 @@ export default function BalanceSheet() {
                                         {Object.keys(report.sections).filter(c => c === '20' || c === '30').sort().map(code => {
                                             const section = report.sections[code];
                                             return Object.entries(section.groups).map(([groupName, group]) => (
-                                                <div key={`${code}-${groupName}`} className="contents">
+                                                <Fragment key={`${code}-${groupName}`}>
                                                     <tr className="bg-slate-50/40"><td colSpan={2} className="px-12 py-3 font-black text-slate-400 uppercase text-[10px] tracking-[0.2em]">{groupName}</td></tr>
                                                     {group.items.map((item, i) => (
-                                                        <tr key={`${item.account_name}-${i}`} className="group hover:bg-slate-50/50 transition-colors">
-                                                            <td className="px-16 py-3 font-bold uppercase text-slate-600 text-[11px] group-hover:text-slate-900 transition-colors border-b border-slate-50/50">{item.account_name}</td>
+                                                        <tr key={`${item.account_name}-${i}`} className="hover:bg-slate-50/50 transition-none">
+                                                            <td className="px-16 py-3 font-bold uppercase text-slate-700 text-[11px] border-b border-slate-50/50">{item.account_name}</td>
                                                             <td className="text-right px-10 py-3 font-black tabular-nums text-slate-900 border-b border-slate-50/50">{formatNumber(item.balance)}</td>
                                                         </tr>
                                                     ))}
@@ -215,7 +216,7 @@ export default function BalanceSheet() {
                                                         <td className="px-12 py-3 uppercase text-slate-400 font-bold text-[9px] tracking-widest italic">Total {groupName}</td>
                                                         <td className="text-right px-10 py-3 font-black text-sm tabular-nums text-slate-900">{formatNumber(group.total)}</td>
                                                     </tr>
-                                                </div>
+                                                </Fragment>
                                             ));
                                         })}
 

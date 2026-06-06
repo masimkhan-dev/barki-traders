@@ -161,15 +161,15 @@ export function UnifiedAddAccountModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] border-none shadow-2xl rounded-3xl p-0 overflow-hidden bg-white">
-                <DialogHeader className="bg-slate-900 text-white p-8">
+            <DialogContent className="sm:max-w-[500px] border-2 border-slate-900 shadow-none rounded-none p-0 overflow-hidden bg-white">
+                <DialogHeader className="bg-slate-900 text-white p-6">
                     <div className="flex items-center gap-4 mb-2">
-                        <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-sm border border-white/10">
+                        <div className="bg-white/10 p-2.5 rounded-none border border-white/10">
                             <PlusCircle className="h-6 w-6 text-white" />
                         </div>
                         <div>
                             <DialogTitle className="text-xl font-black uppercase tracking-tight">Create New Account</DialogTitle>
-                            <DialogDescription className="text-slate-400 font-bold uppercase text-[9px] tracking-[0.2em] mt-1">
+                            <DialogDescription className="text-slate-400 font-bold uppercase text-[11px] tracking-[0.16em] mt-1">
                                 Unified Financial Entry System
                             </DialogDescription>
                         </div>
@@ -179,89 +179,89 @@ export function UnifiedAddAccountModal({
                 <div className="p-8 space-y-6">
                     {/* TYPE SELECTION */}
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Account Type</Label>
+                        <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Account Type</Label>
                         <Select value={type} onValueChange={(v: AccountCategory) => setType(v)}>
-                            <SelectTrigger className="h-12 rounded-xl border-slate-200 font-bold text-slate-700 bg-slate-50 focus:ring-slate-900 shadow-sm transition-all focus:border-slate-900">
+                            <SelectTrigger className="h-12 rounded-none border-slate-300 font-bold text-slate-700 bg-slate-50 focus:ring-slate-900 shadow-none transition-none focus:border-slate-900">
                                 <SelectValue placeholder="Select Account Type" />
                             </SelectTrigger>
-                            <SelectContent className="rounded-xl border-slate-200 shadow-xl bg-white">
-                                <SelectItem value="operating_expense" className="py-3 focus:bg-amber-50 rounded-lg cursor-pointer">
+                            <SelectContent className="rounded-none border-slate-900 shadow-none bg-white">
+                                <SelectItem value="operating_expense" className="py-3 focus:bg-amber-50 rounded-none cursor-pointer">
                                     <div className="flex items-center gap-2">
                                         <Receipt className="h-4 w-4 text-amber-500" />
-                                        <span className="font-bold uppercase text-[10px]">Operating Expense</span>
+                                        <span className="font-bold uppercase text-[11px]">Operating Expense</span>
                                     </div>
                                 </SelectItem>
-                                <SelectItem value="salary" className="py-3 focus:bg-amber-50 rounded-lg cursor-pointer">
+                                <SelectItem value="salary" className="py-3 focus:bg-amber-50 rounded-none cursor-pointer">
                                     <div className="flex items-center gap-2">
                                         <Users className="h-4 w-4 text-amber-500" />
-                                        <span className="font-bold uppercase text-[10px]">Staff Salaries</span>
+                                        <span className="font-bold uppercase text-[11px]">Staff Salaries</span>
                                     </div>
                                 </SelectItem>
-                                <SelectItem value="utility_bill" className="py-3 focus:bg-amber-50 rounded-lg cursor-pointer">
+                                <SelectItem value="utility_bill" className="py-3 focus:bg-amber-50 rounded-none cursor-pointer">
                                     <div className="flex items-center gap-2">
                                         <Building className="h-4 w-4 text-amber-500" />
-                                        <span className="font-bold uppercase text-[10px]">Utility Bills</span>
+                                        <span className="font-bold uppercase text-[11px]">Utility Bills</span>
                                     </div>
                                 </SelectItem>
-                                <SelectItem value="bank" className="py-3 focus:bg-emerald-50 rounded-lg cursor-pointer">
+                                <SelectItem value="bank" className="py-3 focus:bg-emerald-50 rounded-none cursor-pointer">
                                     <div className="flex items-center gap-2">
                                         <Landmark className="h-4 w-4 text-emerald-500" />
-                                        <span className="font-bold uppercase text-[10px]">Bank Account</span>
+                                        <span className="font-bold uppercase text-[11px]">Bank Account</span>
                                     </div>
                                 </SelectItem>
-                                <SelectItem value="cash" className="py-3 focus:bg-emerald-50 rounded-lg cursor-pointer">
+                                <SelectItem value="cash" className="py-3 focus:bg-emerald-50 rounded-none cursor-pointer">
                                     <div className="flex items-center gap-2">
                                         <Wallet className="h-4 w-4 text-emerald-500" />
-                                        <span className="font-bold uppercase text-[10px]">Physical Cash</span>
+                                        <span className="font-bold uppercase text-[11px]">Physical Cash</span>
                                     </div>
                                 </SelectItem>
-                                <SelectItem value="capital" className="py-3 focus:bg-blue-50 rounded-lg cursor-pointer">
+                                <SelectItem value="capital" className="py-3 focus:bg-blue-50 rounded-none cursor-pointer">
                                     <div className="flex items-center gap-2">
                                         <Briefcase className="h-4 w-4 text-blue-500" />
-                                        <span className="font-bold uppercase text-[10px]">Owner's Capital</span>
+                                        <span className="font-bold uppercase text-[11px]">Owner's Capital</span>
                                     </div>
                                 </SelectItem>
-                                <SelectItem value="trade_party" className="py-3 focus:bg-indigo-50 rounded-lg cursor-pointer">
+                                <SelectItem value="trade_party" className="py-3 focus:bg-indigo-50 rounded-none cursor-pointer">
                                     <div className="flex items-center gap-2">
                                         <Users className="h-4 w-4 text-indigo-500" />
-                                        <span className="font-bold uppercase text-[10px]">Trade Party (Cust/Supp)</span>
+                                        <span className="font-bold uppercase text-[11px]">Trade Party (Cust/Supp)</span>
                                     </div>
                                 </SelectItem>
                             </SelectContent>
                         </Select>
                         <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[9px] font-black uppercase text-slate-300">Category:</span>
-                            <span className="text-[9px] font-black uppercase text-slate-900 underline decoration-slate-200 underline-offset-4 tracking-widest">{currentCategoryDisplay()}</span>
+                            <span className="text-[10px] font-black uppercase text-slate-400">Category:</span>
+                            <span className="text-[10px] font-black uppercase text-slate-900 underline decoration-slate-200 underline-offset-4 tracking-widest">{currentCategoryDisplay()}</span>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                            <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
                                 {type === 'trade_party' ? 'Party Name' : 'Account Name'}
                             </Label>
                             <Input
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder={type === 'trade_party' ? "e.g. Ali Traders" : type === 'bank' ? "e.g. HBL Current" : "e.g. Electricity Bill"}
-                                className="h-12 rounded-xl border-slate-200 font-bold text-slate-700 bg-white focus:ring-slate-900 focus:border-slate-900 shadow-sm"
+                                className="h-12 rounded-none border-slate-300 font-bold text-slate-700 bg-white focus:ring-slate-900 focus:border-slate-900 shadow-none"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Reference / Code</Label>
+                            <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Reference / Code</Label>
                             <Input
                                 value={code}
                                 onChange={(e) => setCode(e.target.value)}
                                 placeholder="Optional"
-                                className="h-12 rounded-xl border-slate-200 font-bold text-slate-700 bg-white focus:ring-slate-900 focus:border-slate-900 shadow-sm"
+                                className="h-12 rounded-none border-slate-300 font-bold text-slate-700 bg-white focus:ring-slate-900 focus:border-slate-900 shadow-none"
                             />
                         </div>
                     </div>
 
                     {type === 'trade_party' && (
-                        <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Business Relationship</Label>
-                            <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
+                        <div className="space-y-3">
+                            <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Business Relationship</Label>
+                            <div className="flex gap-2 p-1.5 bg-slate-100 rounded-none border border-slate-200">
                                 {(['customer', 'supplier', 'both'] as const).map(t => (
                                     <Button
                                         key={t}
@@ -269,9 +269,9 @@ export function UnifiedAddAccountModal({
                                         variant={partyType === t ? 'default' : 'ghost'}
                                         onClick={() => setPartyType(t)}
                                         className={cn(
-                                            "flex-1 h-10 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all",
+                                            "flex-1 h-10 rounded-none font-black uppercase text-[11px] tracking-widest transition-none",
                                             partyType === t
-                                                ? "bg-white text-slate-900 shadow-md border border-slate-200"
+                                                ? "bg-white text-slate-900 shadow-none border border-slate-300"
                                                 : "bg-transparent text-slate-400 hover:text-slate-600 hover:bg-white/50"
                                         )}
                                     >
@@ -283,15 +283,15 @@ export function UnifiedAddAccountModal({
                     )}
 
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Opening Balance (Current Status)</Label>
+                        <Label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Opening Balance (Current Status)</Label>
                         <div className="relative group">
                             <Input
                                 type="number"
                                 value={openingBalance}
                                 onChange={(e) => setOpeningBalance(e.target.value)}
-                                className="h-14 rounded-xl border-slate-200 font-black text-slate-900 bg-slate-50 text-right text-xl pr-16 focus:ring-slate-900 focus:border-slate-900 shadow-inner group-hover:border-slate-400 transition-colors"
+                                className="h-14 rounded-none border-slate-300 font-black text-slate-900 bg-slate-50 text-right text-xl pr-16 focus:ring-slate-900 focus:border-slate-900 shadow-none group-hover:border-slate-400 transition-none"
                             />
-                            <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 pointer-events-none">PKR</span>
+                            <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[11px] font-black text-slate-400 pointer-events-none">PKR</span>
                         </div>
                     </div>
                 </div>
@@ -300,14 +300,14 @@ export function UnifiedAddAccountModal({
                     <Button
                         variant="ghost"
                         onClick={() => onOpenChange(false)}
-                        className="font-black uppercase text-[10px] tracking-widest text-slate-400 hover:text-slate-900 hover:bg-white transition-all rounded-xl h-12 px-6"
+                        className="font-black uppercase text-[11px] tracking-widest text-slate-500 hover:text-slate-900 hover:bg-white transition-none rounded-none h-12 px-6"
                     >
                         Cancel
                     </Button>
                     <Button
                         onClick={() => createMutation.mutate()}
                         disabled={loading || !name}
-                        className="flex-1 bg-slate-900 hover:bg-black text-white font-black uppercase text-[11px] tracking-widest h-14 rounded-2xl shadow-2xl shadow-slate-300 transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-95 disabled:opacity-30 flex items-center justify-center gap-3"
+                        className="flex-1 bg-slate-900 hover:bg-black text-white font-black uppercase text-[11px] tracking-widest h-14 rounded-none shadow-none transition-none disabled:opacity-30 flex items-center justify-center gap-3"
                     >
                         {loading ? (
                             <Loader2 className="h-5 w-5 animate-spin text-white" />

@@ -13,7 +13,7 @@ export default function SalesRedirect() {
             <div className="text-center">
                 <div className="h-8 w-8 border-4 border-slate-900 border-t-transparent animate-spin mx-auto mb-4"></div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Opening Sales Terminal...
+                    Opening Fuel Sale...
                 </p>
             </div>
         </div>

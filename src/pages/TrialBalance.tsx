@@ -92,16 +92,16 @@ export default function TrialBalance() {
                             <p className="report-subtitle">Advanced Audit Trial Balance / Multi-Period Engine</p>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3 bg-slate-50 p-2 border border-slate-200 rounded-sm">
+                        <div className="flex w-full sm:w-auto flex-wrap items-center gap-3 bg-slate-50 p-3 border border-slate-200 rounded-sm">
                             <div className="flex flex-col">
-                                <label className="text-[9px] font-bold uppercase text-slate-500 mb-1">From</label>
-                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-8 px-2 border border-slate-300 rounded-none font-bold text-xs" />
+                                <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 tracking-normal">From</label>
+                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-10 px-3 border border-slate-300 rounded-none font-bold text-xs bg-white focus:outline-none focus:border-slate-900" />
                             </div>
                             <div className="flex flex-col">
-                                <label className="text-[9px] font-bold uppercase text-slate-500 mb-1">To</label>
-                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-8 px-2 border border-slate-300 rounded-none font-bold text-xs" />
+                                <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 tracking-normal">To</label>
+                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-10 px-3 border border-slate-300 rounded-none font-bold text-xs bg-white focus:outline-none focus:border-slate-900" />
                             </div>
-                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-none border-slate-300 ml-2" onClick={() => window.print()} title="Print Trial Balance">
+                            <Button variant="outline" size="icon" className="h-10 w-10 rounded-none border-slate-300 sm:ml-2" onClick={() => window.print()} title="Print Trial Balance" aria-label="Print trial balance">
                                 <Printer className="h-3.5 w-3.5" />
                             </Button>
                         </div>
@@ -110,13 +110,21 @@ export default function TrialBalance() {
 
                 <div className="px-4 space-y-6">
                     {/* SUMMARY BOXES */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-4">
                         <div className="summary-card">
-                            <span className="summary-label">Total Assets & Expenses (Dr)</span>
+                            <span className="summary-label">Total Debit (In)</span>
+                            <span className="summary-value text-assets">{formatPKR(totals.debit)}</span>
+                        </div>
+                        <div className="summary-card">
+                            <span className="summary-label">Total Credit (Out)</span>
+                            <span className="summary-value text-liabilities">{formatPKR(totals.credit)}</span>
+                        </div>
+                        <div className="summary-card">
+                            <span className="summary-label">Closing Assets & Expenses (Dr)</span>
                             <span className="summary-value text-assets">{formatPKR(totals.closing_dr)}</span>
                         </div>
                         <div className="summary-card">
-                            <span className="summary-label">Total Liabilities, Equity & Income (Cr)</span>
+                            <span className="summary-label">Closing Liabilities, Equity & Income (Cr)</span>
                             <span className="summary-value text-liabilities">{formatPKR(totals.closing_cr)}</span>
                         </div>
                         <div className={cn(
@@ -131,7 +139,7 @@ export default function TrialBalance() {
                     </div>
 
                     {/* TRIAL BALANCE TABLE */}
-                    <div className="overflow-x-auto border border-slate-300 shadow-sm rounded-sm">
+                    <div className="audit-table-shell shadow-sm rounded-sm">
                         <table className="ledger-table !text-[10px] w-full min-w-[1000px]">
                             <thead>
                                 <tr className="bg-slate-900 !border-slate-900 text-[9px] uppercase tracking-tighter">

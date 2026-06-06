@@ -27,14 +27,16 @@ export function useInventory() {
       // Fetch all purchases grouped by fuel type
       const { data: purchases, error: pError } = await supabase
         .from('purchases')
-        .select('fuel_type_id, quantity');
+        .select('fuel_type_id, quantity')
+        .eq('is_reversed', false);
 
       if (pError) throw pError;
 
       // Fetch all sales grouped by fuel type
       const { data: sales, error: sError } = await supabase
         .from('sales')
-        .select('fuel_type_id, quantity');
+        .select('fuel_type_id, quantity')
+        .eq('is_reversed', false);
 
       if (sError) throw sError;
 

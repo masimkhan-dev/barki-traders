@@ -89,7 +89,7 @@ export default function MonthEndClosing() {
                         Month-end closing and Profit transfer features are temporarily offline for calibration.
                     </p>
                     <div className="mt-8 px-6 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.4em]">
-                        System Hardening in Progress
+                        Feature Preparation in Progress
                     </div>
                 </div>
 

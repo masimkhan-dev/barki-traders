@@ -107,6 +107,15 @@ export default function Ledger() {
     }
   });
 
+  const activeEntity = allEntities?.find(e => e.id === selectedEntityId);
+  const activeAccountName = String(activeEntity?.name || '').toLowerCase();
+  const controlAccountKind =
+    selectedEntityType === 'account' && activeAccountName.includes('receivable')
+      ? 'receivable'
+      : selectedEntityType === 'account' && activeAccountName.includes('payable')
+        ? 'payable'
+        : null;
+
   // Fetch Munshi Statement via RPC
   const { data: statementEntries, isLoading: loadingLedger } = useQuery({
     queryKey: ['party-statement', selectedEntityId, startDate, endDate],
@@ -124,9 +133,84 @@ export default function Ledger() {
 
   // Enhanced Fetch for General Accounts (Non-Party)
   const { data: accountEntries, isLoading: loadingAccount } = useQuery({
-    queryKey: ['account-ledger', selectedEntityId, startDate, endDate],
+    queryKey: ['account-ledger', selectedEntityId, startDate, endDate, controlAccountKind],
     enabled: !!selectedEntityId && selectedEntityType === 'account',
     queryFn: async () => {
+      if (controlAccountKind) {
+        const [partiesRes, entriesRes] = await Promise.all([
+          supabase
+            .from('parties')
+            .select('id, name, type')
+            .eq('is_active', true),
+          supabase
+            .from('ledger_entries')
+            .select('party_id, posting_date, debit_amount, credit_amount')
+            .not('party_id', 'is', null)
+            .lte('posting_date', endDate)
+        ]);
+
+        if (partiesRes.error) throw partiesRes.error;
+        if (entriesRes.error) throw entriesRes.error;
+
+        const partyMap = new Map((partiesRes.data || []).map(p => [p.id, p]));
+        const balances = new Map<string, { balance: number; lastDate: string | null }>();
+
+        (entriesRes.data || []).forEach(entry => {
+          if (!entry.party_id) return;
+          const current = balances.get(entry.party_id) || { balance: 0, lastDate: null };
+          current.balance += (Number(entry.debit_amount) || 0) - (Number(entry.credit_amount) || 0);
+          if (!current.lastDate || String(entry.posting_date) > current.lastDate) {
+            current.lastDate = String(entry.posting_date);
+          }
+          balances.set(entry.party_id, current);
+        });
+
+        let runningBalance = 0;
+        const controlRows = Array.from(balances.entries())
+          .map(([partyId, value]) => {
+            const party = partyMap.get(partyId);
+            return {
+              partyName: party?.name || 'Unknown Party',
+              partyType: party?.type || 'party',
+              balance: value.balance,
+              lastDate: value.lastDate || endDate,
+            };
+          })
+          .filter(row =>
+            controlAccountKind === 'receivable'
+              ? row.balance > 0
+              : row.balance < 0
+          )
+          .sort((a, b) => a.partyName.localeCompare(b.partyName))
+          .map((row, idx) => {
+            runningBalance += row.balance;
+            return {
+              posting_date: row.lastDate,
+              voucher_no: `${controlAccountKind === 'receivable' ? 'AR' : 'AP'}-${String(idx + 1).padStart(3, '0')}`,
+              particulars: `${row.partyName} closing ${controlAccountKind === 'receivable' ? 'receivable' : 'payable'}`,
+              details: row.partyType,
+              debit: row.balance > 0 ? row.balance : 0,
+              credit: row.balance < 0 ? Math.abs(row.balance) : 0,
+              running_balance: runningBalance,
+              quantity_display: '-',
+              rate_display: '-'
+            };
+          });
+
+        return [
+          {
+            posting_date: startDate,
+            voucher_no: 'OPEN',
+            particulars: 'Opening Balance B/F',
+            debit: 0,
+            credit: 0,
+            running_balance: 0,
+            details: 'SYSTEM'
+          },
+          ...controlRows
+        ];
+      }
+
       // 1. Calculate Opening Balance manually for the selected range
       const { data: opData } = await supabase
         .from('ledger_entries')
@@ -190,8 +274,6 @@ export default function Ledger() {
     const closing = ledgerEntries[ledgerEntries.length - 1]?.running_balance || 0;
     return { totalDebit, totalCredit, closing };
   }, [ledgerEntries]);
-
-  const activeEntity = allEntities?.find(e => e.id === selectedEntityId);
 
   return (
 
@@ -372,11 +454,11 @@ export default function Ledger() {
                 <p className="report-subtitle">Consolidated Statement of Accounts, Customers & Suppliers</p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" className="rounded-none font-bold uppercase text-[10px] tracking-widest gap-2 border-slate-300 h-9" onClick={() => window.print()}>
+              <div className="flex w-full sm:w-auto flex-wrap items-center gap-2">
+                <Button variant="outline" className="h-10 flex-1 sm:flex-none rounded-none font-bold uppercase text-[10px] tracking-widest gap-2 border-slate-300" onClick={() => window.print()} aria-label="Print ledger statement">
                   <Printer className="h-4 w-4" /> Print Statement
                 </Button>
-                <Button variant="outline" className="rounded-none font-bold uppercase text-[10px] tracking-widest gap-2 border-slate-300 h-9" onClick={() => exportToCSV(ledgerEntries)}>
+                <Button variant="outline" className="h-10 flex-1 sm:flex-none rounded-none font-bold uppercase text-[10px] tracking-widest gap-2 border-slate-300" onClick={() => exportToCSV(ledgerEntries)} aria-label="Export ledger CSV">
                   <Download className="h-4 w-4" /> Export CSV
                 </Button>
               </div>
@@ -387,7 +469,7 @@ export default function Ledger() {
                 <Label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Account Selection</Label>
                 <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" role="combobox" className="w-full h-10 justify-between bg-white border-slate-300 rounded-none px-4 font-bold text-xs">
+                    <Button variant="outline" role="combobox" aria-expanded={comboboxOpen} className="w-full h-11 justify-between bg-white border-slate-300 rounded-none px-4 font-bold text-xs normal-case">
                       {selectedEntityId ? allEntities?.find((e: any) => e.id === selectedEntityId)?.name : "Search Customer or General Account..."}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -396,7 +478,7 @@ export default function Ledger() {
                     <div className="rounded-none">
                       <input
                         placeholder="Type to filter..."
-                        className="h-10 w-full border-none border-b border-slate-200 px-4 font-bold uppercase text-xs focus:ring-0 focus:outline-none"
+                        className="h-11 w-full border-none border-b border-slate-200 px-4 font-bold text-xs focus:ring-0 focus:outline-none"
                         value={comboboxFilter}
                         onChange={(e) => setComboboxFilter(e.target.value)}
                         autoFocus
@@ -428,16 +510,16 @@ export default function Ledger() {
 
               <div className="lg:col-span-3 space-y-1">
                 <Label className="text-[9px] font-black uppercase text-slate-500">Statement From</Label>
-                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full h-10 px-3 bg-white border border-slate-300 rounded-none font-bold text-xs focus:border-slate-900 outline-none" />
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full h-11 px-3 bg-white border border-slate-300 rounded-none font-bold text-xs focus:border-slate-900 outline-none" />
               </div>
 
               <div className="lg:col-span-3 space-y-1">
                 <Label className="text-[9px] font-black uppercase text-slate-500">Statement To</Label>
-                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full h-10 px-3 bg-white border border-slate-300 rounded-none font-bold text-xs focus:border-slate-900 outline-none" />
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full h-11 px-3 bg-white border border-slate-300 rounded-none font-bold text-xs focus:border-slate-900 outline-none" />
               </div>
 
               <div className="lg:col-span-1">
-                <Button variant="outline" className="h-10 w-full rounded-none border-slate-300 bg-white" onClick={() => { setSelectedEntityId(''); setSelectedEntityType(''); }}>
+                <Button variant="outline" className="h-11 w-full rounded-none border-slate-300 bg-white" onClick={() => { setSelectedEntityId(''); setSelectedEntityType(''); }} aria-label="Clear ledger filters">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -448,12 +530,20 @@ export default function Ledger() {
           <div className="px-6 space-y-8 mt-8">
             {selectedEntityId && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {controlAccountKind && (
+                  <div className="summary-card sm:col-span-2 lg:col-span-4 border-l-4 border-l-slate-900">
+                    <span className="summary-label">Control Account View</span>
+                    <span className="text-[11px] font-bold uppercase text-slate-500 tracking-widest">
+                      Ledger-backed party closing balances as of {formatDate(endDate)}
+                    </span>
+                  </div>
+                )}
                 <div className="summary-card">
-                  <span className="summary-label">Total Listings (Dr)</span>
+                  <span className="summary-label">{controlAccountKind === 'receivable' ? 'Total Receivables (Dr)' : 'Total Listings (Dr)'}</span>
                   <span className="summary-value text-liabilities text-xl">{formatPKR(stats.totalDebit)}</span>
                 </div>
                 <div className="summary-card">
-                  <span className="summary-label">Total Direct (Cr)</span>
+                  <span className="summary-label">{controlAccountKind === 'payable' ? 'Total Payables (Cr)' : 'Total Direct (Cr)'}</span>
                   <span className="summary-value text-assets text-xl">{formatPKR(stats.totalCredit)}</span>
                 </div>
                 <div className={cn("summary-card sm:col-span-2 border-l-4", stats.closing >= 0 ? "border-l-rose-500 bg-rose-50/10" : "border-l-emerald-500 bg-emerald-50/10")}>
@@ -482,8 +572,8 @@ export default function Ledger() {
                   <p className="font-bold uppercase text-[10px] tracking-widest">Select an account to generate ledger</p>
                 </div>
               ) : (ledgerEntries && ledgerEntries.length > 0 ? (
-                <div className="border border-slate-300 overflow-hidden">
-                  <div className="overflow-x-auto">
+                <div className="audit-table-shell">
+                  <div>
                     <table className="ledger-table">
                       <thead>
                         <tr className="bg-slate-900">

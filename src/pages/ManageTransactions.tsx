@@ -13,7 +13,9 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-// Removed assertPhase1CreateOnly import
+import { useAuth } from '@/contexts/AuthContext';
+import { ReversalModal } from '@/components/modals/ReversalModal';
+import { SALE_PURCHASE_IMMUTABLE_MESSAGE } from '@/lib/phase1-readonly';
 import { useToast } from '@/hooks/use-toast';
 import { formatPKR } from '@/lib/format';
 import {
@@ -32,6 +34,7 @@ import {
     ArrowRight,
     TrendingDown,
     TrendingUp,
+    RotateCcw,
 } from 'lucide-react';
 import { UnifiedAddAccountModal } from '@/components/accounting/UnifiedAddAccountModal';
 import { cn } from '@/lib/utils';
@@ -68,54 +71,11 @@ const INITIAL_FORM_STATE = {
     quantity: '',
     rate: '',
     is_credit: true,
-    is_paid_now: false,
-    payment_method: 'Cash',
 };
 
 type FormState = typeof INITIAL_FORM_STATE;
 
-type RpcResult = {
-    success?: boolean;
-    error?: string;
-    message?: string;
-    [key: string]: unknown;
-};
-
 const numericOrZero = (value: string) => Number.parseFloat(value || '0');
-
-const readableErrorMessage = (value: unknown, fallbackMessage: string) => {
-    if (!value) return fallbackMessage;
-    if (value instanceof Error) return value.message || fallbackMessage;
-    if (typeof value === 'string') return value || fallbackMessage;
-    if (typeof value === 'object') {
-        const errorObject = value as { message?: unknown; error?: unknown; details?: unknown; hint?: unknown; code?: unknown };
-        const parts = [errorObject.message, errorObject.error, errorObject.details, errorObject.hint, errorObject.code]
-            .filter(Boolean)
-            .map(String);
-
-        if (parts.length > 0) return parts.join(' ');
-
-        try {
-            return JSON.stringify(value);
-        } catch {
-            return fallbackMessage;
-        }
-    }
-    return String(value) || fallbackMessage;
-};
-
-const assertRpcSuccess = <T extends RpcResult | null>(data: T, error: unknown, fallbackMessage: string): T => {
-    if (error) {
-        const message = readableErrorMessage(error, fallbackMessage);
-        throw new Error(message || fallbackMessage);
-    }
-
-    if (data && data.success === false) {
-        throw new Error(readableErrorMessage(data.error || data.message, fallbackMessage));
-    }
-
-    return data;
-};
 
 const tabClassMap: Record<string, { active: string; inactiveIcon: string }> = {
     emerald: {
@@ -196,13 +156,17 @@ export default function ManageTransactions() {
     const [searchParams] = useSearchParams();
     const queryClient = useQueryClient();
     const { toast } = useToast();
+    const { user } = useAuth();
 
     const [txnType, setTxnType] = useState<TransactionType>('SALE');
     const [isEditMode, setIsEditMode] = useState(false);
     const [editVoucherNo, setEditVoucherNo] = useState<string | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isReversalOpen, setIsReversalOpen] = useState(false);
     const [form, setForm] = useState<FormState>(INITIAL_FORM_STATE);
 
+    const isSalePurchaseViewOnly =
+        isEditMode && (txnType === 'SALE' || txnType === 'PURCHASE');
     const resetForm = (dateToKeep: string = TODAY) => {
         setForm({
             ...INITIAL_FORM_STATE,
@@ -282,8 +246,6 @@ export default function ManageTransactions() {
                 rate: (editData as any).rate_per_unit?.toString() || '',
                 narration: (editData as any).notes || '',
                 is_credit: (editData as any).is_credit ?? true,
-                is_paid_now: (editData as any).is_paid_now ?? false,
-                payment_method: (editData as any).payment_method || 'Cash',
             }));
         }
     }, [editData, isEditMode]);
@@ -402,6 +364,9 @@ export default function ManageTransactions() {
 
     const mutation = useMutation({
         mutationFn: async (payload: FormState) => {
+            if (isEditMode) {
+                throw new Error(SALE_PURCHASE_IMMUTABLE_MESSAGE);
+            }
 
             if (txnType === 'SALE') {
                 if (!payload.party_id || !payload.fuel_type_id || !payload.quantity || !payload.rate) {
@@ -421,36 +386,32 @@ export default function ManageTransactions() {
                     throw new Error('Quantity and rate must be greater than zero.');
                 }
 
-                const rpcName = isEditMode ? 'edit_sale_transaction' : 'post_sale_transaction';
-                const rpcPayload = isEditMode
-                    ? {
-                          p_original_voucher_no: editVoucherNo,
-                          p_sale_date: payload.date,
-                          p_party_id: payload.party_id,
-                          p_fuel_type_id: payload.fuel_type_id,
-                          p_quantity: qty,
-                          p_rate_per_unit: rate,
-                          p_total_amount: total,
-                          p_is_credit: payload.is_credit,
-                          p_notes: payload.narration,
-                      }
-                    : {
-                          p_sale_date: payload.date,
-                          p_party_id: payload.party_id,
-                          p_fuel_type_id: payload.fuel_type_id,
-                          p_quantity: qty,
-                          p_rate_per_unit: rate,
-                          p_total_amount: total,
-                          p_is_credit: payload.is_credit,
-                          p_notes: payload.narration,
-                      };
+                const { data: voucherNo, error: voucherError } = await supabase.rpc('get_next_voucher_no', {
+                    p_prefix: 'SAL',
+                    p_date: payload.date,
+                });
+                if (voucherError) throw voucherError;
+                if (!voucherNo) throw new Error('Could not generate voucher number.');
 
-                const { data, error } = await (supabase as any).rpc(rpcName, rpcPayload);
-                const result = assertRpcSuccess(data, error, 'Sale transaction failed.');
-                // NOTE: repair_inventory_from_transactions() removed — trg_sale_ledger_strict
-                // handles delta-based stock correctly on UPDATE. Calling repair would
-                // overwrite trigger-managed stock with a wrong recalculated value.
-                return result;
+                const { data: saleRow, error: insertError } = await supabase
+                    .from('sales')
+                    .insert({
+                        voucher_no: voucherNo,
+                        sale_date: payload.date,
+                        party_id: payload.party_id,
+                        fuel_type_id: payload.fuel_type_id,
+                        quantity: qty,
+                        rate_per_unit: rate,
+                        total_amount: total,
+                        is_credit: payload.is_credit,
+                        notes: payload.narration || null,
+                        created_by: user?.id ?? null,
+                    })
+                    .select('voucher_no')
+                    .single();
+
+                if (insertError) throw insertError;
+                return { voucher_no: saleRow.voucher_no };
             }
 
             if (txnType === 'PURCHASE') {
@@ -471,174 +432,123 @@ export default function ManageTransactions() {
                     throw new Error('Quantity and rate must be greater than zero.');
                 }
 
-                const rpcName = isEditMode ? 'edit_purchase_transaction' : 'post_purchase_transaction';
-                const rpcPayload = isEditMode
-                    ? {
-                          p_original_voucher_no: editVoucherNo,
-                          p_purchase_date: payload.date,
-                          p_party_id: payload.party_id,
-                          p_fuel_type_id: payload.fuel_type_id,
-                          p_quantity: qty,
-                          p_rate_per_unit: rate,
-                          p_total_amount: total,
-                          p_is_paid_now: payload.is_paid_now,
-                          p_payment_method: payload.payment_method,
-                          p_notes: payload.narration,
-                      }
-                    : {
-                          p_purchase_date: payload.date,
-                          p_party_id: payload.party_id,
-                          p_fuel_type_id: payload.fuel_type_id,
-                          p_quantity: qty,
-                          p_rate_per_unit: rate,
-                          p_total_amount: total,
-                          p_is_paid_now: payload.is_paid_now,
-                          p_payment_method: payload.payment_method,
-                          p_notes: payload.narration,
-                      };
+                const { data: voucherNo, error: voucherError } = await supabase.rpc('get_next_voucher_no', {
+                    p_prefix: 'PUR',
+                    p_date: payload.date,
+                });
+                if (voucherError) throw voucherError;
+                if (!voucherNo) throw new Error('Could not generate voucher number.');
 
-                // Block removed: upsert_purchase_transaction is unreachable and handled by edit_purchase_transaction
+                const { data: purchaseRow, error: insertError } = await supabase
+                    .from('purchases')
+                    .insert({
+                        voucher_no: voucherNo,
+                        purchase_date: payload.date,
+                        party_id: payload.party_id,
+                        fuel_type_id: payload.fuel_type_id,
+                        quantity: qty,
+                        rate_per_unit: rate,
+                        total_amount: total,
+                        notes: payload.narration || null,
+                        created_by: user?.id ?? null,
+                    })
+                    .select('voucher_no')
+                    .single();
 
-                const { data, error } = await (supabase as any).rpc(rpcName, rpcPayload);
-                const result = assertRpcSuccess(data, error, 'Purchase transaction failed.');
-                // Debug agent log fetch removed
-                // NOTE: repair_inventory_from_transactions() removed — trg_purchase_ledger_strict
-                // handles delta-based stock correctly on UPDATE. Calling repair would
-                // overwrite trigger-managed stock ignoring shrinkage/opening-balance entries.
-                return result;
+                if (insertError) throw insertError;
+                return { voucher_no: purchaseRow.voucher_no };
             }
 
             if (txnType === 'ACTION_CENTER') {
-                if (!payload.from_entity_id || !payload.to_entity_id || !payload.amount) {
-                    throw new Error('Source, Destination, and Amount are required.');
-                }
-
                 const amount = numericOrZero(payload.amount);
-                if (amount <= 0) {
-                    throw new Error('Amount must be greater than zero.');
+                if (amount <= 0) throw new Error('Amount must be greater than zero.');
+                if (!payload.from_entity_id || !payload.to_entity_id) {
+                    throw new Error('Sender and receiver are required.');
                 }
-
-                let vNo = editVoucherNo;
-
-                if (isEditMode) {
-                    if (!vNo) throw new Error('No voucher selected for edit.');
-
-                    const { data: reverseData, error: reverseError } = await (supabase as any).rpc(
-                        'reverse_transaction_safely',
-                        { p_voucher_no: vNo }
-                    );
-                    assertRpcSuccess(reverseData, reverseError, 'Could not reverse old transaction.');
-                } else {
-                    const { data: generatedVoucher, error: voucherError } = await supabase.rpc('generate_voucher_no', {
-                        prefix: 'VCH',
-                    });
-                    if (voucherError) throw voucherError;
-                    vNo = generatedVoucher;
+                if (payload.from_entity_id === payload.to_entity_id) {
+                    throw new Error('Sender and receiver cannot be the same.');
                 }
 
                 const { data, error } = await (supabase as any).rpc('create_manage_transaction', {
-                    p_voucher_no: vNo,
-                    p_transaction_type: payload.action_type,
+                    p_transaction_type: payload.action_type || 'transfer',
                     p_from_type: payload.from_type,
                     p_from_entity_id: payload.from_entity_id,
                     p_to_type: payload.to_type,
                     p_to_entity_id: payload.to_entity_id,
                     p_amount: amount,
-                    p_narration: payload.narration,
+                    p_narration: payload.narration || 'Money movement',
                     p_transaction_date: payload.date,
                 });
-
-                return assertRpcSuccess(data, error, 'Movement transaction failed.');
-            }
-
-            if (txnType === 'SHRINKAGE') {
-                if (!payload.fuel_type_id || !payload.quantity_lost || !payload.rate_per_liter) {
-                    throw new Error('Please provide Fuel Type, Quantity and Rate.');
-                }
-
-                const quantityLost = numericOrZero(payload.quantity_lost);
-                const ratePerLiter = numericOrZero(payload.rate_per_liter);
-
-                if (quantityLost <= 0 || ratePerLiter <= 0) {
-                    throw new Error('Quantity lost and rate must be greater than zero.');
-                }
-
-                const { data, error } = await (supabase as any).rpc('post_fuel_shrinkage_writeoff', {
-                    p_fuel_type_id: payload.fuel_type_id,
-                    p_quantity_lost: quantityLost,
-                    p_rate_per_liter: ratePerLiter,
-                    p_date: payload.date,
-                    p_reason: payload.reason,
-                    p_voucher_no: isEditMode ? editVoucherNo : null,
-                });
-
-                return assertRpcSuccess(data, error, 'Shrinkage transaction failed.');
+                if (error) throw error;
+                return { voucher_no: data?.voucher_no };
             }
 
             if (txnType === 'EXPENSE') {
-                if (!payload.expense_account_id || !payload.payment_account_id || !payload.amount) {
-                    throw new Error('Missing required fields.');
-                }
-
                 const amount = numericOrZero(payload.amount);
-                if (amount <= 0) {
-                    throw new Error('Amount must be greater than zero.');
+                if (amount <= 0) throw new Error('Amount must be greater than zero.');
+                if (!payload.expense_account_id || !payload.payment_account_id) {
+                    throw new Error('Expense category and payment source are required.');
                 }
 
                 const { data, error } = await (supabase as any).rpc('post_expense_entry', {
                     p_expense_account_id: payload.expense_account_id,
                     p_payment_account_id: payload.payment_account_id,
                     p_amount: amount,
-                    p_narration: payload.narration,
+                    p_narration: payload.narration || 'Expense',
                     p_date: payload.date,
-                    p_voucher_no: isEditMode ? editVoucherNo : null,
                 });
+                if (error) throw error;
+                return { voucher_no: data?.voucher_no };
+            }
 
-                return assertRpcSuccess(data, error, 'Expense transaction failed.');
+            if (txnType === 'SHRINKAGE') {
+                const qty = numericOrZero(payload.quantity_lost);
+                const rate = numericOrZero(payload.rate_per_liter);
+                if (!payload.fuel_type_id) throw new Error('Fuel type is required.');
+                if (qty <= 0 || rate <= 0) throw new Error('Quantity lost and rate must be greater than zero.');
+
+                const { data, error } = await (supabase as any).rpc('post_fuel_shrinkage_writeoff', {
+                    p_fuel_type_id: payload.fuel_type_id,
+                    p_quantity_lost: qty,
+                    p_rate_per_liter: rate,
+                    p_date: payload.date,
+                    p_reason: payload.reason || 'Fuel loss',
+                });
+                if (error) throw error;
+                return { voucher_no: data };
             }
 
             if (txnType === 'ASSET_PURCHASE') {
-                if (!payload.asset_name || !payload.amount || !payload.payment_account_id) {
-                    throw new Error('Missing asset details or payment source.');
-                }
-
                 const amount = numericOrZero(payload.amount);
-                if (amount <= 0) {
-                    throw new Error('Amount must be greater than zero.');
-                }
+                if (!payload.asset_name.trim()) throw new Error('Asset name is required.');
+                if (!payload.payment_account_id) throw new Error('Payment source is required.');
+                if (amount <= 0) throw new Error('Asset amount must be greater than zero.');
 
                 const { data, error } = await (supabase as any).rpc('purchase_fixed_asset', {
-                    p_name: payload.asset_name,
-                    p_category: payload.asset_category,
+                    p_name: payload.asset_name.trim(),
+                    p_category: payload.asset_category || 'Other',
                     p_amount: amount,
                     p_date: payload.date,
                     p_paid_from_account_id: payload.payment_account_id,
-                    p_description: payload.narration,
-                    p_voucher_no: isEditMode ? editVoucherNo : null,
+                    p_description: payload.narration || payload.asset_name.trim(),
                 });
-
-                return assertRpcSuccess(data, error, 'Asset purchase transaction failed.');
+                if (error) throw error;
+                return { voucher_no: data?.voucher_no };
             }
 
             if (txnType === 'OWNER_WITHDRAWAL') {
-                if (!payload.amount || !payload.payment_account_id) {
-                    throw new Error('Amount and payment source required.');
-                }
-
                 const amount = numericOrZero(payload.amount);
-                if (amount <= 0) {
-                    throw new Error('Amount must be greater than zero.');
-                }
+                if (!payload.payment_account_id) throw new Error('Payment source is required.');
+                if (amount <= 0) throw new Error('Withdrawal amount must be greater than zero.');
 
                 const { data, error } = await (supabase as any).rpc('post_owner_withdrawal', {
                     p_payment_account_id: payload.payment_account_id,
                     p_amount: amount,
-                    p_narration: payload.narration || 'Owner Withdrawal',
+                    p_narration: payload.narration || 'Owner withdrawal',
                     p_date: payload.date,
-                    p_voucher_no: isEditMode ? editVoucherNo : null,
                 });
-
-                return assertRpcSuccess(data, error, 'Owner withdrawal transaction failed.');
+                if (error) throw error;
+                return { voucher_no: data?.voucher_no };
             }
 
             throw new Error('Unsupported transaction type.');
@@ -646,42 +556,17 @@ export default function ManageTransactions() {
         onSuccess: async (data, variables) => {
             const voucherNo = (data as { voucher_no?: string })?.voucher_no;
             toast({
-                title: isEditMode ? 'Transaction Updated' : 'Transaction Posted',
-                description: isEditMode
-                    ? 'The voucher was safely reversed and re-posted.'
-                    : voucherNo
-                      ? `Committed as ${voucherNo}. Ledger and inventory updated.`
-                      : 'The record has been committed to the ledger and inventory.',
+                title: 'Transaction Posted',
+                description: voucherNo
+                    ? `Committed as ${voucherNo}. Ledger and inventory updated via triggers.`
+                    : 'The record has been committed to the ledger and inventory.',
             });
 
             await invalidateTransactionQueries();
-
             resetForm(variables.date);
-
-            if (isEditMode) {
-                navigate(-1);
-            }
         },
         onError: (e: Error) => {
             toast({ variant: 'destructive', title: 'Transaction Failed', description: e.message });
-        },
-    });
-
-    const deleteMutation = useMutation({
-        mutationFn: async () => {
-            if (!editVoucherNo) throw new Error('No voucher selected for deletion.');
-            const { data, error } = await (supabase as any).rpc('delete_transaction_safely', {
-                p_voucher_no: editVoucherNo,
-            });
-            return assertRpcSuccess(data as any, error, 'Delete failed.');
-        },
-        onSuccess: async () => {
-            toast({ title: 'Transaction Deleted', description: `Voucher ${editVoucherNo} was safely deleted.` });
-            await invalidateTransactionQueries();
-            clearEditMode();
-        },
-        onError: (e: Error) => {
-            toast({ variant: 'destructive', title: 'Delete Failed', description: e.message });
         },
     });
 
@@ -701,7 +586,8 @@ export default function ManageTransactions() {
         }));
     };
 
-    const isBusy = mutation.isPending || deleteMutation.isPending;
+    const isBusy = mutation.isPending;
+    const isFormDisabled = isBusy || isSalePurchaseViewOnly;
 
     const tabs: Array<{ id: TransactionType; label: string; icon: any; color: string }> = [
         { id: 'SALE', label: 'Fuel Sale', icon: TrendingUp, color: 'emerald' },
@@ -715,24 +601,24 @@ export default function ManageTransactions() {
 
     return (
         <DashboardLayout>
-            <div className="max-w-7xl mx-auto pb-20 px-6">
+            <div className="max-w-7xl mx-auto pb-20 px-4 sm:px-6">
                 <div className="report-header mb-8 flex flex-wrap gap-4 justify-between items-end">
                     <div>
-                        <h1 className="report-title">{isEditMode ? 'Modify Transaction' : 'Voucher Factory'}</h1>
+                        <h1 className="report-title">{isSalePurchaseViewOnly ? 'View Voucher' : 'Voucher Posting'}</h1>
                         <p className="report-subtitle">
-                            {isEditMode
-                                ? `Revising existing voucher ${editVoucherNo}`
-                                : 'Unified terminal for processing administrative, operational, and inventory adjustments.'}
+                            {isSalePurchaseViewOnly
+                                ? `Posted voucher ${editVoucherNo} — read-only. Use reversal to correct.`
+                                : 'Unified terminal for posting fuel, expense, transfer, loss, asset, and owner vouchers.'}
                         </p>
                     </div>
 
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
                     <div className="lg:col-span-8">
                         <div className="border border-slate-300 bg-white">
-                            <div className="bg-slate-900 px-6 py-6 border-b border-slate-800">
-                                <div className="flex flex-wrap gap-2">
+                            <div className="bg-slate-900 px-4 py-5 sm:px-6 sm:py-6 border-b border-slate-800">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
                                     {tabs.map(mode => {
                                         const Icon = mode.icon;
                                         const isActive = txnType === mode.id;
@@ -743,7 +629,7 @@ export default function ManageTransactions() {
                                                 disabled={isBusy}
                                                 onClick={() => handleTabChange(mode.id)}
                                                 className={cn(
-                                                    'flex items-center gap-3 px-4 py-2 text-[10px] font-black uppercase tracking-widest border transition-all disabled:opacity-50',
+                                                    'flex min-h-11 items-center justify-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-normal border transition-all disabled:opacity-50',
                                                     isActive
                                                         ? tabClassMap[mode.color]?.active
                                                         : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'
@@ -757,15 +643,29 @@ export default function ManageTransactions() {
                                 </div>
                             </div>
 
-                            <div className="p-8">
+                            <div className="p-4 sm:p-6 lg:p-8">
+                                {isSalePurchaseViewOnly && (
+                                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 flex items-start gap-3">
+                                        <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-xs font-black uppercase text-amber-900 tracking-wide">
+                                                Immutable voucher
+                                            </p>
+                                            <p className="text-[11px] text-amber-800 mt-1">
+                                                {SALE_PURCHASE_IMMUTABLE_MESSAGE} Supplier payments require a separate payment voucher (Phase 2).
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                                 <form
                                     onSubmit={e => {
                                         e.preventDefault();
+                                        if (isSalePurchaseViewOnly) return;
                                         mutation.mutate(form);
                                     }}
-                                    className="space-y-8"
+                                    className="space-y-6 sm:space-y-8"
                                 >
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-8">
                                         <div className="space-y-2">
                                             <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest flex items-center gap-2">
                                                 <Calendar className="h-3 w-3" /> Posting Date
@@ -773,7 +673,7 @@ export default function ManageTransactions() {
                                             <Input
                                                 type="date"
                                                 value={form.date}
-                                                disabled={isBusy}
+                                                disabled={isFormDisabled}
                                                 onChange={e => setForm(prev => ({ ...prev, date: e.target.value }))}
                                                 className="h-11 rounded-none border-slate-300 font-bold"
                                             />
@@ -789,7 +689,7 @@ export default function ManageTransactions() {
                                                     </Label>
                                                     <Select
                                                         value={form.payment_account_id}
-                                                        disabled={isBusy}
+                                                        disabled={isFormDisabled}
                                                         onValueChange={val => {
                                                             if (!val) return;
                                                             setForm(prev => ({ ...prev, payment_account_id: val }));
@@ -817,7 +717,7 @@ export default function ManageTransactions() {
                                                 </Label>
                                                 <Select
                                                     value={form.party_id}
-                                                    disabled={isBusy}
+                                                    disabled={isFormDisabled}
                                                     onValueChange={val => {
                                                         if (!val) return;
                                                         setForm(prev => ({ ...prev, party_id: val }));
@@ -842,7 +742,7 @@ export default function ManageTransactions() {
                                         {txnType === 'ACTION_CENTER' && (
                                             <div className="space-y-2">
                                                 <Label className="text-[10px] uppercase font-black text-emerald-600 tracking-widest flex items-center gap-2">
-                                                    <ArrowRightLeft className="h-3 w-3" /> Movement Terminal
+                                                    <ArrowRightLeft className="h-3 w-3" /> Money Movement
                                                 </Label>
                                                 <div className="h-11 px-4 flex items-center bg-emerald-600 border border-emerald-700 text-white font-black text-xs uppercase tracking-tighter">
                                                     Simplified Transfer: Party | Cash | Bank
@@ -853,7 +753,7 @@ export default function ManageTransactions() {
 
                                     <div
                                         className={cn(
-                                            'p-6 border space-y-8 transition-all',
+                                            'p-4 sm:p-6 border space-y-6 sm:space-y-8 transition-all',
                                             txnType === 'ACTION_CENTER'
                                                 ? 'bg-emerald-50 border-emerald-100'
                                                 : txnType === 'SHRINKAGE'
@@ -874,7 +774,7 @@ export default function ManageTransactions() {
                                                         </Label>
                                                         <Select
                                                             value={form.fuel_type_id}
-                                                            disabled={isBusy}
+                                                            disabled={isFormDisabled}
                                                             onValueChange={val => {
                                                             if (!val) return;
                                                             setForm(prev => ({ ...prev, fuel_type_id: val }));
@@ -903,7 +803,7 @@ export default function ManageTransactions() {
                                                             type="number"
                                                             min="0"
                                                             step="any"
-                                                            disabled={isBusy}
+                                                            disabled={isFormDisabled}
                                                             value={form.quantity}
                                                             onChange={e => setForm(prev => ({ ...prev, quantity: e.target.value }))}
                                                         />
@@ -923,7 +823,7 @@ export default function ManageTransactions() {
                                                                 type="number"
                                                                 min="0"
                                                                 step="any"
-                                                                disabled={isBusy}
+                                                                disabled={isFormDisabled}
                                                                 value={form.rate}
                                                                 onChange={e => setForm(prev => ({ ...prev, rate: e.target.value }))}
                                                             />
@@ -959,7 +859,7 @@ export default function ManageTransactions() {
                                                                 type="number"
                                                                 min="0"
                                                                 step="any"
-                                                                disabled={isBusy}
+                                                                disabled={isFormDisabled}
                                                                 value={form.amount}
                                                                 onChange={e => setForm(prev => ({ ...prev, amount: e.target.value }))}
                                                             />
@@ -979,7 +879,7 @@ export default function ManageTransactions() {
                                                         </div>
                                                         <Select
                                                             value={form.from_entity_id}
-                                                            disabled={isBusy}
+                                                            disabled={isFormDisabled}
                                                             onValueChange={val => {
                                                                 if (!val) return;
                                                                 const isParty = parties?.some(p => p.id === val);
@@ -1023,7 +923,7 @@ export default function ManageTransactions() {
                                                         </div>
                                                         <Select
                                                             value={form.to_entity_id}
-                                                            disabled={isBusy}
+                                                            disabled={isFormDisabled}
                                                             onValueChange={val => {
                                                                 if (!val) return;
                                                                 const isParty = parties?.some(p => p.id === val);
@@ -1068,7 +968,7 @@ export default function ManageTransactions() {
                                                         </Label>
                                                         <button
                                                             type="button"
-                                                            disabled={isBusy}
+                                                            disabled={isFormDisabled}
                                                             onClick={() => setIsAddModalOpen(true)}
                                                             className="text-[9px] font-black text-slate-400 hover:text-slate-900 flex items-center gap-1 uppercase disabled:opacity-50"
                                                         >
@@ -1077,7 +977,7 @@ export default function ManageTransactions() {
                                                     </div>
                                                     <Select
                                                         value={form.expense_account_id}
-                                                        disabled={isBusy}
+                                                        disabled={isFormDisabled}
                                                         onValueChange={val => {
                                                         if (!val) return;
                                                         setForm(prev => ({ ...prev, expense_account_id: val }));
@@ -1109,7 +1009,7 @@ export default function ManageTransactions() {
                                                             type="number"
                                                             min="0"
                                                             step="any"
-                                                            disabled={isBusy}
+                                                            disabled={isFormDisabled}
                                                             value={form.amount}
                                                             onChange={e => setForm(prev => ({ ...prev, amount: e.target.value }))}
                                                         />
@@ -1127,7 +1027,7 @@ export default function ManageTransactions() {
                                                         </Label>
                                                         <Select
                                                             value={form.fuel_type_id}
-                                                            disabled={isBusy}
+                                                            disabled={isFormDisabled}
                                                             onValueChange={val => {
                                                             if (!val) return;
                                                             setForm(prev => ({ ...prev, fuel_type_id: val }));
@@ -1156,7 +1056,7 @@ export default function ManageTransactions() {
                                                                 type="number"
                                                                 min="0"
                                                                 step="any"
-                                                                disabled={isBusy}
+                                                                disabled={isFormDisabled}
                                                                 value={form.quantity_lost}
                                                                 onChange={e => setForm(prev => ({ ...prev, quantity_lost: e.target.value }))}
                                                             />
@@ -1179,7 +1079,7 @@ export default function ManageTransactions() {
                                                                 type="number"
                                                                 min="0"
                                                                 step="any"
-                                                                disabled={isBusy}
+                                                                disabled={isFormDisabled}
                                                                 value={form.rate_per_liter}
                                                                 onChange={e => setForm(prev => ({ ...prev, rate_per_liter: e.target.value }))}
                                                             />
@@ -1205,7 +1105,7 @@ export default function ManageTransactions() {
                                                         <Input
                                                             className="h-11 rounded-none border-blue-300 focus:border-blue-600 font-bold text-blue-900 bg-white"
                                                             placeholder="e.g. Perkins 50kVA Generator"
-                                                            disabled={isBusy}
+                                                            disabled={isFormDisabled}
                                                             value={form.asset_name}
                                                             onChange={e => setForm(prev => ({ ...prev, asset_name: e.target.value }))}
                                                         />
@@ -1216,7 +1116,7 @@ export default function ManageTransactions() {
                                                         </Label>
                                                         <Select
                                                             value={form.asset_category}
-                                                            disabled={isBusy}
+                                                            disabled={isFormDisabled}
                                                             onValueChange={val => {
                                                             if (!val) return;
                                                             setForm(prev => ({ ...prev, asset_category: val }));
@@ -1249,7 +1149,7 @@ export default function ManageTransactions() {
                                                             type="number"
                                                             min="0"
                                                             step="any"
-                                                            disabled={isBusy}
+                                                            disabled={isFormDisabled}
                                                             value={form.amount}
                                                             onChange={e => setForm(prev => ({ ...prev, amount: e.target.value }))}
                                                         />
@@ -1273,7 +1173,7 @@ export default function ManageTransactions() {
                                                         type="number"
                                                         min="0"
                                                         step="any"
-                                                        disabled={isBusy}
+                                                        disabled={isFormDisabled}
                                                         value={form.amount}
                                                         onChange={e => setForm(prev => ({ ...prev, amount: e.target.value }))}
                                                     />
@@ -1294,7 +1194,7 @@ export default function ManageTransactions() {
                                                           ? 'Describe vendor, warranty, or condition...'
                                                           : 'Enter brief description of this transaction...'
                                                 }
-                                                disabled={isBusy}
+                                                disabled={isFormDisabled}
                                                 value={txnType === 'SHRINKAGE' ? form.reason : form.narration}
                                                 onChange={e => {
                                                     if (txnType === 'SHRINKAGE') setForm(prev => ({ ...prev, reason: e.target.value }));
@@ -1305,37 +1205,7 @@ export default function ManageTransactions() {
                                     </div>
 
                                     <div className="flex flex-col gap-4">
-                                        <Button
-                                            type="submit"
-                                            className={cn(
-                                                'h-12 w-full text-white font-black text-xs uppercase tracking-[0.2em] rounded-none shadow-sm transition-all',
-                                                txnType === 'ACTION_CENTER'
-                                                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                                                    : txnType === 'EXPENSE'
-                                                    ? 'bg-slate-900 hover:bg-black'
-                                                    : txnType === 'SHRINKAGE'
-                                                        ? 'bg-rose-600 hover:bg-rose-700'
-                                                        : txnType === 'ASSET_PURCHASE'
-                                                        ? 'bg-blue-600 hover:bg-blue-700'
-                                                        : 'bg-amber-600 hover:bg-amber-700'
-                                            )}
-                                            disabled={isBusy}
-                                        >
-                                            {mutation.isPending ? (
-                                                <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                                            ) : (
-                                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                            )}
-                                            {mutation.isPending
-                                                ? 'PROCESSING...'
-                                                : txnType === 'ACTION_CENTER'
-                                                ? 'COMMIT MOVEMENT'
-                                                : isEditMode
-                                                    ? 'UPDATE TRANSACTION'
-                                                    : 'FINALIZE TRANSACTION'}
-                                        </Button>
-
-                                        {isEditMode && (
+                                        {isSalePurchaseViewOnly ? (
                                             <div className="grid grid-cols-2 gap-4">
                                                 <Button
                                                     type="button"
@@ -1344,18 +1214,53 @@ export default function ManageTransactions() {
                                                     disabled={isBusy}
                                                     onClick={clearEditMode}
                                                 >
-                                                    CANCEL EDIT
+                                                    BACK
                                                 </Button>
                                                 <Button
                                                     type="button"
                                                     variant="destructive"
                                                     className="h-12 font-black text-xs uppercase tracking-[0.2em] rounded-none"
-                                                    disabled={isBusy}
-                                                    onClick={() => deleteMutation.mutate()}
+                                                    disabled={isBusy || (editData as { is_reversed?: boolean } | null)?.is_reversed}
+                                                    onClick={() => setIsReversalOpen(true)}
                                                 >
-                                                    {deleteMutation.isPending ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : 'DELETE VOUCHER'}
+                                                    <RotateCcw className="h-4 w-4 mr-2" />
+                                                    REVERSE VOUCHER
                                                 </Button>
                                             </div>
+                                        ) : (
+                                            <Button
+                                                type="submit"
+                                                className={cn(
+                                                    'h-12 w-full text-white font-black text-xs uppercase tracking-[0.2em] rounded-none shadow-sm transition-all',
+                                                    txnType === 'SALE'
+                                                        ? 'bg-emerald-600 hover:bg-emerald-700'
+                                                        : txnType === 'PURCHASE'
+                                                          ? 'bg-rose-600 hover:bg-rose-700'
+                                                          : 'bg-slate-400 hover:bg-slate-500'
+                                                )}
+                                                disabled={isBusy}
+                                            >
+                                                {mutation.isPending ? (
+                                                    <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                                                ) : (
+                                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                                )}
+                                                {mutation.isPending
+                                                    ? 'PROCESSING...'
+                                                    : txnType === 'SALE'
+                                                        ? 'POST FUEL SALE'
+                                                        : txnType === 'PURCHASE'
+                                                          ? 'POST FUEL PURCHASE'
+                                                          : txnType === 'ACTION_CENTER'
+                                                            ? 'POST TRANSFER'
+                                                            : txnType === 'EXPENSE'
+                                                              ? 'POST EXPENSE'
+                                                              : txnType === 'SHRINKAGE'
+                                                                ? 'POST FUEL LOSS'
+                                                                : txnType === 'ASSET_PURCHASE'
+                                                                  ? 'POST ASSET'
+                                                                  : 'POST OWNER OUT'}
+                                            </Button>
                                         )}
                                     </div>
                                 </form>
@@ -1367,7 +1272,7 @@ export default function ManageTransactions() {
                         <div className="border border-slate-300 bg-white flex flex-col h-full max-h-[800px]">
                             <div className="px-6 py-3 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
                                 <h3 className="text-[10px] font-black uppercase text-slate-700 tracking-[0.2em] flex items-center gap-2">
-                                    <History className="h-3.5 w-3.5" /> Recent Factory Output
+                                    <History className="h-3.5 w-3.5" /> Recent Postings
                                 </h3>
                             </div>
                             <div className="flex-1 overflow-y-auto">
@@ -1390,7 +1295,10 @@ export default function ManageTransactions() {
                                                         if (v.voucher_type === 'sale' || v.voucher_type === 'purchase') {
                                                             navigate(`/manage-transactions?edit=${v.voucher_no}&type=${v.voucher_type.toUpperCase()}`);
                                                         } else {
-                                                            toast({ title: 'Edit unsupported', description: 'Can only edit sales and purchases for now.' });
+                                                            toast({
+                                                                title: 'Posted voucher',
+                                                                description: 'This voucher is already posted. Open the ledger or Roznamcha to inspect its journal lines.',
+                                                            });
                                                         }
                                                     }}
                                                 >
@@ -1454,7 +1362,7 @@ export default function ManageTransactions() {
                                 ) : (
                                     <div className="p-12 text-center opacity-20">
                                         <AlertCircle className="h-10 w-10 text-slate-400 mx-auto mb-4" />
-                                        <p className="text-[10px] font-black uppercase tracking-widest">Factory Idle</p>
+                                        <p className="text-[11px] font-black uppercase tracking-widest">No Recent Postings</p>
                                     </div>
                                 )}
                             </div>
@@ -1462,13 +1370,13 @@ export default function ManageTransactions() {
 
                         <div className="border border-slate-900 p-6 bg-slate-900 text-white">
                             <h4 className="text-[11px] font-black uppercase tracking-widest mb-3 border-b border-white/20 pb-2">
-                                Factory Governance
+                                Posting Governance
                             </h4>
                             <div className="space-y-4">
                                 <div className="flex items-start gap-3">
                                     <div className="h-4 w-4 rounded-full bg-emerald-500 shrink-0 mt-0.5" />
                                     <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed">
-                                        All transactions recorded here are posted through database RPCs to protect ledger and inventory integrity.
+                                        Fuel sales and purchases are inserted directly; database triggers post ledger and stock entries.
                                     </p>
                                 </div>
                                 <div className="flex items-start gap-3">
@@ -1491,6 +1399,16 @@ export default function ManageTransactions() {
                     setForm(prev => ({ ...prev, expense_account_id: id }));
                     queryClient.invalidateQueries({ queryKey: ['accounts-expense'] });
                     queryClient.invalidateQueries({ queryKey: ['accounts-all-active'] });
+                }}
+            />
+
+            <ReversalModal
+                voucherNo={editVoucherNo}
+                isOpen={isReversalOpen}
+                onClose={() => {
+                    setIsReversalOpen(false);
+                    void invalidateTransactionQueries();
+                    clearEditMode();
                 }}
             />
         </DashboardLayout>

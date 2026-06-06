@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -24,6 +24,15 @@ import {
     Loader2,
     Edit2
 } from 'lucide-react';
+
+type MarketPositionRow = {
+    party_id: string;
+    party_name: string;
+    party_type: string;
+    receivable_balance: number;
+    payable_balance: number;
+    last_transaction_date: string | null;
+};
 
 // Helper: Classic Date Format (DD-MM-YY)
 const formatClassicDate = (dateStr: string | null | undefined): string => {
@@ -73,6 +82,7 @@ export default function BusinessReports() {
                     party:parties(name),
                     fuel:fuel_types(name)
                 `)
+                .eq('is_reversed', false)
                 .gte('sale_date', startDate)
                 .lte('sale_date', endDate)
                 .order('sale_date', { ascending: false });
@@ -102,6 +112,7 @@ export default function BusinessReports() {
                     party:parties(name),
                     fuel:fuel_types(name)
                 `)
+                .eq('is_reversed', false)
                 .gte('purchase_date', startDate)
                 .lte('purchase_date', endDate)
                 .order('purchase_date', { ascending: false });
@@ -133,17 +144,64 @@ export default function BusinessReports() {
         },
     });
 
-    // MARKET POSITION DATA (V11 Combined Report)
-    const { data: marketPosition, isLoading: loadingMarket } = useQuery({
-        queryKey: ['report-market-position', endDate],
+    // MARKET POSITION DATA
+    // Ledger-backed by design: include reversal vouchers and their original marked rows
+    // so reversed transactions neutralize to the same closing balance shown in Ledger.
+    const { data: marketPosition, isLoading: loadingMarket } = useQuery<MarketPositionRow[]>({
+        queryKey: ['report-market-position-ledger-backed', endDate],
         queryFn: async () => {
-            const { data, error } = await (supabase as any).rpc('get_market_position_report', {
-                p_as_of_date: endDate
+            const [partiesRes, entriesRes] = await Promise.all([
+                supabase
+                    .from('parties')
+                    .select('id, name, type')
+                    .eq('is_active', true),
+                supabase
+                    .from('ledger_entries')
+                    .select('party_id, posting_date, debit_amount, credit_amount')
+                    .not('party_id', 'is', null)
+                    .lte('posting_date', endDate)
+            ]);
+
+            if (partiesRes.error) throw partiesRes.error;
+            if (entriesRes.error) throw entriesRes.error;
+
+            const partyMap = new Map(
+                (partiesRes.data || []).map(p => [p.id, p])
+            );
+
+            const grouped = new Map<string, { balance: number; lastDate: string | null }>();
+
+            (entriesRes.data || []).forEach(entry => {
+                if (!entry.party_id) return;
+                const current = grouped.get(entry.party_id) || { balance: 0, lastDate: null };
+                current.balance += (Number(entry.debit_amount) || 0) - (Number(entry.credit_amount) || 0);
+                if (!current.lastDate || String(entry.posting_date) > current.lastDate) {
+                    current.lastDate = String(entry.posting_date);
+                }
+                grouped.set(entry.party_id, current);
             });
-            if (error) throw error;
-            return data as any[];
+
+            return Array.from(grouped.entries())
+                .map(([partyId, value]) => {
+                    const party = partyMap.get(partyId);
+                    return {
+                        party_id: partyId,
+                        party_name: party?.name || 'Unknown Party',
+                        party_type: party?.type || 'party',
+                        receivable_balance: value.balance > 0 ? value.balance : 0,
+                        payable_balance: value.balance < 0 ? Math.abs(value.balance) : 0,
+                        last_transaction_date: value.lastDate,
+                    };
+                })
+                .filter(row => row.receivable_balance > 0 || row.payable_balance > 0)
+                .sort((a, b) => a.party_name.localeCompare(b.party_name));
         },
     });
+
+    const marketTotals = useMemo(() => ({
+        receivables: marketPosition?.reduce((s, r) => s + (Number(r.receivable_balance) || 0), 0) || 0,
+        payables: marketPosition?.reduce((s, r) => s + (Number(r.payable_balance) || 0), 0) || 0,
+    }), [marketPosition]);
 
     // DRAWINGS REPORT DATA
     const { data: drawings, isLoading: loadingDrawings } = useQuery({
@@ -178,21 +236,26 @@ export default function BusinessReports() {
                             <p className="report-subtitle">Transactional Analysis & Audit Center</p>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3 bg-slate-50 p-2 border border-slate-200 rounded-sm">
+                        <div className="flex w-full sm:w-auto flex-wrap items-center gap-3 bg-slate-50 p-3 border border-slate-200 rounded-sm">
                             <div className="flex flex-col">
-                                <label className="text-[9px] font-bold uppercase text-slate-500 mb-1">Start Date</label>
-                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-8 px-2 border border-slate-300 rounded-none font-bold text-xs" />
+                                <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 tracking-normal">Start Date</label>
+                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-10 px-3 border border-slate-300 rounded-none font-bold text-xs bg-white focus:outline-none focus:border-slate-900" />
                             </div>
                             <div className="flex flex-col">
-                                <label className="text-[9px] font-bold uppercase text-slate-500 mb-1">End Date</label>
-                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-8 px-2 border border-slate-300 rounded-none font-bold text-xs" />
+                                <label className="text-[10px] font-bold uppercase text-slate-500 mb-1 tracking-normal">End Date</label>
+                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-10 px-3 border border-slate-300 rounded-none font-bold text-xs bg-white focus:outline-none focus:border-slate-900" />
                             </div>
                             <div className="flex gap-2 ml-2">
-                                <Button variant="outline" size="icon" className="h-8 w-8 rounded-none border-slate-300" onClick={() => window.print()} title="Print Statement">
+                                <Button variant="outline" size="icon" className="h-10 w-10 rounded-none border-slate-300" onClick={() => window.print()} title="Print Statement" aria-label="Print active report">
                                     <Printer className="h-3.5 w-3.5" />
                                 </Button>
-                                <Button variant="outline" size="icon" className="h-8 w-8 rounded-none border-slate-300" onClick={() => {
-                                    let data = activeReport === 'sales' ? sales : activeReport === 'purchases' ? purchases : payments;
+                                <Button variant="outline" size="icon" className="h-10 w-10 rounded-none border-slate-300" onClick={() => {
+                                    const data =
+                                        activeReport === 'sales' ? sales :
+                                        activeReport === 'purchases' ? purchases :
+                                        activeReport === 'market' ? marketPosition :
+                                        activeReport === 'drawings' ? drawings :
+                                        payments;
                                     let csvData = data;
                                     if (activeReport === 'payments' && payments) {
                                         csvData = (payments as any[]).map(row => ({
@@ -204,8 +267,17 @@ export default function BusinessReports() {
                                             Narration: row.narration
                                         })) as any;
                                     }
+                                    if (activeReport === 'market' && marketPosition) {
+                                        csvData = marketPosition.map(row => ({
+                                            Party: row.party_name,
+                                            Type: row.party_type,
+                                            Receivable: row.receivable_balance,
+                                            Payable: row.payable_balance,
+                                            LastEntry: row.last_transaction_date,
+                                        })) as any;
+                                    }
                                     exportToCSV((csvData as any[]) || [], activeReport + '_report');
-                                }} title="Export CSV">
+                                }} title="Export CSV" aria-label="Export active report CSV">
                                     <Download className="h-3.5 w-3.5" />
                                 </Button>
                             </div>
@@ -215,7 +287,7 @@ export default function BusinessReports() {
 
                 <div className="px-4 space-y-8">
                     <Tabs value={activeReport} onValueChange={setActiveReport} className="space-y-6">
-                        <TabsList className="bg-slate-100 p-0 rounded-none h-10 border border-slate-300 w-full lg:max-w-2xl grid grid-cols-5 print:hidden">
+                        <TabsList className="bg-slate-100 p-0 rounded-none h-auto min-h-10 border border-slate-300 w-full lg:max-w-3xl grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 print:hidden">
                             <TabsTrigger value="sales" className="rounded-none border-r border-slate-300 font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white h-full transition-none">Sales</TabsTrigger>
                             <TabsTrigger value="purchases" className="rounded-none border-r border-slate-300 font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white h-full transition-none">Purchases</TabsTrigger>
                             <TabsTrigger value="payments" className="rounded-none border-r border-slate-300 font-bold uppercase text-[10px] tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white h-full transition-none">Payments</TabsTrigger>
@@ -265,11 +337,11 @@ export default function BusinessReports() {
                                 <>
                                     <div className="summary-card rounded-none shadow-none border border-slate-200">
                                         <span className="summary-label text-assets">Total Receivables (Lena)</span>
-                                        <span className="summary-value text-assets">{formatPKR(marketPosition?.reduce((s, r) => s + (Number(r.receivable_balance) || 0), 0) || 0)}</span>
+                                        <span className="summary-value text-assets">{formatPKR(marketTotals.receivables)}</span>
                                     </div>
                                     <div className="summary-card rounded-none shadow-none border border-slate-200">
                                         <span className="summary-label text-liabilities">Total Payables (Dena)</span>
-                                        <span className="summary-value text-liabilities">{formatPKR(marketPosition?.reduce((s, r) => s + (Number(r.payable_balance) || 0), 0) || 0)}</span>
+                                        <span className="summary-value text-liabilities">{formatPKR(marketTotals.payables)}</span>
                                     </div>
                                 </>
                             )}
@@ -277,7 +349,7 @@ export default function BusinessReports() {
 
                         {/* SALES REPORT */}
                         <TabsContent value="sales" className="m-0">
-                            <div className="border border-slate-300 overflow-hidden">
+                            <div className="audit-table-shell">
                                 <table className="ledger-table">
                                     <thead>
                                         <tr>
@@ -338,7 +410,7 @@ export default function BusinessReports() {
 
                         {/* PURCHASE REPORT */}
                         <TabsContent value="purchases" className="m-0">
-                            <div className="border border-slate-300 overflow-hidden">
+                            <div className="audit-table-shell">
                                 <table className="ledger-table">
                                     <thead>
                                         <tr>
@@ -399,7 +471,7 @@ export default function BusinessReports() {
 
                         {/* PAYMENT REPORT */}
                         <TabsContent value="payments" className="m-0">
-                            <div className="border border-slate-300 overflow-hidden">
+                            <div className="audit-table-shell">
                                 <table className="ledger-table">
                                     <thead>
                                         <tr>
@@ -442,7 +514,7 @@ export default function BusinessReports() {
 
                         {/* MARKET POSITION REPORT (V11) */}
                         <TabsContent value="market" className="m-0">
-                            <div className="border border-slate-300 overflow-hidden">
+                            <div className="audit-table-shell">
                                 <table className="ledger-table shadow-none">
                                     <thead>
                                         <tr>
@@ -477,10 +549,7 @@ export default function BusinessReports() {
                                         <tr className="border-t-2 border-slate-900 border-b-2">
                                             <td colSpan={2} className="px-4 py-3 right-align uppercase text-xs">Net Market Exposure:</td>
                                             <td colSpan={2} className="px-4 py-3 right-align text-xl text-slate-900 num-audit underline decoration-double">
-                                                {formatPKR(
-                                                    (marketPosition?.reduce((s, r) => s + (Number(r.receivable_balance) || 0), 0) || 0) -
-                                                    (marketPosition?.reduce((s, r) => s + (Number(r.payable_balance) || 0), 0) || 0)
-                                                )}
+                                                {formatPKR(marketTotals.receivables - marketTotals.payables)}
                                             </td>
                                             <td></td>
                                         </tr>
@@ -491,7 +560,7 @@ export default function BusinessReports() {
 
                         {/* DRAWINGS REPORT (NEW) */}
                         <TabsContent value="drawings" className="m-0">
-                            <div className="border border-slate-300 overflow-hidden">
+                            <div className="audit-table-shell">
                                 <table className="ledger-table">
                                     <thead>
                                         <tr>

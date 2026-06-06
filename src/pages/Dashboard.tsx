@@ -23,6 +23,12 @@ import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const todayIso = new Date().toISOString().split('T')[0];
+  const todayLabel = new Date().toLocaleDateString('en-PK', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-analytics-v11-2'],
@@ -43,6 +49,48 @@ export default function Dashboard() {
     }
   });
 
+  const { data: marketStats } = useQuery({
+    queryKey: ['dashboard-market-ledger-backed', todayIso],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ledger_entries')
+        .select('party_id, debit_amount, credit_amount')
+        .not('party_id', 'is', null)
+        .lte('posting_date', todayIso);
+
+      if (error) throw error;
+
+      const balances = new Map<string, number>();
+      (data || []).forEach(entry => {
+        if (!entry.party_id) return;
+        const current = balances.get(entry.party_id) || 0;
+        balances.set(
+          entry.party_id,
+          current + (Number(entry.debit_amount) || 0) - (Number(entry.credit_amount) || 0)
+        );
+      });
+
+      let receivables = 0;
+      let payables = 0;
+      balances.forEach(balance => {
+        if (balance > 0) receivables += balance;
+        if (balance < 0) payables += Math.abs(balance);
+      });
+
+      return {
+        receivables,
+        payables,
+        market_balance: receivables - payables,
+      };
+    },
+  });
+
+  const dashboardMarket = marketStats || {
+    receivables: stats?.receivables || 0,
+    payables: stats?.payables || 0,
+    market_balance: stats?.market_balance || 0,
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -57,7 +105,7 @@ export default function Dashboard() {
   return (
 
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto pb-20 px-4 space-y-8">
+      <div className="max-w-7xl mx-auto pb-20 px-0 sm:px-4 space-y-8">
         <div className="report-header">
           <h1 className="report-title">Operations Control Center</h1>
           <p className="report-subtitle">Real-time Financial & Operational Audit</p>
@@ -65,28 +113,28 @@ export default function Dashboard() {
 
         {/* --- MAIN KPI ROW --- */}
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="bg-white border border-slate-200 border-t-4 border-t-slate-900 p-5 flex flex-col gap-1">
-            <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Sales (Current Month)</span>
-            <span className="text-2xl font-black text-slate-900 num-audit tracking-tight">{formatPKR(stats?.total_sales || 0)}</span>
-            <span className="text-[8px] font-bold text-slate-400 uppercase mt-1">Monthly Verified Sales</span>
+          <div className="bg-white border border-slate-200 border-t-4 border-t-slate-900 p-5 flex flex-col gap-1 min-w-0">
+            <span className="text-[11px] font-black uppercase text-slate-500 tracking-normal">Sales (Current Month)</span>
+            <span className="text-2xl font-black text-slate-900 num-audit tracking-tight break-words">{formatPKR(stats?.total_sales || 0)}</span>
+            <span className="text-[11px] font-bold text-slate-400 uppercase mt-1">As of {todayLabel}</span>
           </div>
 
-          <div className="bg-white border border-slate-200 border-t-4 border-t-slate-400 p-5 flex flex-col gap-1">
-            <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Purchases (Current Month)</span>
-            <span className="text-2xl font-black text-slate-700 num-audit tracking-tight">{formatPKR(stats?.total_purchases || 0)}</span>
-            <span className="text-[8px] font-bold text-slate-400 uppercase mt-1">Monthly Procurement</span>
+          <div className="bg-white border border-slate-200 border-t-4 border-t-slate-400 p-5 flex flex-col gap-1 min-w-0">
+            <span className="text-[11px] font-black uppercase text-slate-500 tracking-normal">Purchases (Current Month)</span>
+            <span className="text-2xl font-black text-slate-700 num-audit tracking-tight break-words">{formatPKR(stats?.total_purchases || 0)}</span>
+            <span className="text-[11px] font-bold text-slate-400 uppercase mt-1">As of {todayLabel}</span>
           </div>
 
-          <div className="bg-white border border-slate-200 border-t-4 border-t-emerald-600 p-5 flex flex-col gap-1">
-            <span className="text-[9px] font-black uppercase text-emerald-700 tracking-widest">Market Receivables</span>
-            <span className="text-2xl font-black text-emerald-700 num-audit tracking-tight">{formatPKR(stats?.receivables || 0)}</span>
-            <span className="text-[8px] font-bold text-emerald-600/60 uppercase mt-1">Total Outstanding (Lena)</span>
+          <div className="bg-white border border-slate-200 border-t-4 border-t-emerald-600 p-5 flex flex-col gap-1 min-w-0">
+            <span className="text-[11px] font-black uppercase text-emerald-700 tracking-normal">Market Receivables</span>
+            <span className="text-2xl font-black text-emerald-700 num-audit tracking-tight break-words">{formatPKR(dashboardMarket.receivables)}</span>
+            <span className="text-[11px] font-bold text-emerald-600/60 uppercase mt-1">Total Outstanding (Lena)</span>
           </div>
 
-          <div className="bg-white border border-slate-200 border-t-4 border-t-rose-600 p-5 flex flex-col gap-1">
-            <span className="text-[9px] font-black uppercase text-rose-700 tracking-widest">Market Payables</span>
-            <span className="text-2xl font-black text-rose-700 num-audit tracking-tight">{formatPKR(stats?.payables || 0)}</span>
-            <span className="text-[8px] font-bold text-rose-600/60 uppercase mt-1">Total Supplier Dues (Dena)</span>
+          <div className="bg-white border border-slate-200 border-t-4 border-t-rose-600 p-5 flex flex-col gap-1 min-w-0">
+            <span className="text-[11px] font-black uppercase text-rose-700 tracking-normal">Market Payables</span>
+            <span className="text-2xl font-black text-rose-700 num-audit tracking-tight break-words">{formatPKR(dashboardMarket.payables)}</span>
+            <span className="text-[11px] font-bold text-rose-600/60 uppercase mt-1">Total Supplier Dues (Dena)</span>
           </div>
         </div>
 
@@ -94,9 +142,9 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Stock Movement Mini-Table */}
           <div className="lg:col-span-2 space-y-5">
-            <div className="flex items-center justify-between border-b-2 border-slate-300 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b-2 border-slate-300 pb-3">
               <h3 className="text-sm font-black uppercase tracking-widest text-slate-800">Inventory Levels (Physical)</h3>
-              <span className="text-[8px] font-bold text-slate-400 uppercase">Latest System Computation</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-normal">Latest System Computation</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <InventoryMiniCards />
@@ -120,14 +168,14 @@ export default function Dashboard() {
               </Button>
             </div>
 
-            <div className="bg-white border border-slate-200 p-5 flex flex-row justify-between items-center">
+            <div className="bg-white border border-slate-200 p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
               <div className="flex flex-col gap-0.5">
                 <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Net Market Position</span>
-                <span className={cn("text-xs font-bold", stats?.market_balance >= 0 ? "text-emerald-700" : "text-rose-700")}>
-                  {stats?.market_balance >= 0 ? "Dr (Net Asset)" : "Cr (Net Liability)"}
+                <span className={cn("text-xs font-bold", dashboardMarket.market_balance >= 0 ? "text-emerald-700" : "text-rose-700")}>
+                  {dashboardMarket.market_balance >= 0 ? "Dr (Net Asset)" : "Cr (Net Liability)"}
                 </span>
               </div>
-              <span className="text-2xl font-black text-slate-900 num-audit tracking-tight">{formatPKR(Math.abs(stats?.market_balance || 0))}</span>
+              <span className="text-2xl font-black text-slate-900 num-audit tracking-tight break-words">{formatPKR(Math.abs(dashboardMarket.market_balance))}</span>
             </div>
           </div>
         </div>
@@ -197,8 +245,9 @@ function RecentTransactionsFeed() {
           created_at,
           party:parties(name)
         `)
+        .not('party_id', 'is', null)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(30);
 
       if (error) return [];
 
@@ -212,6 +261,7 @@ function RecentTransactionsFeed() {
           uniqueVouchers.push({
             ...item,
             amount: Math.max(item.debit_amount, item.credit_amount),
+            display_type: item.voucher_no?.startsWith('REV-') ? 'reversal' : item.voucher_type,
             clean_narration: (item.narration || '').replace(/^Ref: N\/A - /, '').trim()
           });
         }
@@ -226,15 +276,17 @@ function RecentTransactionsFeed() {
   if (!recent || recent.length === 0) return <p className="text-[10px] text-slate-400 font-bold uppercase text-center py-6">No recent activity detected</p>;
 
   return recent.map((item, idx) => {
-    const isSale = item.voucher_type === 'sale';
-    const isPurchase = item.voucher_type === 'purchase';
-    const isPayment = item.voucher_type === 'payment' || item.voucher_type === 'receipt';
+    const isSale = item.display_type === 'sale';
+    const isPurchase = item.display_type === 'purchase';
+    const isPayment = item.display_type === 'payment' || item.display_type === 'receipt';
+    const isReversal = item.display_type === 'reversal';
 
 
     let colorClass = "bg-slate-50 text-slate-500 border-slate-200";
     if (isSale) colorClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
     if (isPurchase) colorClass = "bg-rose-50 text-rose-700 border-rose-200";
     if (isPayment) colorClass = "bg-blue-50 text-blue-700 border-blue-200";
+    if (isReversal) colorClass = "bg-amber-50 text-amber-700 border-amber-200";
 
 
 
@@ -243,10 +295,10 @@ function RecentTransactionsFeed() {
         <div className="flex flex-col gap-0.5 min-w-0">
           <div className="flex items-center gap-2">
             <span className={cn("text-[7px] font-black uppercase px-1.5 py-0.5 border leading-none", colorClass)}>
-              {item.voucher_type}
+              {item.display_type}
             </span>
             <span className="text-[10px] font-bold text-slate-900 truncate max-w-[150px] uppercase">
-              {item.party?.name || 'Cash/General'}
+              {item.party?.name || 'Party'}
             </span>
           </div>
           <span className="text-[9px] text-slate-400 font-medium truncate italic pl-0.5" title={item.clean_narration}>
@@ -265,4 +317,3 @@ function RecentTransactionsFeed() {
     );
   });
 }
-

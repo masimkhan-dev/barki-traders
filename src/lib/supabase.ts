@@ -63,7 +63,6 @@ const guardedFetch: typeof fetch = (input, init) => {
 // We cache the singleton on `globalThis` so HMR reloads reuse the same instance.
 
 declare global {
-  // eslint-disable-next-line no-var
   var __supabase_singleton__: ReturnType<typeof createClient<Database>> | undefined;
 }
 

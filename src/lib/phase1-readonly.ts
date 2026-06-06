@@ -1,6 +1,12 @@
-/** Phase 1: temporary read-only for voucher edit/delete paths. */
-export const PHASE1_EDIT_DELETE_MESSAGE =
-    'Edit and delete are temporarily disabled. Create a correcting entry or contact admin.';
+/** Phase 1: sale/purchase immutability + Phase 2 gating for other voucher types. */
+export const PHASE2_COMING_MESSAGE =
+    'This transaction type is coming in Phase 2. Fuel Sale and Fuel Purchase are available now.';
+
+export const SALE_PURCHASE_IMMUTABLE_MESSAGE =
+    'Posted sales and purchases cannot be edited. Use reversal to correct, then create a new voucher.';
+
+/** @deprecated Use SALE_PURCHASE_IMMUTABLE_MESSAGE */
+export const PHASE1_EDIT_DELETE_MESSAGE = SALE_PURCHASE_IMMUTABLE_MESSAGE;
 
 export const PHASE1_RPC_ERROR = 'Edit/delete temporarily disabled';
 

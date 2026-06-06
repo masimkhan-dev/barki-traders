@@ -1,12 +1,12 @@
 /**
  * Vite environment variables for this client instance.
- * Values come from `.env` (see `.env.example`).
+ * Local development reads `.env`; production must inject these in Vercel.
  */
 function requireEnv(name: keyof ImportMetaEnv): string {
   const value = import.meta.env[name]?.trim();
   if (!value) {
     throw new Error(
-      `Missing ${name}. Copy .env.example to .env and add Barki Traders Supabase credentials (Dashboard → Project Settings → API).`
+      `Missing ${name}. Set it locally in .env or in Vercel Project Settings -> Environment Variables before deploying.`,
     );
   }
   return value;

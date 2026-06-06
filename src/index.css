@@ -17,16 +17,6 @@
   box-shadow: none !important;
 }
 
-/* V11 SAFE IMPROVEMENT: Fallback for pages without .ledger-system wrapper */
-body.accounting-mode *,
-body.accounting-mode *::before,
-body.accounting-mode *::after {
-  border-radius: 0 !important;
-  transition: none !important;
-  animation: none !important;
-  box-shadow: none !important;
-}
-
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: #F1F5F9;
@@ -34,6 +24,7 @@ body {
   color: #0F172A;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+  text-rendering: optimizeLegibility;
 }
 
 /* BANK-GRADE FORM UTILITIES */
@@ -51,8 +42,8 @@ textarea.ledger-input {
   border: 1px solid #94A3B8 !important;
   font-weight: 700 !important;
   color: #0F172A !important;
-  text-transform: uppercase !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
+  min-height: 40px;
 }
 
 /* V11 SAFE IMPROVEMENT: Enhanced focus visibility for accessibility */
@@ -74,38 +65,40 @@ textarea.ledger-input:focus {
 /* V11 SAFE IMPROVEMENT: Scoped labels to preserve component library labels */
 .ledger-form label,
 label.ledger-label {
-  font-size: 9px !important;
+  font-size: 11px !important;
   font-weight: 900 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.1em !important;
+  letter-spacing: 0.04em !important;
   color: #475569 !important;
   margin-bottom: 4px !important;
   display: block !important;
 }
 
 /* COMPONENT OVERRIDES (SHADCN/RADIX) */
-[data-radix-popper-content-wrapper] {
+.ledger-system [data-radix-popper-content-wrapper],
+body > [data-radix-popper-content-wrapper] {
   box-shadow: none !important;
-  border: 2px solid #0F172A !important;
   animation: none !important;
-  background: white !important;
 }
 
-[role="option"],
-[role="menuitem"],
-[role="combobox"] {
-  font-size: 11px !important;
+.ledger-system [role="option"],
+.ledger-system [role="menuitem"] {
+  font-size: 12px !important;
   font-weight: 700 !important;
-  text-transform: uppercase !important;
   border-bottom: 1px solid #F1F5F9 !important;
-  padding: 8px 12px !important;
+  padding: 10px 12px !important;
 }
 
-[role="option"]:focus,
-[role="option"][data-state="checked"],
-[role="menuitem"]:focus {
+.ledger-system [role="option"]:focus,
+.ledger-system [role="option"][data-state="checked"],
+.ledger-system [role="menuitem"]:focus {
   background-color: #0F172A !important;
   color: white !important;
+}
+
+.ledger-system :where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid #0F172A !important;
+  outline-offset: 2px !important;
 }
 
 /* HIGH-CONTRAST DENSE TABLES */
@@ -114,6 +107,7 @@ label.ledger-label {
   border-collapse: collapse;
   background: white;
   font-size: 13px;
+  min-width: 760px;
 }
 
 /* V11 SAFE IMPROVEMENT: Sticky headers for long tables (audit readability) */
@@ -128,7 +122,7 @@ label.ledger-label {
   color: white !important;
   text-transform: uppercase;
   font-weight: 900;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   padding: 12px 14px;
   border: 1px solid #1E293B;
   text-align: left;
@@ -140,10 +134,22 @@ label.ledger-label {
   border: 1px solid #E2E8F0;
   font-weight: 500;
   color: #334155;
+  vertical-align: middle;
 }
 
 .ledger-table tr:nth-child(even) {
   background-color: #F8FAFC;
+}
+
+.ledger-table tbody tr:hover {
+  background-color: #F1F5F9;
+}
+
+.audit-table-shell {
+  border: 1px solid #CBD5E1;
+  background: white;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* V11 SAFE IMPROVEMENT: Stronger totals row for audit clarity */
@@ -167,7 +173,7 @@ label.ledger-label {
 .num-audit {
   font-family: 'JetBrains Mono', monospace !important;
   font-weight: 700;
-  letter-spacing: -0.05em;
+  letter-spacing: 0;
   font-variant-numeric: tabular-nums;
   /* V11 SAFE IMPROVEMENT: Proper number alignment */
 }
@@ -180,7 +186,7 @@ label.ledger-label {
 }
 
 .report-title {
-  font-size: 24px;
+  font-size: clamp(20px, 3vw, 28px);
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: -0.02em;
@@ -189,18 +195,30 @@ label.ledger-label {
 }
 
 .report-subtitle {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.12em;
   color: #64748B;
   margin-top: 4px;
 }
 
+/* CONSISTENT REPORT FILTER BARS */
+.sticky-filter-bar {
+  position: sticky;
+  top: 65px;
+  z-index: 20;
+  background: rgba(248, 250, 252, 0.96);
+  border-bottom: 1px solid #CBD5E1;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  backdrop-filter: blur(8px);
+}
+
 /* STATUS CHIPS */
 .status-pill {
-  padding: 2px 8px;
-  font-size: 9px;
+  padding: 3px 8px;
+  font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
   border: 1px solid currentColor;
@@ -236,24 +254,28 @@ label.ledger-label {
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .summary-label {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
   color: #64748B;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
+  line-height: 1.35;
 }
 
 .summary-value {
-  font-size: 20px;
+  font-size: clamp(18px, 2.4vw, 24px);
   font-weight: 900;
   color: #0F172A;
   font-family: 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
   /* V11 SAFE IMPROVEMENT: Consistent number rendering */
+  overflow-wrap: anywhere;
+  line-height: 1.2;
 }
 
 .text-assets {
@@ -274,6 +296,28 @@ label.ledger-label {
 
 /* V11 SAFE IMPROVEMENT: Mobile readability utilities (opt-in, CSS-only) */
 @media (max-width: 768px) {
+  .sticky-filter-bar {
+    position: static;
+  }
+
+  .ledger-table {
+    min-width: 720px;
+    font-size: 12px;
+  }
+
+  .ledger-table th,
+  .ledger-table td {
+    padding: 9px 10px;
+  }
+
+  .report-header {
+    margin-bottom: 1rem;
+  }
+
+  .summary-card {
+    padding: 16px;
+  }
+
   .ledger-table.mobile-stack tbody tr {
     display: block;
     border-bottom: 3px solid #0F172A;

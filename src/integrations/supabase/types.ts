@@ -153,18 +153,21 @@ export type Database = {
       }
       inventory: {
         Row: {
+          avg_cost: number
           fuel_type_id: string
           id: string
           last_updated: string
           quantity: number
         }
         Insert: {
+          avg_cost?: number
           fuel_type_id: string
           id?: string
           last_updated?: string
           quantity?: number
         }
         Update: {
+          avg_cost?: number
           fuel_type_id?: string
           id?: string
           last_updated?: string
@@ -184,16 +187,17 @@ export type Database = {
         Row: {
           account_id: string
           created_at: string
-          created_by: string
+          created_by: string | null
           credit_amount: number
           debit_amount: number
           id: string
           is_reversed: boolean
           narration: string | null
           posting_date: string
-          reference_id: string | null
-          reference_type: string | null
-          reversal_of: string | null
+          quantity: number | null
+          rate: number | null
+          reconciliation_status: boolean
+          reconciled_at: string | null
           voucher_no: string
           voucher_type: Database["public"]["Enums"]["voucher_type"]
           party_id: string | null
@@ -201,16 +205,17 @@ export type Database = {
         Insert: {
           account_id: string
           created_at?: string
-          created_by: string
+          created_by?: string | null
           credit_amount?: number
           debit_amount?: number
           id?: string
           is_reversed?: boolean
           narration?: string | null
           posting_date?: string
-          reference_id?: string | null
-          reference_type?: string | null
-          reversal_of?: string | null
+          quantity?: number | null
+          rate?: number | null
+          reconciliation_status?: boolean
+          reconciled_at?: string | null
           voucher_no: string
           voucher_type: Database["public"]["Enums"]["voucher_type"]
           party_id?: string | null
@@ -218,16 +223,17 @@ export type Database = {
         Update: {
           account_id?: string
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           credit_amount?: number
           debit_amount?: number
           id?: string
           is_reversed?: boolean
           narration?: string | null
           posting_date?: string
-          reference_id?: string | null
-          reference_type?: string | null
-          reversal_of?: string | null
+          quantity?: number | null
+          rate?: number | null
+          reconciliation_status?: boolean
+          reconciled_at?: string | null
           voucher_no?: string
           voucher_type?: Database["public"]["Enums"]["voucher_type"]
           party_id?: string | null
@@ -259,8 +265,9 @@ export type Database = {
           amount: number
           method: string | null
           notes: string | null
+          is_reversed: boolean
           created_at: string
-          created_by: string
+          created_by: string | null
         }
         Insert: {
           id?: string
@@ -271,8 +278,9 @@ export type Database = {
           amount: number
           method?: string | null
           notes?: string | null
+          is_reversed?: boolean
           created_at?: string
-          created_by?: string
+          created_by?: string | null
         }
         Update: {
           id?: string
@@ -283,8 +291,9 @@ export type Database = {
           amount?: number
           method?: string | null
           notes?: string | null
+          is_reversed?: boolean
           created_at?: string
-          created_by?: string
+          created_by?: string | null
         }
         Relationships: [
           {
@@ -333,10 +342,9 @@ export type Database = {
           quantity: number
           rate_per_unit: number
           total_amount: number
-          is_paid_now: boolean
-          payment_method: string | null
           notes: string | null
-          created_by: string
+          is_reversed: boolean
+          created_by: string | null
           created_at: string
         }
         Insert: {
@@ -348,10 +356,9 @@ export type Database = {
           quantity: number
           rate_per_unit: number
           total_amount: number
-          is_paid_now?: boolean
-          payment_method?: string | null
           notes?: string | null
-          created_by?: string
+          is_reversed?: boolean
+          created_by?: string | null
           created_at?: string
         }
         Update: {
@@ -363,10 +370,9 @@ export type Database = {
           quantity?: number
           rate_per_unit?: number
           total_amount?: number
-          is_paid_now?: boolean
-          payment_method?: string | null
           notes?: string | null
-          created_by?: string
+          is_reversed?: boolean
+          created_by?: string | null
           created_at?: string
         }
         Relationships: [
@@ -398,7 +404,8 @@ export type Database = {
           total_amount: number
           is_credit: boolean
           notes: string | null
-          created_by: string
+          is_reversed: boolean
+          created_by: string | null
           created_at: string
         }
         Insert: {
@@ -412,7 +419,8 @@ export type Database = {
           total_amount: number
           is_credit?: boolean
           notes?: string | null
-          created_by?: string
+          is_reversed?: boolean
+          created_by?: string | null
           created_at?: string
         }
         Update: {
@@ -426,7 +434,8 @@ export type Database = {
           total_amount?: number
           is_credit?: boolean
           notes?: string | null
-          created_by?: string
+          is_reversed?: boolean
+          created_by?: string | null
           created_at?: string
         }
         Relationships: [
@@ -472,6 +481,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_next_voucher_no: {
+        Args: { p_prefix: string; p_date?: string }
+        Returns: string
+      }
+      reverse_transaction: {
+        Args: { p_voucher_no: string; p_reason: string }
+        Returns: Json
+      }
+      /** @deprecated Legacy — use get_next_voucher_no */
       generate_voucher_no: { Args: { prefix: string }; Returns: string }
       has_role: {
         Args: {

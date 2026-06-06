@@ -7,6 +7,13 @@ export function debugLog(
     runId = 'pre-fix'
 ) {
     // #region agent log
+    const debugCollectorEnabled =
+        import.meta.env.DEV &&
+        typeof window !== 'undefined' &&
+        window.localStorage.getItem('FDMS_DEBUG_LOGS') === '1';
+
+    if (!debugCollectorEnabled) return;
+
     fetch('http://127.0.0.1:7284/ingest/fd6c3250-5eda-4f67-ba27-30940ba8e03e', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'decee1' },

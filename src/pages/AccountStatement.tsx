@@ -313,10 +313,10 @@ const buildPrintLayoutHtml = (
   .bg-slate-200 { background-color: #e2e8f0 !important; }
   .bg-blue-50 { background-color: #eff6ff !important; }
   .bg-orange-50 { background-color: #fff7ed !important; }
-  .bg-rose-50\/20 { background-color: rgba(255, 241, 242, 0.2) !important; }
-  .bg-rose-50\/80 { background-color: rgba(255, 241, 242, 0.8) !important; }
-  .bg-emerald-50\/80 { background-color: rgba(236, 253, 245, 0.8) !important; }
-  .bg-slate-50\/80 { background-color: rgba(248, 250, 252, 0.8) !important; }
+  .bg-rose-50\\/20 { background-color: rgba(255, 241, 242, 0.2) !important; }
+  .bg-rose-50\\/80 { background-color: rgba(255, 241, 242, 0.8) !important; }
+  .bg-emerald-50\\/80 { background-color: rgba(236, 253, 245, 0.8) !important; }
+  .bg-slate-50\\/80 { background-color: rgba(248, 250, 252, 0.8) !important; }
   .border-rose-200 { border-color: #fecdd3 !important; }
   .border-emerald-200 { border-color: #a7f3d0 !important; }
   .text-[#be123c] { color: #be123c !important; }
@@ -800,7 +800,7 @@ export default function AccountStatement() {
             <div className="report-header mb-0">
               <h1 className="report-title">Account Register</h1>
               <p className="report-subtitle text-[10px]">
-                Professional Audit Terminal v8.0
+                Professional Account Statement v8.0
               </p>
             </div>
 
@@ -1207,7 +1207,7 @@ export default function AccountStatement() {
           <div className="max-w-7xl mx-auto px-4 py-40 flex flex-col items-center justify-center opacity-20">
             <ShieldCheck className="h-20 w-20 text-slate-900 mb-6" />
             <h2 className="text-lg font-black uppercase tracking-[0.4em] text-slate-900">
-              Audit Terminal Standby
+              Account Statement Standby
             </h2>
             <p className="text-[10px] font-bold uppercase tracking-widest mt-2">
               Select khata to begin session

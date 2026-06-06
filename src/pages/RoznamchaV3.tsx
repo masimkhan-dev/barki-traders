@@ -13,7 +13,7 @@
 // ============================================================
 
 import { useState, Fragment } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Edit2,
-    Trash2,
+    RotateCcw,
     FlaskConical,
     BookOpen,
     ChevronDown,
@@ -31,7 +31,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { toastEditDeleteDisabled } from '@/lib/phase1-readonly';
+import { PHASE2_COMING_MESSAGE } from '@/lib/phase1-readonly';
+import { ReversalModal } from '@/components/modals/ReversalModal';
 import { cn } from '@/lib/utils';
 
 // ✅ Single source of truth — update here if new cash/bank account added
@@ -93,43 +94,12 @@ const FLOW_CONFIG: Record<FlowType, { label: string; cls: string }> = {
 
 export default function RoznamchaV3() {
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
     const { toast } = useToast();
     const { role } = useAuth();
     const [selectedDate, setSelectedDate] = useState(
         new Date().toISOString().split('T')[0]
     );
-
-    const deleteMutation = useMutation({
-        mutationFn: async (voucherNo: string) => {
-            const { data, error } = await supabase.rpc('delete_transaction_safely', {
-                p_voucher_no: voucherNo,
-            });
-            if (error) throw error;
-            if (data && (data as any).success === false) {
-                throw new Error((data as any).error || 'Delete failed.');
-            }
-            return data;
-        },
-        onSuccess: () => {
-            toast({ title: 'Transaction Deleted', description: 'The voucher has been safely deleted and stock/ledger restored.' });
-            queryClient.invalidateQueries({ queryKey: ['roznamcha'] });
-            queryClient.invalidateQueries({ queryKey: ['roznamcha-v2'] });
-            queryClient.invalidateQueries({ queryKey: ['roznamcha-v3'] });
-            queryClient.invalidateQueries({ queryKey: ['calculated-inventory'] });
-            queryClient.invalidateQueries({ queryKey: ['recent-factory-vouchers'] });
-            queryClient.invalidateQueries({ queryKey: ['sales'] });
-            queryClient.invalidateQueries({ queryKey: ['purchases'] });
-            queryClient.invalidateQueries({ queryKey: ['ledger_entries'] });
-            queryClient.invalidateQueries({ queryKey: ['party-statement'] });
-            queryClient.invalidateQueries({ queryKey: ['party-statement-v8'] });
-            queryClient.invalidateQueries({ queryKey: ['all-accounts-fresh'] });
-            queryClient.invalidateQueries({ queryKey: ['transaction-history'] });
-        },
-        onError: (e: any) => {
-            toast({ variant: 'destructive', title: 'Delete Failed', description: e.message });
-        }
-    });
+    const [reversalVoucherNo, setReversalVoucherNo] = useState<string | null>(null);
     const [expandedVoucher, setExpandedVoucher] = useState<string | null>(null);
 
     const toggleExpand = (vNo: string) =>
@@ -520,38 +490,44 @@ export default function RoznamchaV3() {
                                                             <Button
                                                                 variant="ghost" size="icon"
                                                                 className="h-6 w-6 text-slate-300 hover:text-slate-900"
-                                                                title="Edit transaction"
-                                                                disabled={deleteMutation.isPending}
+                                                                title="View voucher (read-only)"
                                                                 onClick={() => {
                                                                     if (row.type === 'sale' || row.type === 'purchase') {
                                                                         navigate(`/manage-transactions?edit=${row.voucher_no}&type=${row.type.toUpperCase()}`);
                                                                     } else {
                                                                         toast({
-                                                                            title: 'Direct edit unsupported',
-                                                                            description: 'Direct editing is only supported for Sales and Purchases. For other types, please delete and create a new entry.'
+                                                                            title: 'View only',
+                                                                            description: PHASE2_COMING_MESSAGE,
                                                                         });
                                                                     }
                                                                 }}
                                                             >
                                                                 <Edit2 className="h-3 w-3" />
                                                             </Button>
-                                                            {role === 'admin' && (
+                                                            {!isVoid && (row.type === 'sale' || row.type === 'purchase') && (
                                                                 <Button
                                                                     variant="ghost" size="icon"
                                                                     className="h-6 w-6 text-slate-300 hover:text-rose-600"
-                                                                    title="Delete transaction"
-                                                                    disabled={deleteMutation.isPending}
+                                                                    title="Reverse transaction"
+                                                                    onClick={() => setReversalVoucherNo(row.voucher_no)}
+                                                                >
+                                                                    <RotateCcw className="h-3 w-3" />
+                                                                </Button>
+                                                            )}
+                                                            {!isVoid && row.type !== 'sale' && row.type !== 'purchase' && role === 'admin' && (
+                                                                <Button
+                                                                    variant="ghost" size="icon"
+                                                                    className="h-6 w-6 text-slate-300 hover:text-rose-600"
+                                                                    title="Reversal not available for this type yet"
                                                                     onClick={() => {
-                                                                        if (window.confirm(`Are you sure you want to permanently delete voucher ${row.voucher_no}? This will safely revert inventory and ledger entries.`)) {
-                                                                            deleteMutation.mutate(row.voucher_no);
-                                                                        }
+                                                                        toast({
+                                                                            variant: 'destructive',
+                                                                            title: 'Reversal unavailable',
+                                                                            description: PHASE2_COMING_MESSAGE,
+                                                                        });
                                                                     }}
                                                                 >
-                                                                    {deleteMutation.isPending ? (
-                                                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                                                    ) : (
-                                                                        <Trash2 className="h-3 w-3" />
-                                                                    )}
+                                                                    <RotateCcw className="h-3 w-3 opacity-40" />
                                                                 </Button>
                                                             )}
                                                         </div>
@@ -667,6 +643,12 @@ export default function RoznamchaV3() {
                 )}
 
             </div>
+
+            <ReversalModal
+                voucherNo={reversalVoucherNo}
+                isOpen={!!reversalVoucherNo}
+                onClose={() => setReversalVoucherNo(null)}
+            />
         </DashboardLayout>
     );
 }

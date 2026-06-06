@@ -84,7 +84,7 @@ export default function ChartOfAccounts() {
         return (
             <DashboardLayout>
                 <div className="p-8">
-                    <div className="bg-red-50 p-6 border border-red-200 rounded-2xl shadow-sm">
+                    <div className="bg-red-50 p-6 border-2 border-red-200 rounded-none shadow-none">
                         <h3 className="text-red-800 font-black uppercase text-xs tracking-tighter mb-2">System Error</h3>
                         <p className="text-red-700 font-bold text-sm">Error loading Chart of Accounts: {(error as Error).message}</p>
                     </div>
@@ -99,7 +99,7 @@ export default function ChartOfAccounts() {
                 {/* HEADER SECTION */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
                     <div className="flex items-center gap-4">
-                        <div className="bg-slate-900 p-3 rounded-2xl text-white shadow-xl shadow-slate-200 rotation-layer">
+                        <div className="bg-slate-900 p-3 rounded-none text-white shadow-none">
                             <Landmark className="h-6 w-6" />
                         </div>
                         <div>
@@ -109,7 +109,7 @@ export default function ChartOfAccounts() {
                     </div>
 
                     <Button
-                        className="bg-slate-900 hover:bg-black text-white px-8 font-black uppercase text-[11px] tracking-widest gap-2 rounded-2xl shadow-2xl shadow-slate-300 h-12 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        className="bg-slate-900 hover:bg-black text-white px-8 font-black uppercase text-[11px] tracking-widest gap-2 rounded-none shadow-none h-12 transition-none hover:scale-100 active:scale-100"
                         onClick={() => setIsAddModalOpen(true)}
                     >
                         <PlusCircle className="h-4 w-4" /> Add New Account
@@ -117,7 +117,7 @@ export default function ChartOfAccounts() {
                 </div>
 
                 {isLoading ? (
-                    <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-100">
+                    <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 bg-slate-50/50 rounded-none border-2 border-dashed border-slate-200">
                         <Loader2 className="h-12 w-12 animate-spin text-slate-200" />
                         <div className="text-center">
                             <span className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 block">Synchronizing Ledger Data</span>
@@ -128,16 +128,16 @@ export default function ChartOfAccounts() {
                     <div className="space-y-10">
                         {/* Iterate Categories */}
                         {['ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE'].filter(c => !!tableData[c]).map(category => (
-                            <div key={category} className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                            <div key={category} className="space-y-4">
                                 {/* CATEGORY HEADER */}
                                 <div className="flex items-center gap-3 px-1">
                                     <div className={cn(
-                                        "w-2.5 h-6 rounded-full",
-                                        category === 'ASSET' ? "bg-emerald-500 shadow-lg shadow-emerald-100" :
-                                            category === 'LIABILITY' ? "bg-rose-500 shadow-lg shadow-rose-100" :
-                                                category === 'EQUITY' ? "bg-blue-500 shadow-lg shadow-blue-100" :
-                                                    category === 'INCOME' ? "bg-indigo-500 shadow-lg shadow-indigo-100" :
-                                                        "bg-amber-500 shadow-lg shadow-amber-100"
+                                        "w-2.5 h-6 rounded-none",
+                                        category === 'ASSET' ? "bg-emerald-500 shadow-none" :
+                                            category === 'LIABILITY' ? "bg-rose-500 shadow-none" :
+                                                category === 'EQUITY' ? "bg-blue-500 shadow-none" :
+                                                    category === 'INCOME' ? "bg-indigo-500 shadow-none" :
+                                                        "bg-amber-500 shadow-none"
                                     )} />
                                     <h2 className="font-black text-slate-900 uppercase tracking-[0.2em] text-sm py-1">
                                         {category}S <span className="text-slate-300 ml-2">/</span>
@@ -152,13 +152,13 @@ export default function ChartOfAccounts() {
                                         const items = tableData[category][sub];
 
                                         return (
-                                            <Card key={sub} className="overflow-hidden border border-slate-200 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300">
+                                            <Card key={sub} className="overflow-hidden border border-slate-300 rounded-none shadow-none hover:shadow-none transition-none">
                                                 <div
-                                                    className="bg-slate-50/80 px-7 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors"
+                                                    className="bg-slate-50/80 px-7 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-none"
                                                     onClick={() => toggleGroup(groupKey)}
                                                 >
                                                     <div className="flex items-center gap-4">
-                                                        <div className="bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm">
+                                                        <div className="bg-white p-1.5 rounded-none border border-slate-200 shadow-none">
                                                             {isExpanded ? <ChevronDown className="h-4 w-4 text-slate-500" /> : <ChevronRight className="h-4 w-4 text-slate-500" />}
                                                         </div>
                                                         <Folder className={cn("h-4.5 w-4.5",
@@ -171,29 +171,29 @@ export default function ChartOfAccounts() {
                                                             <span className="text-slate-400 text-[10px] font-bold ml-3 tracking-[0.1em]">[{items.length}]</span>
                                                         </h3>
                                                     </div>
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-slate-200" />
+                                                    <div className="h-1.5 w-1.5 rounded-none bg-slate-300" />
                                                 </div>
 
                                                 {isExpanded && (
                                                     <div className="divide-y divide-slate-50 bg-white">
                                                         {items.map((acc: UnifiedAccount) => (
-                                                            <div key={acc.id} className="flex items-center px-10 py-4 hover:bg-slate-50/50 transition-all group border-l-4 border-transparent hover:border-slate-900/5">
-                                                                <div className="w-10 flex justify-center opacity-20 group-hover:opacity-100 transition-opacity">
+                                                            <div key={acc.id} className="flex items-center px-10 py-4 hover:bg-slate-50/50 transition-none group border-l-4 border-transparent hover:border-slate-900/5">
+                                                                <div className="w-10 flex justify-center opacity-60 group-hover:opacity-100 transition-none">
                                                                     {acc.type === 'party' ? <Users className="h-4 w-4 text-slate-900" /> : <FileText className="h-4 w-4 text-slate-900" />}
                                                                 </div>
                                                                 <div className="flex-1">
                                                                     <div className="flex items-center gap-3">
-                                                                        {acc.code && <span className="px-2 py-0.5 bg-slate-100 text-[9px] font-black uppercase text-slate-500 rounded-md border border-slate-200 shadow-inner">{acc.code}</span>}
-                                                                        <span className="font-bold text-slate-800 uppercase text-[11px] tracking-tight group-hover:tracking-tighter transition-all">{acc.name}</span>
-                                                                        {acc.type === 'party' && <span className="text-[8px] font-black uppercase text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100 shadow-sm ml-1">Trade Ledger</span>}
+                                                                        {acc.code && <span className="px-2 py-0.5 bg-slate-100 text-[10px] font-black uppercase text-slate-500 rounded-none border border-slate-200 shadow-none">{acc.code}</span>}
+                                                                        <span className="font-bold text-slate-800 uppercase text-[11px] tracking-tight transition-none">{acc.name}</span>
+                                                                        {acc.type === 'party' && <span className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-none border border-indigo-100 shadow-none ml-1">Trade Ledger</span>}
                                                                     </div>
                                                                 </div>
                                                                 <div>
                                                                     <div className={cn(
-                                                                        "flex items-center gap-2 text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-xl border-2 transition-all",
-                                                                        acc.is_active !== false ? "text-emerald-700 bg-emerald-50 border-emerald-100 shadow-sm" : "text-rose-700 bg-rose-50 border-rose-100 grayscale-[0.5]"
+                                                                        "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-none border-2 transition-none",
+                                                                        acc.is_active !== false ? "text-emerald-700 bg-emerald-50 border-emerald-100 shadow-none" : "text-rose-700 bg-rose-50 border-rose-100 grayscale-[0.5]"
                                                                     )}>
-                                                                        <div className={cn("w-1.5 h-1.5 rounded-full", acc.is_active !== false ? "bg-emerald-500" : "bg-rose-500")} />
+                                                                        <div className={cn("w-1.5 h-1.5 rounded-none", acc.is_active !== false ? "bg-emerald-500" : "bg-rose-500")} />
                                                                         {acc.is_active !== false ? "Active" : "Archived"}
                                                                     </div>
                                                                 </div>
@@ -212,7 +212,7 @@ export default function ChartOfAccounts() {
 
                 {/* FOOTER INFO */}
                 {!isLoading && (
-                    <div className="mt-16 pt-8 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4 grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all">
+                    <div className="mt-16 pt-8 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4 opacity-70 transition-none">
                         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                             © Fuel Trust Ledger System • Unified Accounting Structure v3.0
                         </div>

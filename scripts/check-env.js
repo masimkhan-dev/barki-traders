@@ -1,5 +1,7 @@
 /**
- * Quick check that .env exists and required Vite vars are set.
+ * Quick local check that .env exists and required Vite vars are set.
+ * Production deploys must define these values in Vercel Project Settings.
+ *
  * Run: node scripts/check-env.js
  */
 import { readFileSync, existsSync } from 'fs';
@@ -10,7 +12,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const envPath = resolve(root, '.env');
 
 if (!existsSync(envPath)) {
-  console.error('❌ .env file missing. Run:  copy .env.example .env');
+  console.error('ERROR: .env file missing. For local dev, run: copy .env.example .env');
   process.exit(1);
 }
 
@@ -25,29 +27,34 @@ for (const line of raw.split('\n')) {
 }
 
 const required = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'];
-const placeholders = ['your-barki-anon-key', 'YOUR-BARKI-PROJECT-REF', 'your_project', 'your_anon'];
+const placeholders = [
+  'your-barki-anon-key',
+  'YOUR-BARKI-PROJECT-REF',
+  'your_project',
+  'your_anon',
+];
 
 let ok = true;
 for (const key of required) {
   const val = vars[key];
   if (!val) {
-    console.error(`❌ Missing ${key} in .env`);
+    console.error(`ERROR: Missing ${key} in .env`);
     ok = false;
     continue;
   }
   if (placeholders.some((p) => val.includes(p))) {
-    console.error(`❌ ${key} still has placeholder value — paste real Supabase credentials`);
+    console.error(`ERROR: ${key} still has a placeholder value`);
     ok = false;
   }
 }
 
 if (vars.VITE_CLIENT_SLUG) {
-  console.log(`✓ VITE_CLIENT_SLUG=${vars.VITE_CLIENT_SLUG}`);
+  console.log(`OK: VITE_CLIENT_SLUG=${vars.VITE_CLIENT_SLUG}`);
 }
 
 if (ok) {
-  console.log('✓ .env looks ready for Barki Traders');
-  console.log(`  URL: ${vars.VITE_SUPABASE_URL}`);
+  console.log('OK: .env has the required local Supabase variables');
+  console.log(`URL: ${vars.VITE_SUPABASE_URL}`);
 } else {
   process.exit(1);
 }

@@ -181,7 +181,7 @@ export default function Inventory() {
                 <p className="report-subtitle">Real-time Petroleum Stock Auditing & Product Configuration</p>
               </div>
 
-              <TabsList className="bg-slate-100 p-1 border border-slate-200 rounded-sm">
+              <TabsList className="bg-slate-100 p-1 border border-slate-200 rounded-sm h-auto w-full sm:w-auto grid grid-cols-2">
                 <TabsTrigger value="stock" className="rounded-none data-[state=active]:bg-white data-[state=active]:shadow-sm text-[10px] font-black uppercase tracking-widest px-6 h-9">
                   <Package className="h-3.5 w-3.5 mr-2" />
                   Physical Stock
@@ -205,7 +205,7 @@ export default function Inventory() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {inventory?.map((item) => {
+                  {inventory && inventory.length > 0 ? inventory.map((item) => {
                     const isLow = item.current_stock < LOW_STOCK_THRESHOLD && item.current_stock > 0;
                     const isNegative = item.current_stock < 0;
                     const percentage = Math.min(Math.max((item.current_stock / MAX_CAPACITY) * 100, 0), 100);
@@ -214,14 +214,14 @@ export default function Inventory() {
                       <div
                         key={item.fuel_type_id}
                         className={cn(
-                          'border p-6 bg-white flex flex-col',
+                          'border p-5 sm:p-6 bg-white flex flex-col min-w-0',
                           isNegative ? 'border-rose-500 border-2' : isLow ? 'border-amber-500 border-2' : 'border-slate-300'
                         )}
                       >
                         <div className="flex items-start justify-between mb-6">
                           <div className="flex flex-col">
                             <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{item.fuel_type_name}</h3>
-                            <span className="text-[9px] font-bold text-slate-300 uppercase">Unit: {item.fuel_type_unit}</span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase">Unit: {item.fuel_type_unit}</span>
                           </div>
 
                           {isNegative ? (
@@ -244,7 +244,7 @@ export default function Inventory() {
                           )}>
                             {formatNumber(item.current_stock)}
                           </p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Liters in Storage</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-normal mt-1">Liters in Storage</p>
                         </div>
 
                         {/* Stock breakdown */}
@@ -260,7 +260,7 @@ export default function Inventory() {
                         </div>
 
                         <div>
-                          <div className="flex items-center justify-between text-[9px] font-black uppercase text-slate-400 mb-2">
+                          <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-400 mb-2">
                             <span>Tank Capacity Level</span>
                             <span>{isNegative ? 'ERR: NEGATIVE' : `${percentage.toFixed(1)}%`}</span>
                           </div>
@@ -287,7 +287,12 @@ export default function Inventory() {
                         </div>
                       </div>
                     );
-                  })}
+                  }) : (
+                    <div className="md:col-span-2 lg:col-span-3 center-align py-20 border border-dashed border-slate-300 bg-white text-slate-400">
+                      <Package className="h-10 w-10 mx-auto mb-4 text-slate-300" />
+                      <p className="text-[11px] font-black uppercase tracking-widest">No stock records available</p>
+                    </div>
+                  )}
                 </div>
               )}
             </TabsContent>
@@ -311,18 +316,18 @@ export default function Inventory() {
                           Configure New Product
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-md rounded-none border-2 border-slate-900">
+                    <DialogContent className="max-w-md rounded-none border-2 border-slate-900 p-0 overflow-hidden">
                         <DialogHeader>
-                          <DialogTitle className="text-sm font-black uppercase tracking-widest">
+                          <DialogTitle className="text-sm font-black uppercase tracking-widest px-6 pt-6">
                             {editingFuelType ? 'Update Product Details' : 'Initialize New Fuel Product'}
                           </DialogTitle>
                         </DialogHeader>
 
-                        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                        <form onSubmit={handleSubmit} className="space-y-5 p-6 pt-2">
                           <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase">Product Designation</Label>
                             <Input
-                              className="rounded-none border-slate-300 font-bold uppercase text-xs h-10"
+                              className="rounded-none border-slate-300 font-bold text-xs h-11"
                               placeholder="e.g. MS PETROL"
                               value={formData.name}
                               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
@@ -332,7 +337,7 @@ export default function Inventory() {
                           <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase">Measure Unit</Label>
                             <Input
-                              className="rounded-none border-slate-300 font-bold uppercase text-xs h-10"
+                              className="rounded-none border-slate-300 font-bold text-xs h-11"
                               placeholder="Liters"
                               value={formData.unit}
                               onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
@@ -359,7 +364,7 @@ export default function Inventory() {
                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Retrieving Product Definitions...</span>
                   </div>
                 ) : fuelTypes && fuelTypes.length > 0 ? (
-                  <div className="overflow-x-auto">
+                  <div className="audit-table-shell">
                     <table className="ledger-table">
                       <thead>
                         <tr>
@@ -398,6 +403,7 @@ export default function Inventory() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 w-7 p-0"
+                                  aria-label={`Edit ${fuelType.name}`}
                                   onClick={() => {
                                     openEditDialog(fuelType);
                                     setIsDialogOpen(true);
