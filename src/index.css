@@ -4,24 +4,43 @@
 @tailwind components;
 @tailwind utilities;
 
-/* V11 STYLE LOCK: GOVERNMENT / BANK ACCOUNTING SYSTEM */
-/* STRICT: NO ANIMATIONS, NO HOVER EFFECTS, NO ROUNDED CORNERS, NO SHADOWS */
+:root {
+  --color-sidebar-bg: #1E1E2E;
+  --color-page-bg: #F5F5F7;
+  --color-card-bg: #FFFFFF;
+  --color-card-border: #E4E4E7;
+  --color-primary: #4F46E5;
+  --color-primary-light: #EEF2FF;
+  --color-text-primary: #18181B;
+  --color-text-muted: #71717A;
+  --color-success: #22C55E;
+  --color-success-light: #DCFCE7;
+  --color-success-text: #166534;
+  --color-danger: #EF4444;
+  --color-danger-light: #FEE2E2;
+  --color-danger-text: #991B1B;
+  --color-warning: #F59E0B;
+  --color-warning-light: #FEF3C7;
+  --color-warning-text: #92400E;
+  --color-transfer: #6366F1;
+  --color-transfer-light: #EEF2FF;
+  --color-transfer-text: #3730A3;
+}
 
-/* V11 SAFE IMPROVEMENT: Scoped global reset to prevent 3rd-party component breakage */
+/* === COLOR SYSTEM === */
+
+/* === GLOBAL UI POLISH === */
+
 .ledger-system *,
 .ledger-system *::before,
 .ledger-system *::after {
-  border-radius: 0 !important;
-  transition: none !important;
-  animation: none !important;
-  box-shadow: none !important;
+  transition: all 0.15s ease;
 }
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #F1F5F9;
-  /* SLIGHTLY DARKER TO POP WHITE FORMS */
-  color: #0F172A;
+  background-color: var(--color-page-bg);
+  color: var(--color-text-primary);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
   text-rendering: optimizeLegibility;
@@ -46,6 +65,13 @@ textarea.ledger-input {
   min-height: 40px;
 }
 
+input,
+select,
+textarea {
+  border: 1px solid var(--color-card-border);
+  border-radius: 8px;
+}
+
 /* V11 SAFE IMPROVEMENT: Enhanced focus visibility for accessibility */
 .ledger-form input:focus,
 .ledger-form select:focus,
@@ -55,8 +81,8 @@ input[type="number"].ledger-input:focus,
 input[type="date"].ledger-input:focus,
 select.ledger-input:focus,
 textarea.ledger-input:focus {
-  border: 2px solid #0F172A !important;
-  outline: 2px solid #0F172A !important;
+  border: 1px solid var(--color-primary) !important;
+  outline: 2px solid var(--color-primary) !important;
   /* V11 SAFE IMPROVEMENT: Stronger focus indicator */
   outline-offset: 2px !important;
   box-shadow: none !important;
@@ -97,9 +123,36 @@ body > [data-radix-popper-content-wrapper] {
 }
 
 .ledger-system :where(a, button, input, select, textarea, [role="button"], [tabindex]):focus-visible {
-  outline: 2px solid #0F172A !important;
+  outline: 2px solid var(--color-primary) !important;
   outline-offset: 2px !important;
 }
+
+button,
+.ledger-system button,
+.ledger-system a {
+  border-radius: 8px;
+}
+
+/* === SIDEBAR === */
+/* Sidebar visual styling is applied with component-level classes in Sidebar.tsx. */
+
+/* === HEADER BAR === */
+/* Header visual styling is applied with component-level classes in DashboardLayout.tsx. */
+
+/* === KPI CARDS === */
+/* Dashboard KPI card accents and typography are applied in Dashboard.tsx. */
+
+/* === INVENTORY CARDS === */
+/* Inventory status badges and card styling are applied in Dashboard.tsx. */
+
+/* === AUDIT TRAIL === */
+/* Audit trail chips, rows, and panel styling are applied in Dashboard.tsx. */
+
+/* === ONBOARDING === */
+/* Temporary guide panel styling is isolated in components/dashboard/GettingStarted.tsx. */
+
+/* === NET MARKET POSITION === */
+/* Net market position card styling is applied in Dashboard.tsx. */
 
 /* HIGH-CONTRAST DENSE TABLES */
 .ledger-table {
@@ -146,8 +199,10 @@ body > [data-radix-popper-content-wrapper] {
 }
 
 .audit-table-shell {
-  border: 1px solid #CBD5E1;
-  background: white;
+  border: 1px solid var(--color-card-border);
+  background: var(--color-card-bg);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -178,28 +233,28 @@ body > [data-radix-popper-content-wrapper] {
   /* V11 SAFE IMPROVEMENT: Proper number alignment */
 }
 
-/* REPORT HEADERS */
+/* === SECTION HEADINGS === */
 .report-header {
   margin-bottom: 2rem;
-  border-bottom: 4px solid #0F172A;
+  border-bottom: 1px solid var(--color-card-border);
   padding-bottom: 1rem;
 }
 
 .report-title {
-  font-size: clamp(20px, 3vw, 28px);
-  font-weight: 900;
+  font-size: 22px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: -0.02em;
-  color: #0F172A;
+  letter-spacing: 0;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
 .report-subtitle {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: #64748B;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
   margin-top: 4px;
 }
 
@@ -288,8 +343,10 @@ body > [data-radix-popper-content-wrapper] {
 /* SUMMARY CARDS (GOV STYLE) */
 /* V11 SAFE IMPROVEMENT: Enhanced Summary Card internal spacing */
 .summary-card {
-  background: white;
-  border: 2px solid #E2E8F0 !important;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border) !important;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   /* V11 SAFE IMPROVEMENT: Stronger borders for KPIs */
   padding: 20px;
   display: flex;
@@ -303,18 +360,18 @@ body > [data-radix-popper-content-wrapper] {
 }
 
 .summary-label {
-  font-size: 10px;
-  font-weight: 900;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
-  color: #64748B;
-  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  letter-spacing: 0.08em;
   line-height: 1.35;
 }
 
 .summary-value {
   font-size: 22px;
-  font-weight: 900;
-  color: #0F172A;
+  font-weight: 700;
+  color: var(--color-text-primary);
   font-family: 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
   /* V11 SAFE IMPROVEMENT: Consistent number rendering */
@@ -324,11 +381,11 @@ body > [data-radix-popper-content-wrapper] {
 }
 
 .text-assets {
-  color: #15803d !important;
+  color: var(--color-success) !important;
 }
 
 .text-liabilities {
-  color: #be123c !important;
+  color: var(--color-danger) !important;
 }
 
 .center-align {

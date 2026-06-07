@@ -90,6 +90,7 @@ export function Sidebar({ className, onItemClick }: { className?: string, onItem
   };
 
   const filteredNavItems = navItems.filter(item => {
+    if (item.disabled) return false;
     if (!item.roles) return true;
     return role && item.roles.includes(role);
   });
@@ -99,24 +100,24 @@ export function Sidebar({ className, onItemClick }: { className?: string, onItem
   return (
 
     <aside className={cn(
-      isFixed ? "fixed left-0 top-0 z-40 h-screen w-72 bg-slate-950 border-r border-slate-800" : "w-full h-full bg-slate-950",
+      isFixed ? "fixed left-0 top-0 z-40 h-screen w-72 bg-[var(--color-sidebar-bg)] border-r border-[#2E2E42]" : "w-full h-full bg-[var(--color-sidebar-bg)]",
       className
     )}>
       <div className="flex flex-col h-full">
         {/* BRANDING SECTION */}
-        <div className="p-5 lg:p-6 border-b border-white/10">
+        <div className="p-5 lg:p-6 border-b border-[#2E2E42] bg-[#16162A]">
           <Link to="/" onClick={onItemClick} className="flex flex-col gap-1 focus-visible:outline-white" aria-label="Go to dashboard home">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-md bg-slate-900 border border-white/10 overflow-hidden p-1.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--color-sidebar-bg)] border border-[#2E2E42] overflow-hidden p-1.5">
                 <img src={clientConfig.LOGO_PATH} alt={clientConfig.BUSINESS_NAME} className="h-full w-full object-contain filter brightness-110" />
               </div>
               <BrandTitle
                 variant="stacked"
                 className="text-xl text-white tracking-normal"
-                secondaryClassName="text-slate-400"
+                secondaryClassName="text-[#A1A1AA]"
               />
             </div>
-            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-[0.08em] mt-4 pl-1 leading-relaxed">{clientConfig.TAGLINE}</p>
+            <p className="text-[11px] text-[#A1A1AA] font-semibold uppercase tracking-[0.08em] mt-4 pl-1 leading-relaxed">{clientConfig.TAGLINE}</p>
           </Link>
         </div>
 
@@ -133,7 +134,7 @@ export function Sidebar({ className, onItemClick }: { className?: string, onItem
 
             return (
               <div key={section} className="mb-5 last:mb-0">
-                <div className="px-3 pb-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#71717A]">
                   {section}
                 </div>
 
@@ -172,13 +173,13 @@ export function Sidebar({ className, onItemClick }: { className?: string, onItem
                         className={cn(
                           'flex min-h-11 items-center gap-3 px-3.5 py-2.5 rounded-md transition-all duration-150 group border focus-visible:outline-white',
                           isActive
-                            ? 'bg-white text-slate-950 border-white shadow-sm'
-                            : 'text-slate-300 border-transparent hover:bg-white/[0.08] hover:text-white hover:border-white/10'
+                            ? 'bg-[rgba(79,70,229,0.10)] text-white border-transparent border-l-[3px] border-l-[var(--color-primary)]'
+                            : 'text-[#A1A1AA] border-transparent border-l-[3px] border-l-transparent hover:bg-white/[0.03] hover:text-white'
                         )}
                       >
                         <span className={cn(
-                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors duration-150',
-                          isActive ? 'bg-slate-950 text-white' : 'bg-white/[0.05] text-slate-400 group-hover:text-white'
+                          'flex h-8 w-8 shrink-0 items-center justify-center transition-colors duration-150',
+                          isActive ? 'text-white' : 'text-[#A1A1AA] group-hover:text-white'
                         )}>
                           <Icon className="h-4 w-4" />
                         </span>
@@ -193,35 +194,37 @@ export function Sidebar({ className, onItemClick }: { className?: string, onItem
         </nav>
 
         {/* USER PROFILE SECTION */}
-        <div className="p-4 bg-slate-950/70 border-t border-white/10">
-          <div className="flex items-center gap-3 p-3 rounded-md bg-white/[0.06] border border-white/10 mb-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-800 shrink-0 border border-slate-700">
-              <UserCircle className="h-5 w-5 text-slate-400" />
+        <div className="p-4 bg-[#16162A] border-t border-[#2E2E42]">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-sidebar-bg)] border border-[#2E2E42] mb-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)] shrink-0 border border-transparent">
+              <UserCircle className="h-5 w-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-slate-200 truncate">
+              <p className="text-xs font-semibold text-white truncate">
                 {user?.email?.split('@')[0]}
               </p>
               <p className="mt-1 text-[9px] font-black uppercase tracking-wider">
                 {role === 'accountant' ? (
-                  <span className="bg-emerald-900/50 text-emerald-300 px-1.5 py-0.5 border border-emerald-800/50">Accountant</span>
+                  <span className="bg-[var(--color-success-light)] text-[var(--color-success-text)] px-1.5 py-0.5 rounded-full">Accountant</span>
                 ) : (
-                  <span className="bg-blue-900/50 text-blue-300 px-1.5 py-0.5 border border-blue-800/50">{(role || 'Staff').toUpperCase()}</span>
+                  <span className="bg-[var(--color-primary-light)] text-[var(--color-transfer-text)] px-1.5 py-0.5 rounded-full">{(role || 'Staff').toUpperCase()}</span>
                 )}
               </p>
             </div>
           </div>
 
-          <ChangePasswordSection />
+          <div className="border-t border-[#2E2E42] pt-3">
+            <ChangePasswordSection />
 
-          <button
-            onClick={() => { signOut(); onItemClick?.(); }}
-            className="flex min-h-11 w-full items-center gap-3 rounded-md px-4 py-2.5 text-[11px] font-black text-rose-400 hover:bg-rose-950/30 hover:text-rose-300 transition-all duration-200 border border-transparent group focus-visible:outline-white"
-            aria-label="Sign out"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            <span className="uppercase tracking-[0.16em]">Sign Out</span>
-          </button>
+            <button
+              onClick={() => { signOut(); onItemClick?.(); }}
+              className="flex min-h-10 w-full items-center gap-3 rounded-md px-4 py-2.5 text-[11px] font-semibold text-[#71717A] hover:bg-white/[0.03] hover:text-white transition-all duration-150 border border-transparent group focus-visible:outline-white"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="uppercase tracking-[0.16em]">Sign Out</span>
+            </button>
+          </div>
         </div>
       </div>
     </aside>
@@ -262,10 +265,10 @@ function ChangePasswordSection() {
   };
 
   return (
-    <div className="mb-2">
+    <div className="mb-1">
       <button
         onClick={() => { setOpen(!open); setDone(false); setPw(''); setConfirmPw(''); }}
-        className="flex min-h-10 w-full items-center gap-3 rounded-md px-4 py-2 text-[11px] font-black text-slate-400 hover:bg-white/[0.07] hover:text-slate-200 transition-all duration-200 group focus-visible:outline-white"
+        className="flex min-h-10 w-full items-center gap-3 rounded-md px-4 py-2 text-[11px] font-semibold text-[#71717A] hover:bg-white/[0.03] hover:text-white transition-all duration-150 group focus-visible:outline-white"
         aria-expanded={open}
       >
         <KeyRound className="h-3.5 w-3.5" />
@@ -286,7 +289,7 @@ function ChangePasswordSection() {
                 placeholder="New password"
                 value={pw}
                 onChange={e => setPw(e.target.value)}
-                className="w-full h-10 rounded-md px-3 text-xs bg-slate-900 border border-slate-700 text-white placeholder:text-slate-500 font-bold focus:outline-none focus:border-slate-400"
+                className="w-full h-10 rounded-md px-3 text-xs bg-[var(--color-sidebar-bg)] border border-[#2E2E42] text-white placeholder:text-[#71717A] font-semibold focus:outline-none focus:border-[var(--color-primary)]"
                 aria-label="New password"
               />
               <input
@@ -294,13 +297,13 @@ function ChangePasswordSection() {
                 placeholder="Confirm password"
                 value={confirmPw}
                 onChange={e => setConfirmPw(e.target.value)}
-                className="w-full h-10 rounded-md px-3 text-xs bg-slate-900 border border-slate-700 text-white placeholder:text-slate-500 font-bold focus:outline-none focus:border-slate-400"
+                className="w-full h-10 rounded-md px-3 text-xs bg-[var(--color-sidebar-bg)] border border-[#2E2E42] text-white placeholder:text-[#71717A] font-semibold focus:outline-none focus:border-[var(--color-primary)]"
                 aria-label="Confirm new password"
               />
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="w-full h-10 rounded-md bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2 focus-visible:outline-white"
+                className="w-full h-10 rounded-md bg-[var(--color-primary)] hover:bg-[var(--color-transfer)] text-white text-[10px] font-semibold uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2 focus-visible:outline-white"
               >
                 {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <KeyRound className="h-3 w-3" />}
                 {loading ? 'Saving...' : 'Update'}

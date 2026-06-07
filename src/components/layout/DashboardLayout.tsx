@@ -34,12 +34,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
 
-    <div className="ledger-system min-h-screen bg-[#F8FAFC]">
+    <div className="ledger-system min-h-screen bg-[var(--color-page-bg)]">
       {/* MOBILE TRIGGER - Floating button for small screens */}
       <div className="lg:hidden fixed top-4 right-4 z-50">
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="h-11 w-11 rounded-none shadow-none bg-white border-slate-900 text-slate-900 border-2" aria-label="Open navigation menu">
+            <Button variant="outline" size="icon" className="h-11 w-11 bg-white border-[var(--color-card-border)] text-[var(--color-text-primary)] shadow-sm" aria-label="Open navigation menu">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
@@ -56,31 +56,31 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Main Content */}
         <main className="flex-1 lg:pl-72 min-w-0 flex flex-col min-h-screen">
           {/* TOP BAR */}
-          <header className="sticky top-0 z-20 bg-white border-b border-slate-300 px-4 py-3 sm:px-6 lg:px-8 lg:py-4 flex items-center justify-between gap-4 shadow-none">
+          <header className="sticky top-0 z-20 h-14 bg-white border-b border-[var(--color-card-border)] px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 shadow-none">
             <div className="flex items-center gap-2 lg:hidden">
               {/* Spacer for Mobile Menu Button */}
               <div className="w-8"></div>
             </div>
 
             <div className="flex items-center gap-2 min-w-0">
-              <Building2 className="h-4 w-4 text-slate-400" />
+              <Building2 className="h-4 w-4 text-[var(--color-text-muted)]" />
               <div className="flex flex-col min-w-0">
-                <BrandTitle variant="compact" className="text-slate-900 text-[10px] tracking-widest" />
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-normal truncate">Verified Ledger System</span>
+                <BrandTitle variant="compact" className="text-[var(--color-text-primary)] text-[11px] font-semibold tracking-wide" />
+                <span className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-[0.08em] truncate">Verified Ledger System</span>
               </div>
             </div>
 
             <div className="flex items-center gap-3 sm:gap-6 shrink-0">
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-200">
-                <div className="h-1.5 w-1.5 bg-emerald-600"></div>
-                <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Postings Verified</span>
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-[var(--color-success-light)] border border-transparent rounded-full">
+                <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]"></div>
+                <span className="text-[11px] font-semibold uppercase text-[var(--color-success-text)] tracking-wide">Postings Verified</span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right hidden sm:block">
-                  <p className="text-[11px] font-black text-slate-900 uppercase leading-none">{user?.email?.split('@')[0]}</p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-normal">{role || 'User'}</p>
+                  <p className="text-[11px] font-semibold text-[var(--color-text-primary)] uppercase leading-none">{user?.email?.split('@')[0]}</p>
+                  <p className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">{role || 'User'}</p>
                 </div>
-                <div className="h-8 w-8 rounded-none bg-slate-900 flex items-center justify-center text-white font-black text-xs border border-slate-800">
+                <div className="h-8 w-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white font-bold text-xs border border-transparent">
                   {user?.email?.charAt(0).toUpperCase() || 'A'}
                 </div>
               </div>
