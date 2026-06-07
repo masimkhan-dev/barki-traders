@@ -97,6 +97,22 @@ export default function Dashboard() {
     },
   });
 
+  const { data: inventoryValue } = useQuery({
+    queryKey: ['dashboard-inventory-value-v1'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('quantity, avg_cost');
+
+      if (error) throw error;
+
+      return (data || []).reduce(
+        (total, row) => total + ((Number(row.quantity) || 0) * (Number(row.avg_cost) || 0)),
+        0
+      );
+    },
+  });
+
   const dashboardMarket = marketStats || {
     receivables: stats?.receivables || 0,
     payables: stats?.payables || 0,
@@ -124,7 +140,7 @@ export default function Dashboard() {
         </div>
 
         {/* --- MAIN KPI ROW --- */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-[var(--color-primary)] rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0">
             <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Sales (Current Month)</span>
             <span className="text-[26px] font-bold text-[var(--color-primary)] num-audit tracking-tight break-words">{formatPKR(stats?.total_sales || 0)}</span>
@@ -147,6 +163,12 @@ export default function Dashboard() {
             <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Market Payables</span>
             <span className="text-[26px] font-bold text-[var(--color-danger)] num-audit tracking-tight break-words">{formatPKR(dashboardMarket.payables)}</span>
             <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1">Total Supplier Dues (Dena)</span>
+          </div>
+
+          <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-[var(--color-warning)] rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0">
+            <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Inventory Value</span>
+            <span className="text-[26px] font-bold text-[var(--color-warning-text)] num-audit tracking-tight break-words">{formatPKR(inventoryValue || 0)}</span>
+            <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1">At weighted avg cost</span>
           </div>
         </div>
 
@@ -204,14 +226,35 @@ export default function Dashboard() {
 
 function InventoryMiniCards() {
   const { data: inventory, isLoading } = useQuery({
-    queryKey: ['inventory-mini-v10'],
+    queryKey: ['inventory-mini-v11'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc('get_stock_movement', {
+      const { data: movementData, error: movementError } = await (supabase as any).rpc('get_stock_movement', {
         p_start_date: new Date().toISOString().split('T')[0],
         p_end_date: new Date().toISOString().split('T')[0]
       });
-      if (error) return [];
-      return data;
+      if (movementError) return [];
+
+      const { data: valueData, error: valueError } = await supabase
+        .from('inventory')
+        .select('fuel_type_id, quantity, avg_cost');
+
+      if (valueError) return movementData || [];
+
+      const valueMap = new Map(
+        (valueData || []).map(row => [
+          row.fuel_type_id,
+          {
+            avg_cost: Number(row.avg_cost) || 0,
+            stock_value: (Number(row.quantity) || 0) * (Number(row.avg_cost) || 0),
+          },
+        ])
+      );
+
+      return (movementData || []).map((item: any) => ({
+        ...item,
+        avg_cost: valueMap.get(item.fuel_type_id)?.avg_cost || 0,
+        stock_value: valueMap.get(item.fuel_type_id)?.stock_value || 0,
+      }));
     }
   });
 
@@ -240,6 +283,16 @@ function InventoryMiniCards() {
           {formatNumber(item.closing_stock)}
           <span className="text-[13px] ml-1.5 text-[var(--color-text-muted)] font-medium uppercase">Ltr</span>
         </h4>
+        <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-[#FAFAFA] border border-[#F4F4F5] px-3 py-2">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-[0.08em]">Stock Value</span>
+            <span className="text-sm font-bold text-[var(--color-text-primary)] num-audit">{formatPKR(item.stock_value || 0)}</span>
+          </div>
+          <div className="flex flex-col items-end gap-0.5">
+            <span className="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-[0.08em]">Avg Cost</span>
+            <span className="text-sm font-bold text-[var(--color-text-primary)] num-audit">{formatPKR(item.avg_cost || 0)}/L</span>
+          </div>
+        </div>
       </div>
 
       <div className="mt-3 pt-3 border-t border-[#F4F4F5] grid grid-cols-2 gap-2">
