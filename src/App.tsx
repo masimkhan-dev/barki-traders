@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Lazy-loaded pages — each becomes a separate JS chunk, loaded only when navigated to
@@ -81,6 +81,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user, role, loading } = useAuth();
 
+  useEffect(() => {
+    if (user && role) {
+      void import("./pages/ManageTransactions");
+    }
+  }, [user, role]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -147,6 +153,4 @@ const App = () => (
 
 // Build trigger 3 - Verification: Route /roznamcha-v3 confirmed at top level of Routes
 export default App;
-
-
 
