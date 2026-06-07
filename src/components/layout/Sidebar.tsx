@@ -194,35 +194,35 @@ export function Sidebar({ className, onItemClick }: { className?: string, onItem
         </nav>
 
         {/* USER PROFILE SECTION */}
-        <div className="p-4 bg-[#16162A] border-t border-[#2E2E42]">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-sidebar-bg)] border border-[#2E2E42] mb-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)] shrink-0 border border-transparent">
-              <UserCircle className="h-5 w-5 text-white" />
+        <div className="bg-[#16162A] border-t border-[#2E2E42] px-3 py-2.5">
+          <div className="flex items-center gap-2.5 px-2 pb-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary)] shrink-0 border border-transparent">
+              <UserCircle className="h-4 w-4 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-white truncate">
+              <p className="text-[11px] font-semibold text-white truncate leading-tight">
                 {user?.email?.split('@')[0]}
               </p>
-              <p className="mt-1 text-[9px] font-black uppercase tracking-wider">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#71717A] leading-tight">
                 {role === 'accountant' ? (
-                  <span className="bg-[var(--color-success-light)] text-[var(--color-success-text)] px-1.5 py-0.5 rounded-full">Accountant</span>
+                  'Accountant'
                 ) : (
-                  <span className="bg-[var(--color-primary-light)] text-[var(--color-transfer-text)] px-1.5 py-0.5 rounded-full">{(role || 'Staff').toUpperCase()}</span>
+                  (role || 'Staff').toUpperCase()
                 )}
               </p>
             </div>
           </div>
 
-          <div className="border-t border-[#2E2E42] pt-3">
+          <div className="border-t border-[#2E2E42] pt-1.5">
             <ChangePasswordSection />
 
             <button
               onClick={() => { signOut(); onItemClick?.(); }}
-              className="flex min-h-10 w-full items-center gap-3 rounded-md px-4 py-2.5 text-[11px] font-semibold text-[#71717A] hover:bg-white/[0.03] hover:text-white transition-all duration-150 border border-transparent group focus-visible:outline-white"
+              className="flex min-h-8 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-[11px] font-semibold text-[#71717A] hover:bg-white/[0.03] hover:text-white transition-all duration-150 border border-transparent group focus-visible:outline-white"
               aria-label="Sign out"
             >
-              <LogOut className="h-3.5 w-3.5" />
-              <span className="uppercase tracking-[0.16em]">Sign Out</span>
+              <LogOut className="h-3 w-3" />
+              <span className="uppercase tracking-[0.12em]">Sign Out</span>
             </button>
           </div>
         </div>
@@ -265,22 +265,22 @@ function ChangePasswordSection() {
   };
 
   return (
-    <div className="mb-1">
+    <div className="mb-0.5">
       <button
         onClick={() => { setOpen(!open); setDone(false); setPw(''); setConfirmPw(''); }}
-        className="flex min-h-10 w-full items-center gap-3 rounded-md px-4 py-2 text-[11px] font-semibold text-[#71717A] hover:bg-white/[0.03] hover:text-white transition-all duration-150 group focus-visible:outline-white"
+        className="flex min-h-8 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-[11px] font-semibold text-[#71717A] hover:bg-white/[0.03] hover:text-white transition-all duration-150 group focus-visible:outline-white"
         aria-expanded={open}
       >
-        <KeyRound className="h-3.5 w-3.5" />
-        <span className="uppercase tracking-[0.16em]">{open ? 'Cancel' : 'Change Password'}</span>
+        <KeyRound className="h-3 w-3" />
+        <span className="uppercase tracking-[0.12em]">{open ? 'Cancel' : 'Change Password'}</span>
       </button>
 
       {open && (
-        <div className="px-1 py-3 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="px-1 py-2 space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
           {done ? (
-            <div className="flex items-center gap-2 rounded-md bg-emerald-950/30 px-3 py-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Updated!</span>
+            <div className="flex items-center gap-2 rounded-md bg-emerald-950/30 px-2.5 py-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-widest">Updated!</span>
             </div>
           ) : (
             <>
@@ -289,7 +289,7 @@ function ChangePasswordSection() {
                 placeholder="New password"
                 value={pw}
                 onChange={e => setPw(e.target.value)}
-                className="w-full h-10 rounded-md px-3 text-xs bg-[var(--color-sidebar-bg)] border border-[#2E2E42] text-white placeholder:text-[#71717A] font-semibold focus:outline-none focus:border-[var(--color-primary)]"
+                className="w-full h-8 rounded-md px-2.5 text-[11px] bg-[var(--color-sidebar-bg)] border border-[#2E2E42] text-white placeholder:text-[#71717A] font-semibold focus:outline-none focus:border-[var(--color-primary)]"
                 aria-label="New password"
               />
               <input
@@ -297,13 +297,13 @@ function ChangePasswordSection() {
                 placeholder="Confirm password"
                 value={confirmPw}
                 onChange={e => setConfirmPw(e.target.value)}
-                className="w-full h-10 rounded-md px-3 text-xs bg-[var(--color-sidebar-bg)] border border-[#2E2E42] text-white placeholder:text-[#71717A] font-semibold focus:outline-none focus:border-[var(--color-primary)]"
+                className="w-full h-8 rounded-md px-2.5 text-[11px] bg-[var(--color-sidebar-bg)] border border-[#2E2E42] text-white placeholder:text-[#71717A] font-semibold focus:outline-none focus:border-[var(--color-primary)]"
                 aria-label="Confirm new password"
               />
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="w-full h-10 rounded-md bg-[var(--color-primary)] hover:bg-[var(--color-transfer)] text-white text-[10px] font-semibold uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2 focus-visible:outline-white"
+                className="w-full h-8 rounded-md bg-[var(--color-primary)] hover:bg-[var(--color-transfer)] text-white text-[10px] font-semibold uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center gap-2 focus-visible:outline-white"
               >
                 {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <KeyRound className="h-3 w-3" />}
                 {loading ? 'Saving...' : 'Update'}
