@@ -153,7 +153,7 @@ export default function BusinessReports() {
             const [partiesRes, entriesRes] = await Promise.all([
                 supabase
                     .from('parties')
-                    .select('id, name, type')
+                    .select('id, name, type, opening_balance')
                     .eq('is_active', true),
                 supabase
                     .from('ledger_entries')
@@ -170,6 +170,13 @@ export default function BusinessReports() {
             );
 
             const grouped = new Map<string, { balance: number; lastDate: string | null }>();
+
+            (partiesRes.data || []).forEach(party => {
+                grouped.set(party.id, {
+                    balance: Number(party.opening_balance) || 0,
+                    lastDate: null,
+                });
+            });
 
             (entriesRes.data || []).forEach(entry => {
                 if (!entry.party_id) return;
