@@ -53,6 +53,13 @@ export default function Dashboard() {
   const { data: marketStats } = useQuery({
     queryKey: ['dashboard-market-ledger-backed', todayIso],
     queryFn: async () => {
+      const { data: parties, error: partiesError } = await supabase
+        .from('parties')
+        .select('id, opening_balance')
+        .eq('is_active', true);
+
+      if (partiesError) throw partiesError;
+
       const { data, error } = await supabase
         .from('ledger_entries')
         .select('party_id, debit_amount, credit_amount')
@@ -62,6 +69,10 @@ export default function Dashboard() {
       if (error) throw error;
 
       const balances = new Map<string, number>();
+      (parties || []).forEach(party => {
+        balances.set(party.id, Number(party.opening_balance) || 0);
+      });
+
       (data || []).forEach(entry => {
         if (!entry.party_id) return;
         const current = balances.get(entry.party_id) || 0;
