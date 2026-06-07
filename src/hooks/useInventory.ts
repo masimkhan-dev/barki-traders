@@ -76,17 +76,12 @@ export function useInventory() {
         }
       });
 
-      // Set current stock from inventory cache; if drifted, trust voucher sums (source of truth)
+      // Set current stock from inventory cache.
+      // Opening stock is stored directly in inventory before daily vouchers exist,
+      // so do not overwrite it with purchase-minus-sale totals here.
       currentStock?.forEach(item => {
         if (stockMap[item.fuel_type_id]) {
           stockMap[item.fuel_type_id].current_stock = Number(item.quantity);
-        }
-      });
-
-      Object.values(stockMap).forEach(row => {
-        const computed = row.total_purchased - row.total_sold;
-        if (Math.abs(computed - row.current_stock) > 0.001) {
-          row.current_stock = computed;
         }
       });
 
