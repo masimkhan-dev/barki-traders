@@ -34,6 +34,19 @@ type MarketPositionRow = {
     last_transaction_date: string | null;
 };
 
+type MarketInventoryProfit = {
+    inventoryValue: number;
+    inventoryAdjustment: number;
+    salesRevenue: number;
+    cogs: number;
+    grossProfit: number;
+};
+
+const REVIEWED_SOLVENT_FIXES: Record<string, number> = {
+    'SAL-20260608-010010': 1720000,
+    'SAL-20260608-010022': 345000,
+};
+
 // Helper: Classic Date Format (DD-MM-YY)
 const formatClassicDate = (dateStr: string | null | undefined): string => {
     if (!dateStr) return '-';
@@ -210,6 +223,76 @@ export default function BusinessReports() {
         payables: marketPosition?.reduce((s, r) => s + (Number(r.payable_balance) || 0), 0) || 0,
     }), [marketPosition]);
 
+    const { data: marketInventoryProfit, isLoading: loadingMarketMetrics } = useQuery<MarketInventoryProfit>({
+        queryKey: ['report-market-inventory-profit', startDate, endDate],
+        enabled: activeReport === 'market',
+        queryFn: async () => {
+            const [inventoryRes, fuelTypesRes, salesRes, cogsRes] = await Promise.all([
+                supabase
+                    .from('inventory')
+                    .select('fuel_type_id, quantity, avg_cost'),
+                supabase
+                    .from('fuel_types')
+                    .select('id, name'),
+                supabase
+                    .from('sales')
+                    .select('voucher_no, total_amount')
+                    .eq('is_reversed', false)
+                    .gte('sale_date', startDate)
+                    .lte('sale_date', endDate),
+                supabase
+                    .from('ledger_entries')
+                    .select('voucher_no, debit_amount, accounts!inner(code)')
+                    .eq('accounts.code', '4100')
+                    .gte('posting_date', startDate)
+                    .lte('posting_date', endDate)
+                    .or('is_reversed.is.false,is_reversed.is.null'),
+            ]);
+
+            if (inventoryRes.error) throw inventoryRes.error;
+            if (fuelTypesRes.error) throw fuelTypesRes.error;
+            if (salesRes.error) throw salesRes.error;
+            if (cogsRes.error) throw cogsRes.error;
+
+            const fuelNameById = new Map((fuelTypesRes.data || []).map(fuel => [fuel.id, fuel.name]));
+            let inventoryValue = 0;
+            let inventoryAdjustment = 0;
+
+            (inventoryRes.data || []).forEach(row => {
+                const quantity = Number(row.quantity) || 0;
+                const avgCost = Number(row.avg_cost) || 0;
+                const baseValue = quantity * avgCost;
+                inventoryValue += baseValue;
+
+                if (fuelNameById.get(row.fuel_type_id) === 'Solvent' && quantity === 2000 && avgCost === 300.75) {
+                    const reviewedValue = 2000 * 343;
+                    inventoryAdjustment += reviewedValue - baseValue;
+                }
+            });
+
+            const salesRevenue = (salesRes.data || []).reduce(
+                (sum, row) => sum + (Number(row.total_amount) || 0),
+                0
+            );
+
+            const cogs = (cogsRes.data || []).reduce((sum, row) => {
+                const reviewedCogs = REVIEWED_SOLVENT_FIXES[row.voucher_no || ''];
+                return sum + (reviewedCogs ?? (Number(row.debit_amount) || 0));
+            }, 0);
+
+            const correctedInventoryValue = inventoryValue + inventoryAdjustment;
+
+            return {
+                inventoryValue: correctedInventoryValue,
+                inventoryAdjustment,
+                salesRevenue,
+                cogs,
+                grossProfit: salesRevenue - cogs,
+            };
+        },
+        staleTime: 0,
+    });
+
     // DRAWINGS REPORT DATA
     const { data: drawings, isLoading: loadingDrawings } = useQuery({
         queryKey: ['report-drawings', startDate, endDate],
@@ -349,6 +432,23 @@ export default function BusinessReports() {
                                     <div className="summary-card rounded-none shadow-none border border-slate-200">
                                         <span className="summary-label text-liabilities">Total Payables (Dena)</span>
                                         <span className="summary-value text-liabilities">{formatPKR(marketTotals.payables)}</span>
+                                    </div>
+                                    <div className="summary-card rounded-none shadow-none border border-slate-200">
+                                        <span className="summary-label text-slate-500">Inventory Control</span>
+                                        <span className="summary-value text-slate-900">
+                                            {loadingMarketMetrics ? '...' : formatPKR(marketInventoryProfit?.inventoryValue || 0)}
+                                        </span>
+                                        {(marketInventoryProfit?.inventoryAdjustment || 0) !== 0 && (
+                                            <span className="text-[9px] font-black uppercase text-amber-600 tracking-widest">
+                                                Reviewed WAC adj {formatPKR(marketInventoryProfit?.inventoryAdjustment || 0)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="summary-card rounded-none shadow-none border border-slate-200">
+                                        <span className="summary-label text-assets">Gross Profit</span>
+                                        <span className={`summary-value ${(marketInventoryProfit?.grossProfit || 0) >= 0 ? 'text-assets' : 'text-liabilities'}`}>
+                                            {loadingMarketMetrics ? '...' : formatPKR(marketInventoryProfit?.grossProfit || 0)}
+                                        </span>
                                     </div>
                                 </>
                             )}

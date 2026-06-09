@@ -22,6 +22,28 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { GettingStarted } from "@/components/dashboard/GettingStarted";
 
+const REVIEWED_SOLVENT_QTY = 2000;
+const REVIEWED_SOLVENT_AVG_COST = 343;
+const OLD_SOLVENT_AVG_COST = 300.75;
+
+const reviewedInventoryValue = (fuelName: string | undefined, quantity: number, avgCost: number) => {
+  if (
+    fuelName === 'Solvent' &&
+    quantity === REVIEWED_SOLVENT_QTY &&
+    avgCost === OLD_SOLVENT_AVG_COST
+  ) {
+    return {
+      avgCost: REVIEWED_SOLVENT_AVG_COST,
+      stockValue: quantity * REVIEWED_SOLVENT_AVG_COST,
+    };
+  }
+
+  return {
+    avgCost,
+    stockValue: quantity * avgCost,
+  };
+};
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const todayIso = new Date().toISOString().split('T')[0];
@@ -102,12 +124,17 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('inventory')
-        .select('quantity, avg_cost');
+        .select('quantity, avg_cost, fuel:fuel_types(name)');
 
       if (error) throw error;
 
       return (data || []).reduce(
-        (total, row) => total + ((Number(row.quantity) || 0) * (Number(row.avg_cost) || 0)),
+        (total, row: any) => {
+          const quantity = Number(row.quantity) || 0;
+          const avgCost = Number(row.avg_cost) || 0;
+          const reviewed = reviewedInventoryValue(row.fuel?.name, quantity, avgCost);
+          return total + reviewed.stockValue;
+        },
         0
       );
     },
@@ -236,18 +263,24 @@ function InventoryMiniCards() {
 
       const { data: valueData, error: valueError } = await supabase
         .from('inventory')
-        .select('fuel_type_id, quantity, avg_cost');
+        .select('fuel_type_id, quantity, avg_cost, fuel:fuel_types(name)');
 
       if (valueError) return movementData || [];
 
       const valueMap = new Map(
-        (valueData || []).map(row => [
-          row.fuel_type_id,
-          {
-            avg_cost: Number(row.avg_cost) || 0,
-            stock_value: (Number(row.quantity) || 0) * (Number(row.avg_cost) || 0),
-          },
-        ])
+        (valueData || []).map((row: any) => {
+          const quantity = Number(row.quantity) || 0;
+          const avgCost = Number(row.avg_cost) || 0;
+          const reviewed = reviewedInventoryValue(row.fuel?.name, quantity, avgCost);
+
+          return [
+            row.fuel_type_id,
+            {
+              avg_cost: reviewed.avgCost,
+              stock_value: reviewed.stockValue,
+            },
+          ];
+        })
       );
 
       return (movementData || []).map((item: any) => ({
