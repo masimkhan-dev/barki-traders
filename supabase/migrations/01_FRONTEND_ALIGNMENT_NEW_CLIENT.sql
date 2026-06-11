@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS public.inventory_events (
   quantity NUMERIC(15, 2) NOT NULL,
   unit_cost NUMERIC(15, 2) NOT NULL DEFAULT 0,
   total_cost NUMERIC(15, 2) NOT NULL DEFAULT 0,
-  avg_cost_after NUMERIC(15, 2) NOT NULL DEFAULT 0,
+  avg_cost_after NUMERIC(18, 6) NOT NULL DEFAULT 0,
   stock_after NUMERIC(15, 2) NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   narration TEXT

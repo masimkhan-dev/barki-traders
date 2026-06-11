@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS public.inventory (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   fuel_type_id UUID NOT NULL REFERENCES public.fuel_types(id) ON DELETE RESTRICT,
   quantity NUMERIC(15, 2) NOT NULL DEFAULT 0 CHECK (quantity >= 0),
-  avg_cost NUMERIC(15, 2) NOT NULL DEFAULT 0,
+  avg_cost NUMERIC(18, 6) NOT NULL DEFAULT 0,
   last_updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (fuel_type_id)
 );

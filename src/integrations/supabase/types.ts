@@ -610,6 +610,77 @@ export type Database = {
         }
         Returns: Json
       }
+      get_dashboard_sales_purchases_trend: {
+        Args: { p_start_date: string; p_end_date: string }
+        Returns: {
+          tx_date: string
+          sales_amount: number
+          purchases_amount: number
+        }[]
+      }
+      get_dashboard_cash_flow_trend: {
+        Args: { p_start_date: string; p_end_date: string }
+        Returns: {
+          tx_date: string
+          cash_in: number
+          cash_out: number
+          net_cash_flow: number
+        }[]
+      }
+      get_dashboard_stock_by_fuel: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          fuel_type_id: string
+          fuel_name: string
+          unit: string
+          quantity: number
+          avg_cost: number
+          stock_value: number
+        }[]
+      }
+      get_dashboard_receivables_payables: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          receivables: number
+          payables: number
+          net_position: number
+        }[]
+      }
+      get_dashboard_top_customers: {
+        Args: { p_limit?: number }
+        Returns: {
+          party_id: string
+          party_name: string
+          outstanding_amount: number
+        }[]
+      }
+      get_dashboard_top_suppliers: {
+        Args: { p_limit?: number }
+        Returns: {
+          party_id: string
+          party_name: string
+          payable_amount: number
+        }[]
+      }
+      get_dashboard_profit_trend: {
+        Args: { p_start_date: string; p_end_date: string }
+        Returns: {
+          tx_date: string
+          income: number
+          expense: number
+          gross_profit: number
+        }[]
+      }
+      get_dashboard_fuel_quantity_sold: {
+        Args: { p_start_date: string; p_end_date: string }
+        Returns: {
+          fuel_type_id: string
+          fuel_name: string
+          unit: string
+          quantity_sold: number
+          sales_amount: number
+        }[]
+      }
     }
     Enums: {
       account_type: "asset" | "liability" | "equity" | "income" | "expense"

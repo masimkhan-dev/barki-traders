@@ -15,6 +15,30 @@ export function formatPKR(amount: number | null | undefined): string {
 }
 
 /**
+ * Format large values compactly for dashboard cards and chart axes.
+ */
+export function formatCompactNumber(num: number | null | undefined): string {
+  if (num === null || num === undefined) return '0';
+
+  const value = Number(num);
+  const absValue = Math.abs(value);
+
+  if (absValue >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(absValue >= 10_000_000 ? 1 : 2).replace(/\.0+$/, '')}M`;
+  }
+
+  if (absValue >= 1_000) {
+    return `${(value / 1_000).toFixed(absValue >= 10_000 ? 0 : 1).replace(/\.0+$/, '')}K`;
+  }
+
+  return formatNumber(value);
+}
+
+export function formatCompactPKR(amount: number | null | undefined): string {
+  return `${clientConfig.CURRENCY} ${formatCompactNumber(amount)}`;
+}
+
+/**
  * Format a number with commas (Pakistani number system)
  */
 export function formatNumber(num: number | null | undefined): string {

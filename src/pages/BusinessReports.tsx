@@ -36,15 +36,9 @@ type MarketPositionRow = {
 
 type MarketInventoryProfit = {
     inventoryValue: number;
-    inventoryAdjustment: number;
     salesRevenue: number;
     cogs: number;
     grossProfit: number;
-};
-
-const REVIEWED_SOLVENT_FIXES: Record<string, number> = {
-    'SAL-20260608-010010': 1720000,
-    'SAL-20260608-010022': 345000,
 };
 
 // Helper: Classic Date Format (DD-MM-YY)
@@ -227,13 +221,10 @@ export default function BusinessReports() {
         queryKey: ['report-market-inventory-profit', startDate, endDate],
         enabled: activeReport === 'market',
         queryFn: async () => {
-            const [inventoryRes, fuelTypesRes, salesRes, cogsRes] = await Promise.all([
+            const [inventoryRes, salesRes, cogsRes] = await Promise.all([
                 supabase
                     .from('inventory')
                     .select('fuel_type_id, quantity, avg_cost'),
-                supabase
-                    .from('fuel_types')
-                    .select('id, name'),
                 supabase
                     .from('sales')
                     .select('voucher_no, total_amount')
@@ -250,24 +241,15 @@ export default function BusinessReports() {
             ]);
 
             if (inventoryRes.error) throw inventoryRes.error;
-            if (fuelTypesRes.error) throw fuelTypesRes.error;
             if (salesRes.error) throw salesRes.error;
             if (cogsRes.error) throw cogsRes.error;
 
-            const fuelNameById = new Map((fuelTypesRes.data || []).map(fuel => [fuel.id, fuel.name]));
             let inventoryValue = 0;
-            let inventoryAdjustment = 0;
 
             (inventoryRes.data || []).forEach(row => {
                 const quantity = Number(row.quantity) || 0;
                 const avgCost = Number(row.avg_cost) || 0;
-                const baseValue = quantity * avgCost;
-                inventoryValue += baseValue;
-
-                if (fuelNameById.get(row.fuel_type_id) === 'Solvent' && quantity === 2000 && avgCost === 300.75) {
-                    const reviewedValue = 2000 * 343;
-                    inventoryAdjustment += reviewedValue - baseValue;
-                }
+                inventoryValue += quantity * avgCost;
             });
 
             const salesRevenue = (salesRes.data || []).reduce(
@@ -276,15 +258,11 @@ export default function BusinessReports() {
             );
 
             const cogs = (cogsRes.data || []).reduce((sum, row) => {
-                const reviewedCogs = REVIEWED_SOLVENT_FIXES[row.voucher_no || ''];
-                return sum + (reviewedCogs ?? (Number(row.debit_amount) || 0));
+                return sum + (Number(row.debit_amount) || 0);
             }, 0);
 
-            const correctedInventoryValue = inventoryValue + inventoryAdjustment;
-
             return {
-                inventoryValue: correctedInventoryValue,
-                inventoryAdjustment,
+                inventoryValue,
                 salesRevenue,
                 cogs,
                 grossProfit: salesRevenue - cogs,
@@ -438,11 +416,6 @@ export default function BusinessReports() {
                                         <span className="summary-value text-slate-900">
                                             {loadingMarketMetrics ? '...' : formatPKR(marketInventoryProfit?.inventoryValue || 0)}
                                         </span>
-                                        {(marketInventoryProfit?.inventoryAdjustment || 0) !== 0 && (
-                                            <span className="text-[9px] font-black uppercase text-amber-600 tracking-widest">
-                                                Reviewed WAC adj {formatPKR(marketInventoryProfit?.inventoryAdjustment || 0)}
-                                            </span>
-                                        )}
                                     </div>
                                     <div className="summary-card rounded-none shadow-none border border-slate-200">
                                         <span className="summary-label text-assets">Gross Profit</span>

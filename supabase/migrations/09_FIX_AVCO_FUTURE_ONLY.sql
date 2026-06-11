@@ -1,0 +1,61 @@
+-- Fix future AVCO calculations.
+--
+-- IMPORTANT:
+-- The purchase trigger currently calls update_stock_quantity(..., 'IN') before
+-- apply_avco_on_purchase(...). Therefore this function must treat the inventory
+-- quantity it reads as the post-purchase quantity and must update avg_cost only.
+
+CREATE OR REPLACE FUNCTION public.apply_avco_on_purchase(
+  p_fuel_type_id UUID,
+  p_quantity NUMERIC,
+  p_rate NUMERIC
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+DECLARE
+  v_qty_after NUMERIC := 0;
+  v_old_qty NUMERIC := 0;
+  v_old_cost NUMERIC := 0;
+  v_new_cost NUMERIC := 0;
+BEGIN
+  IF p_quantity <= 0 THEN
+    RAISE EXCEPTION 'AVCO ERROR: Purchase quantity must be positive.';
+  END IF;
+
+  IF p_rate < 0 THEN
+    RAISE EXCEPTION 'AVCO ERROR: Purchase rate cannot be negative.';
+  END IF;
+
+  SELECT COALESCE(quantity, 0), COALESCE(avg_cost, 0)
+  INTO v_qty_after, v_old_cost
+  FROM public.inventory
+  WHERE fuel_type_id = p_fuel_type_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    INSERT INTO public.inventory (fuel_type_id, quantity, avg_cost, last_updated)
+    VALUES (p_fuel_type_id, p_quantity, p_rate, now())
+    ON CONFLICT (fuel_type_id) DO UPDATE
+    SET avg_cost = EXCLUDED.avg_cost,
+        last_updated = now();
+    RETURN;
+  END IF;
+
+  v_old_qty := GREATEST(v_qty_after - p_quantity, 0);
+
+  IF v_qty_after > 0 THEN
+    v_new_cost := ((v_old_qty * v_old_cost) + (p_quantity * p_rate)) / v_qty_after;
+  ELSE
+    v_new_cost := p_rate;
+  END IF;
+
+  UPDATE public.inventory
+  SET avg_cost = v_new_cost,
+      last_updated = now()
+  WHERE fuel_type_id = p_fuel_type_id;
+END;
+$$;
+
+NOTIFY pgrst, 'reload schema';
