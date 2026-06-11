@@ -245,24 +245,24 @@ export default function Dashboard() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-[var(--color-primary)] rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
                 <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Sales (Current Month)</span>
-                <span className="text-[28px] font-black text-[var(--color-primary)] num-audit tracking-tight whitespace-nowrap" title={formatPKR(stats?.total_sales || 0)}>
-                  {formatCompactPKR(stats?.total_sales || 0)}
+                <span className="text-[28px] font-black text-[var(--color-primary)] num-audit tracking-tight whitespace-nowrap">
+                  {formatPKR(stats?.total_sales || 0)}
                 </span>
                 <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1">As of {todayLabel}</span>
               </div>
 
               <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-[var(--color-text-muted)] rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
                 <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Purchases (Current Month)</span>
-                <span className="text-[28px] font-black text-[var(--color-text-primary)] num-audit tracking-tight whitespace-nowrap" title={formatPKR(stats?.total_purchases || 0)}>
-                  {formatCompactPKR(stats?.total_purchases || 0)}
+                <span className="text-[28px] font-black text-[var(--color-text-primary)] num-audit tracking-tight whitespace-nowrap">
+                  {formatPKR(stats?.total_purchases || 0)}
                 </span>
                 <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1">As of {todayLabel}</span>
               </div>
 
               <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-[var(--color-warning)] rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
                 <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Inventory Value</span>
-                <span className="text-[28px] font-black text-[var(--color-warning-text)] num-audit tracking-tight whitespace-nowrap" title={formatPKR(inventoryValue || 0)}>
-                  {formatCompactPKR(inventoryValue || 0)}
+                <span className="text-[28px] font-black text-[var(--color-warning-text)] num-audit tracking-tight whitespace-nowrap">
+                  {formatPKR(inventoryValue || 0)}
                 </span>
                 <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1">At weighted avg cost</span>
               </div>
@@ -339,16 +339,16 @@ export default function Dashboard() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-[var(--color-success)] rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
                 <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Market Receivables</span>
-                <span className="text-[28px] font-black text-[var(--color-success)] num-audit tracking-tight whitespace-nowrap" title={formatPKR(dashboardMarket.receivables)}>
-                  {formatCompactPKR(dashboardMarket.receivables)}
+                <span className="text-[28px] font-black text-[var(--color-success)] num-audit tracking-tight whitespace-nowrap">
+                  {formatPKR(dashboardMarket.receivables)}
                 </span>
                 <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1">Total Outstanding (Lena)</span>
               </div>
 
               <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-[var(--color-danger)] rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
                 <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Market Payables</span>
-                <span className="text-[28px] font-black text-[var(--color-danger)] num-audit tracking-tight whitespace-nowrap" title={formatPKR(dashboardMarket.payables)}>
-                  {formatCompactPKR(dashboardMarket.payables)}
+                <span className="text-[28px] font-black text-[var(--color-danger)] num-audit tracking-tight whitespace-nowrap">
+                  {formatPKR(dashboardMarket.payables)}
                 </span>
                 <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1">Total Supplier Dues (Dena)</span>
               </div>
@@ -356,7 +356,7 @@ export default function Dashboard() {
               <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-slate-900 rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
                 <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Net Market Position</span>
                 <span className={cn("text-[28px] font-black num-audit tracking-tight whitespace-nowrap", dashboardMarket.market_balance >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]")}>
-                  {formatCompactPKR(Math.abs(dashboardMarket.market_balance))}
+                  {formatPKR(Math.abs(dashboardMarket.market_balance))}
                 </span>
                 <span className={cn("text-[11px] font-semibold uppercase mt-1", dashboardMarket.market_balance >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]")}>
                   {dashboardMarket.market_balance >= 0 ? "Dr (Net Asset)" : "Cr (Net Liability)"}
@@ -381,14 +381,14 @@ export default function Dashboard() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="bg-white border border-[var(--color-card-border)] rounded-xl shadow-sm p-5 flex flex-col gap-1">
                 <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Period Sales</span>
-                <span className="text-2xl font-bold text-emerald-600 num-audit">{formatCompactPKR(stats?.total_sales || 0)}</span>
+                <span className="text-2xl font-bold text-emerald-600 num-audit">{formatPKR(stats?.total_sales || 0)}</span>
               </div>
 
               <div className="bg-white border border-[var(--color-card-border)] rounded-xl shadow-sm p-5 flex flex-col gap-1">
                 <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Estimated Cost of Sales</span>
                 <span className="text-2xl font-bold text-slate-800 num-audit">
                   {/* Reuse monthly purchases and inventory value as estimation context */}
-                  {formatCompactPKR(stats?.total_purchases || 0)}
+                  {formatPKR(stats?.total_purchases || 0)}
                 </span>
               </div>
 
@@ -396,7 +396,7 @@ export default function Dashboard() {
                 <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Gross Margin Profit</span>
                 <span className="text-2xl font-bold text-emerald-600 num-audit">
                   {/* Display calculated profit */}
-                  {formatCompactPKR(stats?.total_sales - stats?.total_purchases || 0)}
+                  {formatPKR(stats?.total_sales - stats?.total_purchases || 0)}
                 </span>
               </div>
 
