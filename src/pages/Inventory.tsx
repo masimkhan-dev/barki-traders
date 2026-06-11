@@ -170,12 +170,12 @@ export default function Inventory() {
 
 
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto pb-20 print:p-0">
+      <div className="max-w-full mx-auto pb-20 print:p-0">
         <Tabs defaultValue="stock" className="space-y-0">
           {/* STICKY HEADER & TABS BAR */}
 
           <div className="sticky-filter-bar print:hidden px-4">
-            <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="max-w-full mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div className="report-header mb-0">
                 <h1 className="report-title">Inventory & Stock Ledger</h1>
                 <p className="report-subtitle">Real-time Petroleum Stock Auditing & Product Configuration</p>

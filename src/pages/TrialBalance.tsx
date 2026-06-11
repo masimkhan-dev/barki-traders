@@ -78,7 +78,7 @@ export default function TrialBalance() {
 
                 {/* FILTER BAR */}
                 <div className="report-filter-bar print:hidden px-4">
-                    <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+                    <div className="max-w-full mx-auto flex flex-wrap items-center justify-between gap-4">
                         <div className="report-header mb-0">
                             <BrandTitle variant="report" />
                             <p className="report-subtitle">Advanced Audit Trial Balance / Multi-Period Engine</p>

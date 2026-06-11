@@ -51,7 +51,7 @@ export default function CapitalReport() {
 
     return (
         <DashboardLayout>
-            <div className="max-w-7xl mx-auto pb-20 px-4 py-8 print:p-0">
+            <div className="max-w-full mx-auto pb-20 px-4 py-8 print:p-0">
 
                 {/* V11 GOV HEADER */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b-4 border-slate-900 pb-6 mb-8 gap-4">

@@ -601,7 +601,7 @@ export default function ManageTransactions() {
 
     return (
         <DashboardLayout>
-            <div className="max-w-7xl mx-auto pb-20 px-4 sm:px-6">
+            <div className="max-w-full mx-auto pb-20 px-4 sm:px-6">
                 <div className="report-header mb-8 flex flex-wrap gap-4 justify-between items-end">
                     <div>
                         <h1 className="report-title">{isSalePurchaseViewOnly ? 'View Voucher' : 'Voucher Posting'}</h1>

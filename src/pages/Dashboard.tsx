@@ -187,7 +187,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto pb-20 px-0 sm:px-4 space-y-6">
+      <div className="max-w-full mx-auto pb-20 px-0 sm:px-4 space-y-6">
         
         {/* HEADER & DATE PRESET CONTROLS */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#E4E4E7] pb-5">

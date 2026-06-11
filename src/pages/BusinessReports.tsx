@@ -294,11 +294,11 @@ export default function BusinessReports() {
     return (
 
         <DashboardLayout>
-            <div className="max-w-7xl mx-auto pb-20 print:p-0">
+            <div className="max-w-full mx-auto pb-20 print:p-0">
 
                 {/* STICKY FILTER BAR */}
                 <div className="sticky-filter-bar print:hidden px-4">
-                    <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+                    <div className="max-w-full mx-auto flex flex-wrap items-center justify-between gap-4">
                         <div className="report-header mb-0">
                             <BrandTitle variant="report" />
                             <p className="report-subtitle">Transactional Analysis & Audit Center</p>

@@ -796,7 +796,7 @@ export default function AccountStatement() {
 
         {/* STICKY FILTER BAR */}
         <div className="sticky-filter-bar print:hidden px-4 sm:px-6">
-          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          <div className="max-w-full mx-auto flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
             <div className="report-header mb-0">
               <h1 className="report-title">Account Register</h1>
               <p className="report-subtitle text-[10px]">
@@ -917,7 +917,7 @@ export default function AccountStatement() {
           </div>
 
           {/* COMPACT SUMMARY STRIP */}
-          <div className="max-w-7xl mx-auto mt-4 pt-4 border-t border-slate-200 flex flex-wrap items-center justify-end gap-8">
+          <div className="max-w-full mx-auto mt-4 pt-4 border-t border-slate-200 flex flex-wrap items-center justify-end gap-8">
             <div className="flex flex-col items-end">
               <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest">
                 Opening Balance
@@ -973,7 +973,7 @@ export default function AccountStatement() {
         ) : appliedParty ? (
           <div
             id="ledger-statement-document"
-            className="max-w-7xl mx-auto px-4 pt-8 pb-20 print:p-0 print-container-base ledger-pdf-container"
+            className="max-w-full mx-auto px-4 pt-8 pb-20 print:p-0 print-container-base ledger-pdf-container"
           >
             <div className="print-header flex justify-between items-baseline border-b-2 border-slate-900 pb-2 mb-6">
               <div className="flex flex-col">
@@ -1204,7 +1204,7 @@ export default function AccountStatement() {
             </div>
           </div>
         ) : (
-          <div className="max-w-7xl mx-auto px-4 py-40 flex flex-col items-center justify-center opacity-20">
+          <div className="max-w-full mx-auto px-4 py-40 flex flex-col items-center justify-center opacity-20">
             <ShieldCheck className="h-20 w-20 text-slate-900 mb-6" />
             <h2 className="text-lg font-black uppercase tracking-[0.4em] text-slate-900">
               Account Statement Standby
