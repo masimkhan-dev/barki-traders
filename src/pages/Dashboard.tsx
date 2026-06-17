@@ -575,47 +575,18 @@ export default function Dashboard() {
 
 function InventoryMiniCards() {
   const { data: inventory, isLoading } = useQuery({
-    queryKey: ['inventory-mini-v11'],
+    queryKey: ['inventory-mini-snapshot-v1'],
     queryFn: async () => {
-      const { data: movementData, error: movementError } = await (supabase as any).rpc('get_stock_movement', {
-        p_start_date: new Date().toISOString().split('T')[0],
-        p_end_date: new Date().toISOString().split('T')[0]
-      });
-      if (movementError) return [];
-
-      const { data: valueData, error: valueError } = await supabase
-        .from('inventory')
-        .select('fuel_type_id, quantity, avg_cost, fuel:fuel_types(name)');
-
-      if (valueError) return movementData || [];
-
-      const valueMap = new Map(
-        (valueData || []).map((row: any) => {
-          const quantity = Number(row.quantity) || 0;
-          const avgCost = Number(row.avg_cost) || 0;
-
-          return [
-            row.fuel_type_id,
-            {
-              avg_cost: avgCost,
-              stock_value: quantity * avgCost,
-            },
-          ];
-        })
-      );
-
-      return (movementData || []).map((item: any) => ({
-        ...item,
-        avg_cost: valueMap.get(item.fuel_type_id)?.avg_cost || 0,
-        stock_value: valueMap.get(item.fuel_type_id)?.stock_value || 0,
-      }));
+      const { data, error } = await supabase.rpc('get_dashboard_stock_by_fuel');
+      if (error) throw error;
+      return data || [];
     }
   });
 
   if (isLoading) return <div className="col-span-2 flex flex-col items-center justify-center py-12 gap-3"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /><span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Scanning stock levels...</span></div>;
 
   return inventory?.map((item: any, i: number) => {
-    const stock = Number(item.closing_stock) || 0;
+    const stock = Number(item.quantity) || 0;
     const stockState =
       stock === 0
         ? { label: 'Out of Stock', className: 'bg-[var(--color-danger-light)] text-[var(--color-danger-text)]' }
@@ -634,7 +605,7 @@ function InventoryMiniCards() {
 
         <div className="mb-1">
           <h4 className="text-[28px] font-bold text-[var(--color-text-primary)] num-audit leading-none tracking-tight">
-            {formatNumber(item.closing_stock)}
+            {formatNumber(item.quantity)}
             <span className="text-[13px] ml-1.5 text-[var(--color-text-muted)] font-medium uppercase">Ltr</span>
           </h4>
           <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-[#FAFAFA] border border-[#F4F4F5] px-3 py-2">
@@ -649,16 +620,6 @@ function InventoryMiniCards() {
           </div>
         </div>
 
-        <div className="mt-3 pt-3 border-t border-[#F4F4F5] grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase">Purchased</span>
-            <span className="text-xs font-bold text-[var(--color-success)] num-audit">+{formatNumber(item.purchased)}</span>
-          </div>
-          <div className="flex flex-col items-end gap-0.5">
-            <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase">Sold</span>
-            <span className="text-xs font-bold text-[var(--color-danger)] num-audit">-{formatNumber(item.sold)}</span>
-          </div>
-        </div>
       </div>
     );
   });
