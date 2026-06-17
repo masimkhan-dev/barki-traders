@@ -47,7 +47,6 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { BrandTitle } from '@/components/brand/BrandTitle';
 import { clientConfig } from '@/lib/client-config';
 import { cn } from '@/lib/utils';
 
@@ -131,8 +130,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <img src={clientConfig.LOGO_PATH} alt={clientConfig.BUSINESS_NAME} className="h-full w-full object-contain filter brightness-110" />
             </div>
             <div className="flex flex-col min-w-0">
-              <BrandTitle variant="compact" className="text-white text-[12px] font-black tracking-wide uppercase leading-none" />
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.1em] mt-0.5">{clientConfig.TAGLINE}</span>
+              <span className="text-white text-[12px] font-black tracking-wide uppercase leading-none">NEXLY</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.1em] mt-0.5">{clientConfig.BUSINESS_NAME}</span>
             </div>
           </Link>
         </div>
@@ -188,7 +187,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/manage-transactions" className="flex items-center gap-2 px-2.5 py-2 hover:bg-white/10 rounded-sm cursor-pointer text-xs">
+                    <Link to="/manage-transactions?type=ACTION_CENTER" className="flex items-center gap-2 px-2.5 py-2 hover:bg-white/10 rounded-sm cursor-pointer text-xs">
                       <ArrowRightLeft className="h-3.5 w-3.5 text-slate-400" />
                       <span>Transactions</span>
                     </Link>

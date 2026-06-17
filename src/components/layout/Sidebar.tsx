@@ -29,7 +29,6 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { clientConfig } from '@/lib/client-config';
-import { BrandTitle } from '@/components/brand/BrandTitle';
 
 interface NavItem {
   label: string;
@@ -47,7 +46,7 @@ const navItems: NavItem[] = [
 
   { label: 'Fuel Sale', href: '/manage-transactions?type=SALE', icon: ShoppingCart, section: 'Operations', roles: ['admin', 'accountant'] },
   { label: 'Fuel Purchase', href: '/manage-transactions?type=PURCHASE', icon: Truck, section: 'Operations', roles: ['admin', 'accountant'] },
-  { label: 'Transactions', href: '/manage-transactions', icon: ArrowRightLeft, section: 'Operations', roles: ['admin', 'accountant'] },
+  { label: 'Transactions', href: '/manage-transactions?type=ACTION_CENTER', icon: ArrowRightLeft, section: 'Operations', roles: ['admin', 'accountant'] },
   { label: 'Stock', href: '/inventory', icon: Package, section: 'Operations' },
   { label: 'Ledger', href: '/ledger', icon: BookOpen, section: 'Operations' },
 
@@ -111,13 +110,15 @@ export function Sidebar({ className, onItemClick }: { className?: string, onItem
               <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[var(--color-sidebar-bg)] border border-[#2E2E42] overflow-hidden p-1.5">
                 <img src={clientConfig.LOGO_PATH} alt={clientConfig.BUSINESS_NAME} className="h-full w-full object-contain filter brightness-110" />
               </div>
-              <BrandTitle
-                variant="stacked"
-                className="text-xl text-white tracking-normal"
-                secondaryClassName="text-[#A1A1AA]"
-              />
+              <div className="flex flex-col min-w-0">
+                <span className="text-xl text-white font-black uppercase tracking-normal leading-none">
+                  NEXLY
+                </span>
+                <span className="text-[11px] text-[#A1A1AA] font-bold uppercase tracking-[0.12em] mt-1">
+                  {clientConfig.BUSINESS_NAME}
+                </span>
+              </div>
             </div>
-            <p className="text-[11px] text-[#A1A1AA] font-semibold uppercase tracking-[0.08em] mt-4 pl-1 leading-relaxed">{clientConfig.TAGLINE}</p>
           </Link>
         </div>
 

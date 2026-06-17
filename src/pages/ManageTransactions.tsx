@@ -48,6 +48,17 @@ type TransactionType =
     | 'ASSET_PURCHASE'
     | 'OWNER_WITHDRAWAL';
 
+const DEFAULT_TRANSACTION_TYPE: TransactionType = 'ACTION_CENTER';
+const TRANSACTION_TYPES = new Set<TransactionType>([
+    'SALE',
+    'PURCHASE',
+    'EXPENSE',
+    'ACTION_CENTER',
+    'SHRINKAGE',
+    'ASSET_PURCHASE',
+    'OWNER_WITHDRAWAL',
+]);
+
 const TODAY = new Date().toISOString().split('T')[0];
 
 const INITIAL_FORM_STATE = {
@@ -158,7 +169,7 @@ export default function ManageTransactions() {
     const { toast } = useToast();
     const { user } = useAuth();
 
-    const [txnType, setTxnType] = useState<TransactionType>('SALE');
+    const [txnType, setTxnType] = useState<TransactionType>(DEFAULT_TRANSACTION_TYPE);
     const [isEditMode, setIsEditMode] = useState(false);
     const [editVoucherNo, setEditVoucherNo] = useState<string | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -199,15 +210,20 @@ export default function ManageTransactions() {
         const typeParam = searchParams.get('type');
         const fuelIdParam = searchParams.get('fuel_type_id');
 
-        if (typeParam === 'SHRINKAGE') {
-            setTxnType('SHRINKAGE');
-            if (fuelIdParam) {
-                setForm(prev => ({ ...prev, fuel_type_id: fuelIdParam }));
-            }
-        } else if (typeParam === 'SALE') {
-            setTxnType('SALE');
-        } else if (typeParam === 'PURCHASE') {
-            setTxnType('PURCHASE');
+        if (typeParam && TRANSACTION_TYPES.has(typeParam as TransactionType)) {
+            const nextType = typeParam as TransactionType;
+            setTxnType(nextType);
+            setForm(prev => ({
+                ...INITIAL_FORM_STATE,
+                date: prev.date,
+                fuel_type_id: nextType === 'SHRINKAGE' && fuelIdParam ? fuelIdParam : '',
+            }));
+        } else {
+            setTxnType(DEFAULT_TRANSACTION_TYPE);
+            setForm(prev => ({
+                ...INITIAL_FORM_STATE,
+                date: prev.date,
+            }));
         }
 
         if (vNo) {
@@ -604,11 +620,11 @@ export default function ManageTransactions() {
             <div className="max-w-full mx-auto pb-20 px-4 sm:px-6">
                 <div className="report-header mb-8 flex flex-wrap gap-4 justify-between items-end">
                     <div>
-                        <h1 className="report-title">{isSalePurchaseViewOnly ? 'View Voucher' : 'Voucher Posting'}</h1>
+                        <h1 className="report-title">{isSalePurchaseViewOnly ? 'View Voucher' : 'Transaction Entry'}</h1>
                         <p className="report-subtitle">
                             {isSalePurchaseViewOnly
                                 ? `Posted voucher ${editVoucherNo} — read-only. Use reversal to correct.`
-                                : 'Unified terminal for posting fuel, expense, transfer, loss, asset, and owner vouchers.'}
+                                : 'Record fuel sales, purchases, payments, transfers, expenses, stock loss, assets, and owner withdrawals.'}
                         </p>
                     </div>
 

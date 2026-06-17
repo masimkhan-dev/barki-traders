@@ -322,6 +322,7 @@ const buildPrintLayoutHtml = (
   tr { page-break-inside: avoid; }
   .footer-thankyou { font-size: 13px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.1em; margin: 8px 0; }
   .footer-contact { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #94a3b8; margin-top: 10px; }
+  .developer-credit { margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e2e8f0; font-family: 'JetBrains Mono', monospace; font-size: 8px; color: #94a3b8; line-height: 1.45; }
 </style>
 </head>
 <body>
@@ -415,10 +416,10 @@ const buildPrintLayoutHtml = (
   <div class="footer">
     <p style="color: #94a3b8; font-size: 9px; text-transform: uppercase;">Your account balance is PKR ${fmtNum(Math.abs(stats.balance))} ${drCr(stats.balance)}. Please keep your account current.</p>
     <p class="footer-thankyou">Thank you for your business!</p>
-    <div class="footer-contact">
-      <p>Main G.T Road Opp Union Office Near PSO Depot Taru Jabba</p>
-      <p>Cell: 0310-9771002 | Barki Traders: 0334-9135464</p>
-      <p>Email: iftikharmehtab321@gmail.com</p>
+    <div class="developer-credit">
+      <p>Software Developed by Nexly</p>
+      <p>Muhammad Asim Khan | 03249386812</p>
+      <p>nexly.biz@gmail.com</p>
     </div>
   </div>
 </body>
@@ -769,16 +770,16 @@ export default function AccountStatement() {
         <div className="sticky-filter-bar print:hidden px-4 sm:px-6">
           <div className="max-w-full mx-auto flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
             <div className="report-header mb-0">
-              <h1 className="report-title">Account Register</h1>
+              <h1 className="report-title">Party Statement</h1>
               <p className="report-subtitle text-[10px]">
-                Professional Account Statement v8.0
+                Ledger-backed customer and supplier account statement
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3 bg-slate-50 p-2 border border-slate-200">
               <div className="min-w-[220px] flex flex-col">
                 <label className="text-[9px] font-black uppercase text-slate-500 mb-1">
-                  Account Khata
+                  Select Party
                 </label>
                 <Select value={selectedParty} onValueChange={setSelectedParty}>
                   <SelectTrigger className="h-9 bg-white font-bold border-slate-300 rounded-none focus:ring-0">
@@ -827,7 +828,7 @@ export default function AccountStatement() {
                   onClick={handleSearch}
                   className="h-9 bg-slate-900 hover:bg-black text-white px-6 font-black uppercase text-[10px] tracking-widest rounded-none"
                 >
-                  Query
+                  Generate
                 </Button>
 
                 <Button
@@ -1187,10 +1188,10 @@ export default function AccountStatement() {
             <div className="mt-12 text-center text-[10px] text-slate-500 font-bold uppercase tracking-wide pt-8 border-t border-slate-100 print:mt-8">
               <p className="mb-1 text-slate-400">Your account balance is PKR {formatNumber(Math.abs(stats.balance))} {stats.balance >= 0 ? 'DR' : 'CR'}. Please keep your account current.</p>
               <p className="text-sm font-black text-slate-800 uppercase tracking-widest my-2">Thank you for your business!</p>
-              <div className="text-[9px] text-slate-400 font-mono mt-4 leading-normal">
-                <p>Main G.T Road Opp Union Office Near PSO Depot Taru Jabba</p>
-                <p className="mt-0.5">Cell: 0310-9771002 | Barki Traders: 0334-9135464</p>
-                <p className="mt-0.5">Email: iftikharmehtab321@gmail.com</p>
+              <div className="mt-3 pt-3 border-t border-dashed border-slate-200 text-[8px] text-slate-400 font-mono leading-normal normal-case tracking-normal">
+                <p>Software Developed by Nexly</p>
+                <p className="mt-0.5">Muhammad Asim Khan | 03249386812</p>
+                <p className="mt-0.5">nexly.biz@gmail.com</p>
               </div>
             </div>
           </div>
