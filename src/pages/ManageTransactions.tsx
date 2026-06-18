@@ -81,6 +81,7 @@ const INITIAL_FORM_STATE = {
     party_id: '',
     quantity: '',
     rate: '',
+    payment_mode: 'CREDIT' as 'CREDIT' | 'CASH' | 'BANK',
     is_credit: true,
 };
 
@@ -285,7 +286,7 @@ export default function ManageTransactions() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('accounts')
-                .select('id, name, code')
+                .select('id, name, code, slug, sub_category')
                 .eq('account_type', 'asset')
                 .or('name.ilike.%cash%,name.ilike.%bank%')
                 .eq('is_active', true);
@@ -385,13 +386,15 @@ export default function ManageTransactions() {
             }
 
             if (txnType === 'SALE') {
-                if (!payload.party_id || !payload.fuel_type_id || !payload.quantity || !payload.rate) {
+                const isCreditMode = payload.payment_mode === 'CREDIT';
+
+                if ((isCreditMode && !payload.party_id) || !payload.fuel_type_id || !payload.quantity || !payload.rate) {
                     const missing = [];
-                    if (!payload.party_id) missing.push('Customer');
+                    if (isCreditMode && !payload.party_id) missing.push('Customer');
                     if (!payload.fuel_type_id) missing.push('Fuel Type');
                     if (!payload.quantity) missing.push('Quantity');
                     if (!payload.rate) missing.push('Rate');
-                    throw new Error(`Customer, Fuel Type, Quantity, and Rate are required. Missing: ${missing.join(', ')}`);
+                    throw new Error(`Required fields missing: ${missing.join(', ')}`);
                 }
 
                 const qty = numericOrZero(payload.quantity);
@@ -400,6 +403,28 @@ export default function ManageTransactions() {
 
                 if (qty <= 0 || rate <= 0 || total <= 0) {
                     throw new Error('Quantity and rate must be greater than zero.');
+                }
+
+                if (payload.payment_mode !== 'CREDIT') {
+                    if (!payload.payment_account_id) {
+                        throw new Error(`${payload.payment_mode === 'CASH' ? 'Cash' : 'Bank'} account is required.`);
+                    }
+
+                    const { data, error } = await (supabase as any).rpc('post_settled_sale', {
+                        p_sale_date: payload.date,
+                        p_party_id: payload.party_id || null,
+                        p_fuel_type_id: payload.fuel_type_id,
+                        p_quantity: qty,
+                        p_rate_per_unit: rate,
+                        p_payment_mode: payload.payment_mode,
+                        p_payment_account_id: payload.payment_account_id,
+                        p_notes: payload.narration || null,
+                    });
+                    if (error) throw error;
+                    return {
+                        voucher_no: data?.voucher_no,
+                        settlement_voucher_no: data?.settlement_voucher_no,
+                    };
                 }
 
                 const { data: voucherNo, error: voucherError } = await supabase.rpc('get_next_voucher_no', {
@@ -431,13 +456,15 @@ export default function ManageTransactions() {
             }
 
             if (txnType === 'PURCHASE') {
-                if (!payload.party_id || !payload.fuel_type_id || !payload.quantity || !payload.rate) {
+                const isCreditMode = payload.payment_mode === 'CREDIT';
+
+                if ((isCreditMode && !payload.party_id) || !payload.fuel_type_id || !payload.quantity || !payload.rate) {
                     const missing = [];
-                    if (!payload.party_id) missing.push('Supplier');
+                    if (isCreditMode && !payload.party_id) missing.push('Supplier');
                     if (!payload.fuel_type_id) missing.push('Fuel Type');
                     if (!payload.quantity) missing.push('Quantity');
                     if (!payload.rate) missing.push('Rate');
-                    throw new Error(`Supplier, Fuel Type, Quantity, and Rate are required. Missing: ${missing.join(', ')}`);
+                    throw new Error(`Required fields missing: ${missing.join(', ')}`);
                 }
 
                 const qty = numericOrZero(payload.quantity);
@@ -446,6 +473,28 @@ export default function ManageTransactions() {
 
                 if (qty <= 0 || rate <= 0 || total <= 0) {
                     throw new Error('Quantity and rate must be greater than zero.');
+                }
+
+                if (payload.payment_mode !== 'CREDIT') {
+                    if (!payload.payment_account_id) {
+                        throw new Error(`${payload.payment_mode === 'CASH' ? 'Cash' : 'Bank'} account is required.`);
+                    }
+
+                    const { data, error } = await (supabase as any).rpc('post_settled_purchase', {
+                        p_purchase_date: payload.date,
+                        p_party_id: payload.party_id || null,
+                        p_fuel_type_id: payload.fuel_type_id,
+                        p_quantity: qty,
+                        p_rate_per_unit: rate,
+                        p_payment_mode: payload.payment_mode,
+                        p_payment_account_id: payload.payment_account_id,
+                        p_notes: payload.narration || null,
+                    });
+                    if (error) throw error;
+                    return {
+                        voucher_no: data?.voucher_no,
+                        settlement_voucher_no: data?.settlement_voucher_no,
+                    };
                 }
 
                 const { data: voucherNo, error: voucherError } = await supabase.rpc('get_next_voucher_no', {
@@ -570,10 +619,13 @@ export default function ManageTransactions() {
             throw new Error('Unsupported transaction type.');
         },
         onSuccess: async (data, variables) => {
-            const voucherNo = (data as { voucher_no?: string })?.voucher_no;
+            const voucherNo = (data as { voucher_no?: string; settlement_voucher_no?: string })?.voucher_no;
+            const settlementVoucherNo = (data as { settlement_voucher_no?: string })?.settlement_voucher_no;
             toast({
                 title: 'Transaction Posted',
-                description: voucherNo
+                description: settlementVoucherNo
+                    ? `Committed as ${voucherNo}. Auto-settled as ${settlementVoucherNo}.`
+                    : voucherNo
                     ? `Committed as ${voucherNo}. Ledger and inventory updated via triggers.`
                     : 'The record has been committed to the ledger and inventory.',
             });
@@ -729,7 +781,25 @@ export default function ManageTransactions() {
                                             <div className="space-y-2">
                                                 <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest flex items-center gap-2">
                                                     <Users className="h-3 w-3" />{' '}
-                                                    {txnType === 'SALE' ? 'Select Customer' : 'Select Supplier'}
+                                                    {txnType === 'SALE'
+                                                        ? form.payment_mode === 'CREDIT'
+                                                            ? 'Select Customer'
+                                                            : 'Customer Reference (Optional)'
+                                                        : form.payment_mode === 'CREDIT'
+                                                          ? 'Select Supplier'
+                                                          : 'Supplier Reference (Optional)'}
+                                                    {form.payment_mode !== 'CREDIT' && form.party_id && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="ml-auto h-5 px-2 text-[10px] font-black uppercase text-slate-500 hover:text-slate-900"
+                                                            disabled={isFormDisabled}
+                                                            onClick={() => setForm(prev => ({ ...prev, party_id: '' }))}
+                                                        >
+                                                            Clear
+                                                        </Button>
+                                                    )}
                                                 </Label>
                                                 <Select
                                                     value={form.party_id}
@@ -750,6 +820,75 @@ export default function ManageTransactions() {
                                                                 {p.name}
                                                             </SelectItem>
                                                         ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+
+                                        {(txnType === 'SALE' || txnType === 'PURCHASE') && (
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest flex items-center gap-2">
+                                                    <Wallet className="h-3 w-3" /> Payment Mode
+                                                </Label>
+                                                <Select
+                                                    value={form.payment_mode}
+                                                    disabled={isFormDisabled}
+                                                    onValueChange={val => {
+                                                        if (!val) return;
+                                                        setForm(prev => ({
+                                                            ...prev,
+                                                            payment_mode: val as FormState['payment_mode'],
+                                                            payment_account_id: val === 'CREDIT' ? '' : prev.payment_account_id,
+                                                        }));
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="h-11 rounded-none border-slate-300 font-bold focus:ring-0">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="rounded-none border-slate-900">
+                                                        <SelectItem value="CREDIT" className="font-bold text-xs uppercase">
+                                                            Credit
+                                                        </SelectItem>
+                                                        <SelectItem value="CASH" className="font-bold text-xs uppercase">
+                                                            Cash
+                                                        </SelectItem>
+                                                        <SelectItem value="BANK" className="font-bold text-xs uppercase">
+                                                            Bank
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
+
+                                        {(txnType === 'SALE' || txnType === 'PURCHASE') && form.payment_mode !== 'CREDIT' && (
+                                            <div className="space-y-2">
+                                                <Label className="text-[10px] uppercase font-black text-slate-500 tracking-widest flex items-center gap-2">
+                                                    <Building className="h-3 w-3" /> {form.payment_mode === 'CASH' ? 'Cash Account' : 'Bank Account'}
+                                                </Label>
+                                                <Select
+                                                    value={form.payment_account_id}
+                                                    disabled={isFormDisabled}
+                                                    onValueChange={val => {
+                                                        if (!val) return;
+                                                        setForm(prev => ({ ...prev, payment_account_id: val }));
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="h-11 rounded-none border-slate-300 font-bold focus:ring-0">
+                                                        <SelectValue placeholder={`Select ${form.payment_mode === 'CASH' ? 'cash' : 'bank'} account...`} />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="rounded-none border-slate-900">
+                                                        {paymentAccounts
+                                                            ?.filter(account => {
+                                                                const haystack = `${account.name} ${account.slug || ''} ${account.sub_category || ''}`.toLowerCase();
+                                                                return form.payment_mode === 'CASH'
+                                                                    ? haystack.includes('cash')
+                                                                    : haystack.includes('bank');
+                                                            })
+                                                            .map(account => (
+                                                                <SelectItem key={account.id} value={account.id} className="font-bold text-xs uppercase">
+                                                                    {account.name}
+                                                                </SelectItem>
+                                                            ))}
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -1264,9 +1403,13 @@ export default function ManageTransactions() {
                                                 {mutation.isPending
                                                     ? 'PROCESSING...'
                                                     : txnType === 'SALE'
-                                                        ? 'POST FUEL SALE'
+                                                        ? form.payment_mode === 'CREDIT'
+                                                            ? 'POST CREDIT SALE'
+                                                            : `POST ${form.payment_mode} SALE`
                                                         : txnType === 'PURCHASE'
-                                                          ? 'POST FUEL PURCHASE'
+                                                          ? form.payment_mode === 'CREDIT'
+                                                              ? 'POST CREDIT PURCHASE'
+                                                              : `POST ${form.payment_mode} PURCHASE`
                                                           : txnType === 'ACTION_CENTER'
                                                             ? 'POST TRANSFER'
                                                             : txnType === 'EXPENSE'
