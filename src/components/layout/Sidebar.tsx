@@ -22,7 +22,8 @@ import {
   Shield,
   KeyRound,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  DatabaseBackup
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -58,6 +59,7 @@ const navItems: NavItem[] = [
 
   { label: 'Manage Accounts', href: '/settings/coa', icon: Building2, section: 'Admin', roles: ['admin', 'accountant'] },
   { label: 'Access Control', href: '/users', icon: UserCircle, section: 'Admin', roles: ['admin'] },
+  { label: 'Backup Center', href: '/settings/backup', icon: DatabaseBackup, section: 'Admin', roles: ['admin', 'accountant'] },
   { label: 'Month-End Closing', href: '/month-end-closing', icon: Lock, section: 'Admin', roles: ['admin'], disabled: true, helper: 'Coming soon' },
   { label: 'Capital Report', href: '/reports/capital', icon: UserCircle2, section: 'Admin', roles: ['admin'], disabled: true, helper: 'Coming soon' },
 ];

@@ -29,6 +29,7 @@ const CapitalReport = lazy(() => import("./pages/CapitalReport"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const ChartOfAccounts = lazy(() => import("./pages/ChartOfAccounts"));
+const BackupCenter = lazy(() => import("./pages/BackupCenter"));
 import { Loader2 } from "lucide-react";
 import ScrollToTop from "./components/ScrollToTop";
 
@@ -127,6 +128,7 @@ function AppRoutes() {
         <Route path="/reports/capital" element={<ProtectedRoute><CapitalReport /></ProtectedRoute>} />
         <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
         <Route path="/settings/coa" element={<ProtectedRoute><ChartOfAccounts /></ProtectedRoute>} />
+        <Route path="/settings/backup" element={<ProtectedRoute><BackupCenter /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
@@ -153,4 +155,3 @@ const App = () => (
 
 // Build trigger 3 - Verification: Route /roznamcha-v3 confirmed at top level of Routes
 export default App;
-

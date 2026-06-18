@@ -40,7 +40,8 @@ import {
   UserCircle,
   KeyRound,
   Loader2,
-  Lock
+  Lock,
+  DatabaseBackup
 } from 'lucide-react';
 import {
   Sheet,
@@ -264,7 +265,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <button
                   className={cn(
                     "flex items-center gap-1 px-3 py-2 rounded-md transition-colors hover:text-white hover:bg-white/5 focus:outline-none",
-                    (isActivePath('/settings/coa') || isActivePath('/users')) && "text-white bg-white/10 font-bold"
+                    (isActivePath('/settings/coa') || isActivePath('/settings/backup') || isActivePath('/users')) && "text-white bg-white/10 font-bold"
                   )}
                 >
                   <Settings className="h-3.5 w-3.5" />
@@ -277,6 +278,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <Link to="/settings/coa" className="flex items-center gap-2 px-2.5 py-2 hover:bg-white/10 rounded-sm cursor-pointer text-xs">
                     <Building2 className="h-3.5 w-3.5 text-slate-400" />
                     <span>Manage Accounts</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/settings/backup" className="flex items-center gap-2 px-2.5 py-2 hover:bg-white/10 rounded-sm cursor-pointer text-xs">
+                    <DatabaseBackup className="h-3.5 w-3.5 text-slate-400" />
+                    <span>Backup Center</span>
                   </Link>
                 </DropdownMenuItem>
                 {isAdminOnly && (
