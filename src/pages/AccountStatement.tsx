@@ -90,6 +90,26 @@ const formatClassicDate = (dateStr: string | null | undefined): string => {
   return `${day}-${month}-${year}`;
 };
 
+// ─── Helper: WhatsApp Date Format (DD-MMM-YYYY, e.g. 31-May-2026) ──────────────
+const formatWhatsAppDate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '-';
+  const day = String(d.getDate()).padStart(2, '0');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
+// ─── Helper: WhatsApp Amount Format (Commas and 2 decimals, e.g. 6,403,525.00) ──
+const formatWhatsAppAmount = (num: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(num);
+};
+
 // ─── Helper: Validate UUID ────────────────────────────────────────────────────
 const isValidUUID = (str: string | null | undefined): boolean => {
   if (!str || typeof str !== 'string') return false;
@@ -228,11 +248,15 @@ const buildPrintLayoutHtml = (
       </div>`)
     .join('');
 
+  const drCrCapitalized = (v: number) => (v >= 0 ? 'Dr' : 'Cr');
+
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=1100, initial-scale=1.0"/>
+</head>
+<body>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Montserrat:wght@700;900&family=JetBrains+Mono:wght@400;700&display=swap');
   
@@ -282,17 +306,17 @@ const buildPrintLayoutHtml = (
   .center-align { text-align: center !important; }
   
   /* Print Components */
-  .brand-container { display: flex; align-items: center; gap: 8px; }
-  .brand-badge { background-color: #0f766e; color: white; padding: 4px 8px; font-size: 14px; font-weight: 900; letter-spacing: 0.05em; font-family: 'Montserrat', sans-serif; }
+  .brand-container { display: flex; align-items: center; gap: 12px; }
+  .brand-badge { background-color: #0f766e; color: white; padding: 6px 12px; font-size: 18px; font-weight: 900; letter-spacing: 0.05em; font-family: 'Montserrat', sans-serif; }
   .brand-details { display: flex; flex-direction: column; }
-  .brand-name { font-size: 18px; font-weight: 900; letter-spacing: -0.04em; color: #0f172a; text-transform: uppercase; line-height: 1; }
-  .brand-tagline { font-size: 8px; font-weight: 700; color: #0f766e; text-transform: uppercase; letter-spacing: 0.12em; margin-top: 2px; }
+  .brand-name { font-size: 20px; font-weight: 900; letter-spacing: -0.04em; color: #0f172a; text-transform: uppercase; line-height: 1; }
+  .brand-tagline { font-size: 8px; font-weight: 700; color: #0f766e; text-transform: uppercase; letter-spacing: 0.12em; margin-top: 4px; }
   
   .contact-details { text-align: right; font-size: 9px; color: #475569; font-weight: 700; line-height: 1.5; font-family: 'JetBrains Mono', monospace; }
   
   .panels-row { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 15px; }
-  .panel-box { flex: 1; border: 1px solid #cbd5e1; page-break-inside: avoid; }
-  .panel-header { background-color: #0f766e; color: white; padding: 4px 8px; font-size: 9.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
+  .panel-box { flex: 1; border: 1px solid #e2e8f0; page-break-inside: avoid; }
+  .panel-header { background-color: #0f766e; color: white; padding: 4px 12px; font-size: 9.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
   .panel-body { padding: 8px 10px; font-size: 10px; color: #1e293b; line-height: 1.4; }
   .panel-body-summary-row { display: flex; justify-content: space-between; padding: 1px 0; border-bottom: 1px dashed #e2e8f0; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
   .panel-body-summary-row:last-child { border-bottom: none; font-weight: 900; font-size: 11px; border-top: 1px solid #0f172a; margin-top: 3px; padding-top: 4px; }
@@ -318,14 +342,12 @@ const buildPrintLayoutHtml = (
   .text-[#be123c] { color: #be123c !important; }
   .text-[#15803d] { color: #15803d !important; }
   
-  .footer { margin-top: 15px; text-align: center; font-size: 9.5px; color: #64748b; font-weight: 700; border-top: 1pt solid #cbd5e1; padding-top: 10px; line-height: 1.4; page-break-inside: avoid; }
+  .footer { margin-top: 48px; text-align: center; font-size: 10px; color: #64748b; font-weight: 700; border-top: 1px solid #f1f5f9; padding-top: 32px; line-height: 1.4; page-break-inside: avoid; }
   tr { page-break-inside: avoid; }
-  .footer-thankyou { font-size: 13px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.1em; margin: 8px 0; }
-  .footer-contact { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #94a3b8; margin-top: 10px; }
-  .developer-credit { margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e2e8f0; font-family: 'JetBrains Mono', monospace; font-size: 8px; color: #94a3b8; line-height: 1.45; }
+  .footer-balance-note { color: #94a3b8; font-size: 10px; text-transform: uppercase; margin-bottom: 4px; }
+  .footer-thankyou { font-size: 14px; font-weight: 900; color: #1e293b; text-transform: uppercase; letter-spacing: 0.1em; margin: 8px 0; }
+  .developer-credit { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0; font-family: 'JetBrains Mono', monospace; font-size: 8px; color: #94a3b8; line-height: 1.45; }
 </style>
-</head>
-<body>
   <div class="flex justify-between items-stretch gap-4" style="margin-bottom: 15px; width: 100%;">
     <!-- Column 1: Brand / Company Info -->
     <div class="flex flex-col justify-between" style="flex: 1.2; min-width: 280px;">
@@ -341,45 +363,45 @@ const buildPrintLayoutHtml = (
       </div>
       <div style="font-size: 8.5px; color: #64748b; font-family: 'JetBrains Mono', monospace; line-height: 1.4; font-weight: 700;">
         <p>Main G.T Road Opp Union Office Near PSO Depot Taru Jabba</p>
-        <p>Cell: 0310-9771002 | Barki Traders: 0334-9135464</p>
-        <p>Email: iftikharmehtab321@gmail.com</p>
+        <p style="margin-top: 2px;">Cell: 0310-9771002 | Barki Traders: 0334-9135464</p>
+        <p style="margin-top: 2px;">Email: iftikharmehtab321@gmail.com</p>
       </div>
     </div>
 
     <!-- Column 2: Bill To & Period Info -->
-    <div style="flex: 1.3; min-width: 290px; border: 1px solid #cbd5e1; display: flex; flex-direction: column;">
-      <div style="background-color: #0f766e; color: white; padding: 4px 8px; font-size: 9.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Bill To:</div>
-      <div style="padding: 8px 10px; font-size: 9.5px; line-height: 1.4; display: flex; flex-direction: column; justify-content: space-between; flex: 1;">
+    <div style="flex: 1.3; min-width: 290px; border: 1px solid #e2e8f0; display: flex; flex-direction: column;">
+      <div style="background-color: #0f766e; color: white; padding: 4px 12px; font-size: 9.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Bill To:</div>
+      <div style="padding: 12px; font-size: 9.5px; line-height: 1.4; display: flex; flex-direction: column; justify-content: space-between; flex: 1;">
         <div>
-          <p style="font-weight: 900; font-size: 13px; text-transform: uppercase; color: #0f172a; margin-bottom: 2px;">${partyName}</p>
-          <p style="color: #64748b; font-size: 9.5px; font-family: 'JetBrains Mono', monospace; font-weight: 700;">CUSTOMER ID: ${partyId.slice(0, 8).toUpperCase()}</p>
+          <p style="font-weight: 900; font-size: 14px; text-transform: uppercase; color: #0f172a; margin-bottom: 2px;">${partyName}</p>
+          <p style="color: #94a3b8; font-size: 9.5px; font-family: 'JetBrains Mono', monospace; font-weight: 700;">CUSTOMER ID: ${partyId.slice(0, 8).toUpperCase()}</p>
         </div>
-        <div style="margin-top: 8px; font-size: 9px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #475569; border-top: 1px dashed #cbd5e1; padding-top: 4px;">
+        <div style="margin-top: 16px; font-size: 9px; font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 8px;">
           <p>DATE: ${new Date().toLocaleDateString('en-GB')} | PAGE: 1 of 1</p>
-          <p>PERIOD: ${fmtDate(startDate)} — ${fmtDate(endDate)}</p>
+          <p style="margin-top: 2px;">PERIOD: ${fmtDate(startDate)} — ${fmtDate(endDate)}</p>
         </div>
       </div>
     </div>
 
     <!-- Column 3: Account Summary -->
-    <div style="flex: 1.5; min-width: 320px; border: 1px solid #cbd5e1; display: flex; flex-direction: column;">
-      <div style="background-color: #0f766e; color: white; padding: 4px 8px; font-size: 9.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Account Summary:</div>
-      <div style="padding: 6px 10px; font-size: 9px; display: flex; flex-direction: column; justify-content: space-between; flex: 1; font-family: 'JetBrains Mono', monospace; font-weight: 700;">
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 1px;">
+    <div style="flex: 1.5; min-width: 320px; border: 1px solid #e2e8f0; display: flex; flex-direction: column;">
+      <div style="background-color: #0f766e; color: white; padding: 4px 12px; font-size: 9.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em;">Account Summary:</div>
+      <div style="padding: 12px; font-size: 9px; display: flex; flex-direction: column; justify-content: space-between; flex: 1; font-family: 'JetBrains Mono', monospace; font-weight: 700; gap: 4px;">
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #f1f5f9; padding-bottom: 4px;">
           <span style="color: #64748b;">Opening Balance:</span>
-          <span style="color: #0f172a;">${fmtNum(Math.abs(stats.opening))} ${drCr(stats.opening)}</span>
+          <span style="color: #0f172a;">${fmtNum(Math.abs(stats.opening))} ${drCrCapitalized(stats.opening)}</span>
         </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding: 1px 0;">
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #f1f5f9; padding: 2px 0;">
           <span style="color: #64748b;">Total Purchases/Dr:</span>
-          <span class="text-[#be123c]">${fmtNum(stats.totalDebit)}</span>
+          <span style="color: #e11d48;">${fmtNum(stats.totalDebit)}</span>
         </div>
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding: 1px 0;">
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #f1f5f9; padding: 2px 0;">
           <span style="color: #64748b;">Total Payments/Cr:</span>
-          <span class="text-[#15803d]">${fmtNum(stats.totalCredit)}</span>
+          <span style="color: #059669;">${fmtNum(stats.totalCredit)}</span>
         </div>
-        <div style="display: flex; justify-content: space-between; font-weight: 950; font-size: 10px; border-top: 1.5px solid #0f172a; margin-top: 2px; padding-top: 3px;">
-          <span style="color: #0f172a;">TOTAL BALANCE DUE:</span>
-          <span style="color: #0f172a;">${fmtNum(Math.abs(stats.balance))} ${drCr(stats.balance)}</span>
+        <div style="display: flex; justify-content: space-between; font-weight: 950; font-size: 10px; border-top: 1px solid #0f172a; margin-top: 4px; padding-top: 4px; color: #020617;">
+          <span>TOTAL BALANCE DUE:</span>
+          <span>${fmtNum(Math.abs(stats.balance))} ${drCr(stats.balance)}</span>
         </div>
       </div>
     </div>
@@ -414,12 +436,12 @@ const buildPrintLayoutHtml = (
   ${productSummaryHtml ? `<div class="mt-8 flex gap-4">${productSummaryHtml}</div>` : ''}
 
   <div class="footer">
-    <p style="color: #94a3b8; font-size: 9px; text-transform: uppercase;">Your account balance is PKR ${fmtNum(Math.abs(stats.balance))} ${drCr(stats.balance)}. Please keep your account current.</p>
+    <p class="footer-balance-note">Your account balance is PKR ${fmtNum(Math.abs(stats.balance))} ${drCr(stats.balance)}. Please keep your account current.</p>
     <p class="footer-thankyou">Thank you for your business!</p>
     <div class="developer-credit">
       <p>Software Developed by Nexly</p>
-      <p>Muhammad Asim Khan | 03249386812</p>
-      <p>nexly.biz@gmail.com</p>
+      <p style="margin-top: 2px;">Muhammad Asim Khan | 03249386812</p>
+      <p style="margin-top: 2px;">nexly.biz@gmail.com</p>
     </div>
   </div>
 </body>
@@ -445,8 +467,15 @@ const buildPdfFromElement = async (
     rows, partyId, partyName, startDate, endDate, stats, productSummary, fmtNum, fmtDate
   );
 
+  // Keep iframe in viewport (left:0, top:0) but fully invisible and non-interactive.
+  // Using left:-9999px with a wide iframe causes a horizontal scroll flash on some browsers.
+  const prevOverflow = document.documentElement.style.overflow;
+  document.documentElement.style.overflow = 'hidden';
+
   const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;height:10px;border:none;visibility:hidden;';
+  iframe.style.cssText =
+    'position:fixed;left:0;top:0;width:1100px;height:10px;border:none;' +
+    'opacity:0;pointer-events:none;z-index:-9999;';
   document.body.appendChild(iframe);
 
   const iframeDoc = iframe.contentDocument!;
@@ -496,6 +525,8 @@ const buildPdfFromElement = async (
     return { blob, filename };
   } finally {
     document.body.removeChild(iframe);
+    // Restore overflow so the page layout is never permanently affected
+    document.documentElement.style.overflow = prevOverflow;
   }
 };
 
@@ -643,14 +674,109 @@ export default function AccountStatement() {
     return true;
   };
 
-  const handleDownloadPDFClick = () => {
-    if (!canExport()) return;
-    setShowDirectPdfNotice(true);
+  const handleDownloadPDFClick = async () => {
+    if (!canExport() || !appliedParty || !activeParty) return;
+
+    const toastId = toast.loading('Generating PDF statement...');
+    try {
+      const { blob, filename } = await buildPdfFromElement(
+        appliedParty,
+        activeParty.name,
+        appliedStart,
+        appliedEnd,
+        rawStatement || [],
+        stats,
+        productSummary || [],
+        formatNumber,
+        formatClassicDate
+      );
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success('PDF statement downloaded successfully!', { id: toastId });
+    } catch (error: any) {
+      console.error('PDF generation error:', error);
+      toast.error(`Failed to generate PDF: ${error.message || 'Unknown error'}`, { id: toastId });
+    }
   };
 
-  const handleWhatsAppShareClick = () => {
-    if (!canExport()) return;
-    setShowDirectPdfNotice(true);
+  const handleWhatsAppShareClick = async () => {
+    if (!canExport() || !appliedParty || !activeParty) return;
+
+    const toastId = toast.loading('Preparing statement for WhatsApp...');
+    try {
+      const { blob, filename } = await buildPdfFromElement(
+        appliedParty,
+        activeParty.name,
+        appliedStart,
+        appliedEnd,
+        rawStatement || [],
+        stats,
+        productSummary || [],
+        formatNumber,
+        formatClassicDate
+      );
+
+      // Create a File object from the blob so it can be shared via Web Share API
+      const file = new File([blob], filename, { type: 'application/pdf' });
+
+      // Determine DR/CR indicator for balances
+      const drCr = (v: number) => (v >= 0 ? 'DR' : 'CR');
+
+      // Construct a professional text summary for WhatsApp message exactly as requested
+      const messageText =
+        `BARKI TRADERS\n` +
+        `-------------------------------------------\n` +
+        `Party or account: ${activeParty.name}\n` +
+        `Period: ${formatWhatsAppDate(appliedStart)} to ${formatWhatsAppDate(appliedEnd)}\n` +
+        `-------------------------------------------\n` +
+        `Opening Balance: PKR ${formatWhatsAppAmount(Math.abs(stats.opening))} ${drCr(stats.opening)}\n` +
+        `Total Debits:  PKR ${formatWhatsAppAmount(stats.totalDebit)}\n` +
+        `Total Credits: PKR ${formatWhatsAppAmount(stats.totalCredit)}\n` +
+        `-------------------------------------------\n` +
+        `Outstanding: PKR ${formatWhatsAppAmount(Math.abs(stats.balance))} ${drCr(stats.balance)}\n` +
+        `-------------------------------------------\n` +
+        `Thank you for your business.  \n` +
+        `This is a computer-generated statement`;
+
+      // Check if browser supports sharing files natively (e.g., mobile devices)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Account Statement - ${activeParty.name}`,
+          text: messageText,
+        });
+        toast.success('Share prompt opened successfully!', { id: toastId });
+      } else {
+        // Fallback for desktops / browsers that don't support file sharing
+        // 1. Download the PDF file automatically so they have it
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        // 2. Open WhatsApp Web / Mobile with the pre-filled text summary
+        // They can easily paste/drag-and-drop the downloaded PDF file into the WhatsApp chat
+        const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(messageText)}`;
+        window.open(whatsappUrl, '_blank');
+
+        toast.success('PDF downloaded. WhatsApp opened with statement summary!', { id: toastId });
+      }
+    } catch (error: any) {
+      console.error('WhatsApp share error:', error);
+      toast.error(`Failed to share statement: ${error.message || 'Unknown error'}`, { id: toastId });
+    }
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
