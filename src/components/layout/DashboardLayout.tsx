@@ -41,7 +41,8 @@ import {
   KeyRound,
   Loader2,
   Lock,
-  DatabaseBackup
+  DatabaseBackup,
+  FileSignature
 } from 'lucide-react';
 import {
   Sheet,
@@ -158,7 +159,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <button
                 className={cn(
                   "flex items-center gap-1 px-3 py-2 rounded-md transition-colors hover:text-white hover:bg-white/5 focus:outline-none",
-                  (isActivePath('/roznamcha') || isActivePath('/manage-transactions') || isActivePath('/inventory') || isActivePath('/ledger')) && "text-white bg-white/10 font-bold"
+                  (isActivePath('/roznamcha') || isActivePath('/manage-transactions') || isActivePath('/quotations') || isActivePath('/inventory') || isActivePath('/ledger')) && "text-white bg-white/10 font-bold"
                 )}
               >
                 <ArrowRightLeft className="h-3.5 w-3.5" />
@@ -179,6 +180,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     <Link to="/manage-transactions?type=SALE" className="flex items-center gap-2 px-2.5 py-2 hover:bg-white/10 rounded-sm cursor-pointer text-xs">
                       <ShoppingCart className="h-3.5 w-3.5 text-slate-400" />
                       <span>Fuel Sale</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/quotations" className="flex items-center gap-2 px-2.5 py-2 hover:bg-white/10 rounded-sm cursor-pointer text-xs">
+                      <FileSignature className="h-3.5 w-3.5 text-slate-400" />
+                      <span>Quotation / Estimate</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>

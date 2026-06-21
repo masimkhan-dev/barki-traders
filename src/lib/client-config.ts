@@ -4,6 +4,10 @@
  */
 export const clientConfig = {
   BUSINESS_NAME: 'Barki Traders',
+  BUSINESS_TAGLINE: 'Fuel Supply & Distribution',
+  BUSINESS_ADDRESS: 'Main G.T Road Opp Union Office Near PSO Depot Taru Jabba',
+  BUSINESS_PHONE: 'Cell: 0310-9771002 | Barki Traders: 0334-9135464',
+  BUSINESS_EMAIL: 'iftikharmehtab321@gmail.com',
   CURRENCY: 'PKR',
   LOCALE: 'en-PK',
   PRIMARY_COLOR: '#0f766e',
@@ -14,6 +18,10 @@ export const clientConfig = {
 
 export const {
   BUSINESS_NAME,
+  BUSINESS_TAGLINE,
+  BUSINESS_ADDRESS,
+  BUSINESS_PHONE,
+  BUSINESS_EMAIL,
   CURRENCY,
   LOCALE,
   PRIMARY_COLOR,

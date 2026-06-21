@@ -18,6 +18,7 @@ const Users = lazy(() => import("./pages/Users"));
 const Expenses = lazy(() => import("./pages/Expenses"));
 const AccountStatement = lazy(() => import("./pages/AccountStatement"));
 const Sales = lazy(() => import("./pages/Sales"));
+const Quotation = lazy(() => import("./pages/Quotation"));
 const Purchases = lazy(() => import("./pages/Purchases"));
 const TrialBalance = lazy(() => import("./pages/TrialBalance"));
 const BalanceSheet = lazy(() => import("./pages/BalanceSheet"));
@@ -112,6 +113,7 @@ function AppRoutes() {
         <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="/purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
         <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+        <Route path="/quotations" element={<ProtectedRoute><Quotation /></ProtectedRoute>} />
         <Route path="/ledger" element={<ProtectedRoute><Ledger /></ProtectedRoute>} />
         <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
         <Route path="/reports" element={<Navigate to="/reports/account-statement" replace />} />

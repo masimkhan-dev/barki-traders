@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { clientConfig } from '@/lib/client-config';
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -356,15 +357,15 @@ const buildPrintLayoutHtml = (
           <div class="brand-badge">BKI</div>
           <div class="brand-details">
             <h1 class="brand-name">Barki Traders</h1>
-            <p class="brand-tagline">Petroleum Distributors & Fuel Suppliers</p>
+            <p class="brand-tagline">${clientConfig.BUSINESS_TAGLINE}</p>
           </div>
         </div>
         <h2 style="font-size: 14px; font-weight: 900; color: #0f766e; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 8px; margin-bottom: 2px;">Account Statement</h2>
       </div>
       <div style="font-size: 8.5px; color: #64748b; font-family: 'JetBrains Mono', monospace; line-height: 1.4; font-weight: 700;">
-        <p>Main G.T Road Opp Union Office Near PSO Depot Taru Jabba</p>
-        <p style="margin-top: 2px;">Cell: 0310-9771002 | Barki Traders: 0334-9135464</p>
-        <p style="margin-top: 2px;">Email: iftikharmehtab321@gmail.com</p>
+        <p>${clientConfig.BUSINESS_ADDRESS}</p>
+        <p style="margin-top: 2px;">${clientConfig.BUSINESS_PHONE}</p>
+        <p style="margin-top: 2px;">Email: ${clientConfig.BUSINESS_EMAIL}</p>
       </div>
     </div>
 
@@ -1077,16 +1078,16 @@ export default function AccountStatement() {
                         Barki Traders
                       </h1>
                       <p className="brand-tagline text-[8px] font-bold text-[#0f766e] uppercase tracking-widest mt-1">
-                        Petroleum Distributors & Fuel Suppliers
+                        {clientConfig.BUSINESS_TAGLINE}
                       </p>
                     </div>
                   </div>
                   <h2 className="text-sm font-black text-[#0f766e] uppercase tracking-wider mt-2 mb-1">Account Statement</h2>
                 </div>
                 <div className="text-[8.5px] text-slate-500 font-mono font-bold leading-normal">
-                  <p>Main G.T Road Opp Union Office Near PSO Depot Taru Jabba</p>
-                  <p className="mt-0.5">Cell: 0310-9771002 | Barki Traders: 0334-9135464</p>
-                  <p className="mt-0.5">Email: iftikharmehtab321@gmail.com</p>
+                  <p>{clientConfig.BUSINESS_ADDRESS}</p>
+                  <p className="mt-0.5">{clientConfig.BUSINESS_PHONE}</p>
+                  <p className="mt-0.5">Email: {clientConfig.BUSINESS_EMAIL}</p>
                 </div>
               </div>
 

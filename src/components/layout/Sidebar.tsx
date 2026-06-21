@@ -23,7 +23,8 @@ import {
   KeyRound,
   Loader2,
   CheckCircle2,
-  DatabaseBackup
+  DatabaseBackup,
+  FileSignature
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -46,6 +47,7 @@ const navItems: NavItem[] = [
   { label: 'Daily Diary', href: '/roznamcha', icon: CalendarDays, section: 'Main', roles: ['admin', 'accountant'] },
 
   { label: 'Fuel Sale', href: '/manage-transactions?type=SALE', icon: ShoppingCart, section: 'Operations', roles: ['admin', 'accountant'] },
+  { label: 'Quotation / Estimate', href: '/quotations', icon: FileSignature, section: 'Operations', roles: ['admin', 'accountant'] },
   { label: 'Fuel Purchase', href: '/manage-transactions?type=PURCHASE', icon: Truck, section: 'Operations', roles: ['admin', 'accountant'] },
   { label: 'Transactions', href: '/manage-transactions?type=ACTION_CENTER', icon: ArrowRightLeft, section: 'Operations', roles: ['admin', 'accountant'] },
   { label: 'Stock', href: '/inventory', icon: Package, section: 'Operations' },
