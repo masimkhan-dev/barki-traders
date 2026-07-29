@@ -40,6 +40,13 @@ export function useInventory() {
 
       if (sError) throw sError;
 
+      // Fetch all shrinkage / inventory events
+      const { data: inventoryEvents, error: ieError } = await supabase
+        .from('inventory_events')
+        .select('fuel_type_id, quantity');
+
+      if (ieError) throw ieError;
+
       // Fetch current stock from the inventory table (Disposable Cache)
       const { data: currentStock, error: iError } = await supabase
         .from('inventory')
@@ -48,7 +55,7 @@ export function useInventory() {
       if (iError) throw iError;
 
       // Calculate stock for each fuel type
-      const stockMap: Record<string, FuelStock> = {};
+      const stockMap: Record<string, FuelStock & { total_shrinkage: number }> = {};
 
       // Initialize with fuel types
       fuelTypes?.forEach(ft => {
@@ -58,6 +65,7 @@ export function useInventory() {
           fuel_type_unit: ft.unit,
           total_purchased: 0,
           total_sold: 0,
+          total_shrinkage: 0,
           current_stock: 0,
         };
       });
@@ -76,9 +84,14 @@ export function useInventory() {
         }
       });
 
+      // Sum shrinkage loss
+      inventoryEvents?.forEach(ie => {
+        if (stockMap[ie.fuel_type_id]) {
+          stockMap[ie.fuel_type_id].total_shrinkage += Math.abs(Number(ie.quantity));
+        }
+      });
+
       // Set current stock from inventory cache.
-      // Opening stock is stored directly in inventory before daily vouchers exist,
-      // so do not overwrite it with purchase-minus-sale totals here.
       currentStock?.forEach(item => {
         if (stockMap[item.fuel_type_id]) {
           stockMap[item.fuel_type_id].current_stock = Number(item.quantity);

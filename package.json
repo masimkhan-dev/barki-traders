@@ -9,7 +9,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "check:env": "node scripts/check-env.js"
+    "check:env": "node scripts/check-env.js",
+    "check:shrinkage": "node scripts/check-last-shrinkage.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
