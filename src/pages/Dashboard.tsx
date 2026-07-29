@@ -342,27 +342,27 @@ export default function Dashboard() {
             {/* KPI Cards Row */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-[var(--color-primary)] rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
-                <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Sales (Current Month)</span>
-                <span className="text-[28px] font-black text-[var(--color-primary)] num-audit tracking-tight whitespace-nowrap">
+                <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em] truncate">Sales (Current Month)</span>
+                <span className="text-xl sm:text-2xl lg:text-3xl font-black text-[var(--color-primary)] num-audit tracking-tight truncate">
                   {formatPKR(stats?.total_sales || 0)}
                 </span>
-                <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1">As of {todayLabel}</span>
+                <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1 truncate">As of {todayLabel}</span>
               </div>
 
               <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-[var(--color-text-muted)] rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
-                <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Purchases (Current Month)</span>
-                <span className="text-[28px] font-black text-[var(--color-text-primary)] num-audit tracking-tight whitespace-nowrap">
+                <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em] truncate">Purchases (Current Month)</span>
+                <span className="text-xl sm:text-2xl lg:text-3xl font-black text-[var(--color-text-primary)] num-audit tracking-tight truncate">
                   {formatPKR(stats?.total_purchases || 0)}
                 </span>
-                <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1">As of {todayLabel}</span>
+                <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1 truncate">As of {todayLabel}</span>
               </div>
 
               <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-[var(--color-warning)] rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
-                <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Inventory Value</span>
-                <span className="text-[28px] font-black text-[var(--color-warning-text)] num-audit tracking-tight whitespace-nowrap">
+                <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em] truncate">Inventory Value</span>
+                <span className="text-xl sm:text-2xl lg:text-3xl font-black text-[var(--color-warning-text)] num-audit tracking-tight truncate">
                   {formatPKR(inventoryValue || 0)}
                 </span>
-                <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1">At weighted avg cost</span>
+                <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1 truncate">At weighted avg cost</span>
               </div>
             </div>
 
@@ -392,7 +392,7 @@ export default function Dashboard() {
               </div>
 
               {/* Net Position Card */}
-              <div className="flex flex-col justify-between bg-slate-900 border border-slate-800 text-white rounded-xl shadow-sm p-6">
+              <div className="flex flex-col justify-between bg-slate-900 border border-slate-800 text-white rounded-xl shadow-sm p-6 min-w-0 overflow-hidden">
                 <div className="space-y-1.5">
                   <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em] block">System Health Status</span>
                   <span className="text-[15px] font-bold text-emerald-400 flex items-center gap-1.5">
@@ -436,27 +436,27 @@ export default function Dashboard() {
             {/* KPI Cards Row */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-[var(--color-success)] rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
-                <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Market Receivables</span>
-                <span className="text-[28px] font-black text-[var(--color-success)] num-audit tracking-tight whitespace-nowrap">
+                <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em] truncate">Market Receivables</span>
+                <span className="text-xl sm:text-2xl lg:text-3xl font-black text-[var(--color-success)] num-audit tracking-tight truncate">
                   {formatPKR(dashboardMarket.receivables)}
                 </span>
-                <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1">Total Outstanding (Lena)</span>
+                <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1 truncate">Total Outstanding (Lena)</span>
               </div>
 
               <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-[var(--color-danger)] rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
-                <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Market Payables</span>
-                <span className="text-[28px] font-black text-[var(--color-danger)] num-audit tracking-tight whitespace-nowrap">
+                <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em] truncate">Market Payables</span>
+                <span className="text-xl sm:text-2xl lg:text-3xl font-black text-[var(--color-danger)] num-audit tracking-tight truncate">
                   {formatPKR(dashboardMarket.payables)}
                 </span>
-                <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1">Total Supplier Dues (Dena)</span>
+                <span className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase mt-1 truncate">Total Supplier Dues (Dena)</span>
               </div>
 
               <div className="bg-white border border-[var(--color-card-border)] border-t-[3px] border-t-slate-900 rounded-xl shadow-sm p-5 flex flex-col gap-1 min-w-0 overflow-hidden">
-                <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Net Market Position</span>
-                <span className={cn("text-[28px] font-black num-audit tracking-tight whitespace-nowrap", dashboardMarket.market_balance >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]")}>
+                <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-[0.08em] truncate">Net Market Position</span>
+                <span className={cn("text-xl sm:text-2xl lg:text-3xl font-black num-audit tracking-tight truncate", dashboardMarket.market_balance >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]")}>
                   {formatPKR(Math.abs(dashboardMarket.market_balance))}
                 </span>
-                <span className={cn("text-[11px] font-semibold uppercase mt-1", dashboardMarket.market_balance >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]")}>
+                <span className={cn("text-[11px] font-semibold uppercase mt-1 truncate", dashboardMarket.market_balance >= 0 ? "text-[var(--color-success)]" : "text-[var(--color-danger)]")}>
                   {dashboardMarket.market_balance >= 0 ? "Dr (Net Asset)" : "Cr (Net Liability)"}
                 </span>
               </div>
@@ -476,44 +476,44 @@ export default function Dashboard() {
           {/* TAB 4: PROFITABILITY */}
           <TabsContent value="profitability" className="space-y-6 outline-none">
             {/* Monthly Profit/Loss mini summary */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              <div className="bg-white border border-[var(--color-card-border)] rounded-xl shadow-sm p-5 flex flex-col gap-1">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              <div className="bg-white border border-[var(--color-card-border)] rounded-xl shadow-sm p-4 flex flex-col gap-1 min-w-0">
                 <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Period Sales</span>
-                <span className="text-2xl font-bold text-emerald-600 num-audit">
+                <span className="kpi-full-figure text-emerald-600">
                   {isProfitLoading ? "..." : formatPKR(profitability.sales)}
                 </span>
               </div>
 
-              <div className="bg-white border border-[var(--color-card-border)] rounded-xl shadow-sm p-5 flex flex-col gap-1">
+              <div className="bg-white border border-[var(--color-card-border)] rounded-xl shadow-sm p-4 flex flex-col gap-1 min-w-0">
                 <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Estimated Cost of Sales</span>
-                <span className="text-2xl font-bold text-slate-800 num-audit">
+                <span className="kpi-full-figure text-slate-800">
                   {isProfitLoading ? "..." : formatPKR(profitability.cogs)}
                 </span>
               </div>
 
-              <div className="bg-white border border-[var(--color-card-border)] rounded-xl shadow-sm p-5 flex flex-col gap-1">
+              <div className="bg-white border border-[var(--color-card-border)] rounded-xl shadow-sm p-4 flex flex-col gap-1 min-w-0">
                 <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Gross Margin Profit</span>
-                <span className={cn("text-2xl font-bold num-audit", profitability.grossProfit >= 0 ? "text-emerald-600" : "text-red-600")}>
+                <span className={cn("kpi-full-figure", profitability.grossProfit >= 0 ? "text-emerald-600" : "text-red-600")}>
                   {isProfitLoading ? "..." : formatPKR(profitability.grossProfit)}
                 </span>
               </div>
 
-              <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl shadow-sm p-5 flex flex-col gap-1">
-                <span className="text-[10px] font-black uppercase text-amber-700 tracking-[0.08em] flex items-center justify-between">
-                  Fuel Loss / Shrinkage
-                  <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono">CODE 5000</span>
+              <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl shadow-sm p-4 flex flex-col gap-1 min-w-0">
+                <span className="text-[10px] font-black uppercase text-amber-700 tracking-[0.08em] flex items-center justify-between gap-1">
+                  <span>Fuel Shrinkage</span>
+                  <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono shrink-0">5000</span>
                 </span>
-                <span className="text-2xl font-bold text-amber-800 num-audit">
+                <span className="kpi-full-figure text-amber-800">
                   {isProfitLoading ? "..." : formatPKR(profitability.shrinkage)}
                 </span>
               </div>
 
-              <div className="bg-slate-900 border border-slate-800 text-white rounded-xl shadow-sm p-5 flex flex-col gap-1">
-                <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.08em] flex items-center justify-between">
-                  Net Bottom Line
-                  <span className="text-[9px] font-bold text-emerald-400">{profitability.ratio.toFixed(1)}% Ratio</span>
+              <div className="bg-slate-900 border border-slate-800 text-white rounded-xl shadow-sm p-4 flex flex-col gap-1 min-w-0">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.08em] flex items-center justify-between gap-1">
+                  <span>Net Bottom Line</span>
+                  <span className="text-[9px] font-bold text-emerald-400 shrink-0">{profitability.ratio.toFixed(1)}%</span>
                 </span>
-                <span className={cn("text-2xl font-bold num-audit", profitability.netProfit >= 0 ? "text-emerald-400" : "text-red-400")}>
+                <span className={cn("kpi-full-figure", profitability.netProfit >= 0 ? "text-emerald-400" : "text-red-400")}>
                   {isProfitLoading ? "..." : formatPKR(profitability.netProfit)}
                 </span>
               </div>

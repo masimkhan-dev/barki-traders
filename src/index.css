@@ -46,6 +46,28 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* FINANCIAL DATA & CARD TEXT FITTING UTILITIES */
+.num-audit {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.kpi-card {
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Fits full exact figures without dots or truncation */
+.kpi-full-figure {
+  font-size: clamp(0.85rem, 1.2vw, 1.25rem);
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
 /* BANK-GRADE FORM UTILITIES */
 /* V11 SAFE IMPROVEMENT: Scoped to avoid breaking date pickers and dropdowns */
 .ledger-form input,
