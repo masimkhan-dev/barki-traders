@@ -177,20 +177,38 @@ export default function Dashboard() {
 
       let sales = 0;
       let cogs = 0;
+      let expenses = 0;
+      let shrinkage = 0;
 
       (data || []).forEach((row: any) => {
         if (row.section_name === 'Revenue') {
           sales += Number(row.amount) || 0;
         } else if (row.section_name === 'Cost of Sales') {
           cogs += Number(row.amount) || 0;
+        } else {
+          const amt = Number(row.amount) || 0;
+          expenses += amt;
+          if (
+            (row.account_name && row.account_name.toLowerCase().includes('shrinkage')) ||
+            (row.account_name && row.account_name.toLowerCase().includes('loss')) ||
+            row.section_code === '50'
+          ) {
+            shrinkage += amt;
+          }
         }
       });
+
+      const grossProfit = sales - cogs;
+      const netProfit = grossProfit - expenses;
 
       return {
         sales,
         cogs,
-        grossProfit: sales - cogs,
-        ratio: sales > 0 ? ((sales - cogs) / sales) * 100 : 0
+        grossProfit,
+        expenses,
+        shrinkage,
+        netProfit,
+        ratio: sales > 0 ? (netProfit / sales) * 100 : 0
       };
     }
   });
@@ -205,6 +223,9 @@ export default function Dashboard() {
     sales: 0,
     cogs: 0,
     grossProfit: 0,
+    expenses: 0,
+    shrinkage: 0,
+    netProfit: 0,
     ratio: 0
   };
 
@@ -455,7 +476,7 @@ export default function Dashboard() {
           {/* TAB 4: PROFITABILITY */}
           <TabsContent value="profitability" className="space-y-6 outline-none">
             {/* Monthly Profit/Loss mini summary */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <div className="bg-white border border-[var(--color-card-border)] rounded-xl shadow-sm p-5 flex flex-col gap-1">
                 <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Period Sales</span>
                 <span className="text-2xl font-bold text-emerald-600 num-audit">
@@ -477,10 +498,23 @@ export default function Dashboard() {
                 </span>
               </div>
 
+              <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl shadow-sm p-5 flex flex-col gap-1">
+                <span className="text-[10px] font-black uppercase text-amber-700 tracking-[0.08em] flex items-center justify-between">
+                  Fuel Loss / Shrinkage
+                  <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono">CODE 5000</span>
+                </span>
+                <span className="text-2xl font-bold text-amber-800 num-audit">
+                  {isProfitLoading ? "..." : formatPKR(profitability.shrinkage)}
+                </span>
+              </div>
+
               <div className="bg-slate-900 border border-slate-800 text-white rounded-xl shadow-sm p-5 flex flex-col gap-1">
-                <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.08em]">Profit-to-Sales Ratio</span>
-                <span className={cn("text-2xl font-bold num-audit", profitability.grossProfit >= 0 ? "text-emerald-400" : "text-red-400")}>
-                  {isProfitLoading ? "..." : profitability.ratio.toFixed(1) + "%"}
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.08em] flex items-center justify-between">
+                  Net Bottom Line
+                  <span className="text-[9px] font-bold text-emerald-400">{profitability.ratio.toFixed(1)}% Ratio</span>
+                </span>
+                <span className={cn("text-2xl font-bold num-audit", profitability.netProfit >= 0 ? "text-emerald-400" : "text-red-400")}>
+                  {isProfitLoading ? "..." : formatPKR(profitability.netProfit)}
                 </span>
               </div>
             </div>
