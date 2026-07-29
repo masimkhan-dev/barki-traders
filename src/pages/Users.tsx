@@ -14,6 +14,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -261,6 +262,9 @@ export default function Users() {
                   <Shield className="h-5 w-5" />
                   Assign User Role
                 </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500">
+                  Select a user and assign system access privileges.
+                </DialogDescription>
               </DialogHeader>
 
               <form onSubmit={handleSubmit} className="space-y-4 mt-4">

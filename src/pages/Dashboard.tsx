@@ -69,7 +69,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [preset, setPreset] = useState<DateRangePreset>('30D');
   const [activeTab, setActiveTab] = useState('overview');
-  
+
   const { startDate, endDate } = useMemo(() => getDateRangeFromPreset(preset), [preset]);
   const todayIso = new Date().toISOString().split('T')[0];
   const todayLabel = new Date().toLocaleDateString('en-PK', {
@@ -235,28 +235,28 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounts')
-        .select('id, code, name, slug, sub_category')
-        .or('slug.in.(cash,bank),code.in.(1000,1010),name.ilike.%cash%,name.ilike.%bank%');
-        
+        .select('id, code, name, sub_category')
+        .or('code.in.(1000,1010),name.ilike.%cash%,name.ilike.%bank%');
+
       if (error) throw error;
       if (!data || data.length === 0) return [];
-      
+
       const accountIds = data.map(a => a.id);
-      
+
       const { data: entries, error: entriesError } = await supabase
         .from('ledger_entries')
         .select('account_id, debit_amount, credit_amount')
         .in('account_id', accountIds)
         .eq('is_reversed', false);
-        
+
       if (entriesError) throw entriesError;
-      
+
       const balanceMap = new Map<string, number>();
       (entries || []).forEach(e => {
         const current = balanceMap.get(e.account_id) || 0;
         balanceMap.set(e.account_id, current + (Number(e.debit_amount) || 0) - (Number(e.credit_amount) || 0));
       });
-      
+
       return data.map(acc => ({
         id: acc.id,
         code: acc.code,
@@ -283,7 +283,7 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       <div className="max-w-full mx-auto pb-20 px-0 sm:px-4 space-y-6">
-        
+
         {/* HEADER & DATE PRESET CONTROLS */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#E4E4E7] pb-5">
           <div className="report-header !pb-0 !border-b-0">
@@ -478,21 +478,21 @@ export default function Dashboard() {
             {/* Monthly Profit/Loss mini summary */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <div className="bg-white border border-[var(--color-card-border)] rounded-xl shadow-sm p-4 flex flex-col gap-1 min-w-0">
-                <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Period Sales</span>
+                <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Sales Revenue</span>
                 <span className="kpi-full-figure text-emerald-600">
                   {isProfitLoading ? "..." : formatPKR(profitability.sales)}
                 </span>
               </div>
 
               <div className="bg-white border border-[var(--color-card-border)] rounded-xl shadow-sm p-4 flex flex-col gap-1 min-w-0">
-                <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Estimated Cost of Sales</span>
+                <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Actual Fuel COGS</span>
                 <span className="kpi-full-figure text-slate-800">
                   {isProfitLoading ? "..." : formatPKR(profitability.cogs)}
                 </span>
               </div>
 
               <div className="bg-white border border-[var(--color-card-border)] rounded-xl shadow-sm p-4 flex flex-col gap-1 min-w-0">
-                <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Gross Margin Profit</span>
+                <span className="text-[10px] font-black uppercase text-[var(--color-text-muted)] tracking-[0.08em]">Gross Profit</span>
                 <span className={cn("kpi-full-figure", profitability.grossProfit >= 0 ? "text-emerald-600" : "text-red-600")}>
                   {isProfitLoading ? "..." : formatPKR(profitability.grossProfit)}
                 </span>
@@ -510,7 +510,7 @@ export default function Dashboard() {
 
               <div className="bg-slate-900 border border-slate-800 text-white rounded-xl shadow-sm p-4 flex flex-col gap-1 min-w-0">
                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.08em] flex items-center justify-between gap-1">
-                  <span>Net Bottom Line</span>
+                  <span>Actual Net Profit</span>
                   <span className="text-[9px] font-bold text-emerald-400 shrink-0">{profitability.ratio.toFixed(1)}%</span>
                 </span>
                 <span className={cn("kpi-full-figure", profitability.netProfit >= 0 ? "text-emerald-400" : "text-red-400")}>
@@ -563,7 +563,7 @@ export default function Dashboard() {
                 (cashBalances || []).map((account, index) => {
                   const isCash = account.name.toLowerCase().includes('cash') || account.code === '1000';
                   const Icon = isCash ? Wallet : Landmark;
-                  
+
                   return (
                     <div key={account.id || index} className="border border-[var(--color-card-border)] bg-white rounded-xl shadow-sm p-5 flex flex-col justify-between hover:bg-slate-50/50">
                       <div className="flex items-center justify-between gap-3 mb-4">
@@ -577,8 +577,8 @@ export default function Dashboard() {
                         </div>
                         <div className={cn(
                           "p-2 rounded-lg border",
-                          isCash 
-                            ? "bg-amber-50 text-amber-600 border-amber-100" 
+                          isCash
+                            ? "bg-amber-50 text-amber-600 border-amber-100"
                             : "bg-teal-50 text-teal-600 border-teal-100"
                         )}>
                           <Icon className="h-4 w-4" />

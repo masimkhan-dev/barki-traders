@@ -12,6 +12,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -355,6 +356,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <KeyRound className="h-4 w-4 text-[var(--color-primary)]" />
               Change System Password
             </DialogTitle>
+            <DialogDescription className="text-xs text-slate-400">
+              Update your system access credentials securely.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handlePasswordChange} className="space-y-4">
             <div className="space-y-1">

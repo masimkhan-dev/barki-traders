@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -321,6 +322,9 @@ export default function Inventory() {
                           <DialogTitle className="text-sm font-black uppercase tracking-widest px-6 pt-6">
                             {editingFuelType ? 'Update Product Details' : 'Initialize New Fuel Product'}
                           </DialogTitle>
+                          <DialogDescription className="text-xs text-slate-500 px-6 pt-1">
+                            Configure inventory fuel product parameters.
+                          </DialogDescription>
                         </DialogHeader>
 
                         <form onSubmit={handleSubmit} className="space-y-5 p-6 pt-2">

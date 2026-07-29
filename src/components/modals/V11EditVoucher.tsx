@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogFooter,
@@ -47,6 +48,9 @@ export function V11EditVoucher({ isOpen, onClose, voucher }: EditVoucherProps) {
                         <Edit3 className="h-5 w-5" />
                         <DialogTitle className="text-xl font-black uppercase tracking-tighter">Voucher Revision</DialogTitle>
                     </div>
+                    <DialogDescription className="text-xs text-slate-500">
+                        Revise voucher entry details.
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="p-4 bg-rose-50 border-l-4 border-rose-400 text-rose-900 text-sm mb-4">
