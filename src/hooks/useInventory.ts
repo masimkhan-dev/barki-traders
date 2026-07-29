@@ -8,6 +8,7 @@ interface FuelStock {
   fuel_type_unit: string;
   total_purchased: number;
   total_sold: number;
+  total_shrinkage: number;
   current_stock: number;
 }
 
@@ -15,7 +16,7 @@ export function useInventory() {
   return useQuery({
     queryKey: ['calculated-inventory'],
     queryFn: async () => {
-      // Fetch all fuel types
+      // Fetch all active fuel types
       const { data: fuelTypes, error: ftError } = await supabase
         .from('fuel_types')
         .select('id, name, unit')
@@ -24,7 +25,7 @@ export function useInventory() {
 
       if (ftError) throw ftError;
 
-      // Fetch all purchases grouped by fuel type
+      // Fetch all active purchases grouped by fuel type
       const { data: purchases, error: pError } = await supabase
         .from('purchases')
         .select('fuel_type_id, quantity')
@@ -32,7 +33,7 @@ export function useInventory() {
 
       if (pError) throw pError;
 
-      // Fetch all sales grouped by fuel type
+      // Fetch all active sales grouped by fuel type
       const { data: sales, error: sError } = await supabase
         .from('sales')
         .select('fuel_type_id, quantity')
@@ -41,13 +42,14 @@ export function useInventory() {
       if (sError) throw sError;
 
       // Fetch all shrinkage / inventory events
-      const { data: inventoryEvents, error: ieError } = await supabase
-        .from('inventory_events')
+      const { data: inventoryEventsData, error: ieError } = await (supabase.from as any)('inventory_events')
         .select('fuel_type_id, quantity');
 
       if (ieError) throw ieError;
 
-      // Fetch current stock from the inventory table (Disposable Cache)
+      const inventoryEvents = inventoryEventsData as Array<{ fuel_type_id: string; quantity: number }> | null;
+
+      // Fetch current stock from the inventory table
       const { data: currentStock, error: iError } = await supabase
         .from('inventory')
         .select('fuel_type_id, quantity');
@@ -55,7 +57,7 @@ export function useInventory() {
       if (iError) throw iError;
 
       // Calculate stock for each fuel type
-      const stockMap: Record<string, FuelStock & { total_shrinkage: number }> = {};
+      const stockMap: Record<string, FuelStock> = {};
 
       // Initialize with fuel types
       fuelTypes?.forEach(ft => {
@@ -91,7 +93,7 @@ export function useInventory() {
         }
       });
 
-      // Set current stock from inventory cache.
+      // Set current stock from inventory table
       currentStock?.forEach(item => {
         if (stockMap[item.fuel_type_id]) {
           stockMap[item.fuel_type_id].current_stock = Number(item.quantity);
@@ -100,15 +102,20 @@ export function useInventory() {
 
       const result = Object.values(stockMap);
 
-      // #region agent log
+      // Log genuine inventory drift (considering purchases, sales, shrinkage & cached stock)
       const mismatches = result
-        .map(s => ({
-          fuel: s.fuel_type_name,
-          computed: s.total_purchased - s.total_sold,
-          cached: s.current_stock,
-          drift: Math.abs(s.total_purchased - s.total_sold - s.current_stock),
-        }))
+        .map(s => {
+          const computed = s.total_purchased - s.total_sold - s.total_shrinkage;
+          const drift = Math.abs(computed - s.current_stock);
+          return {
+            fuel: s.fuel_type_name,
+            computed,
+            cached: s.current_stock,
+            drift,
+          };
+        })
         .filter(m => m.drift > 0.001);
+
       if (mismatches.length > 0) {
         debugLog(
           'useInventory.ts:queryFn',
@@ -118,7 +125,6 @@ export function useInventory() {
           'pre-fix'
         );
       }
-      // #endregion
 
       return result;
     },
@@ -127,9 +133,11 @@ export function useInventory() {
 }
 
 export function useStockCheck(fuelTypeId: string | undefined) {
-  const { data: inventory } = useInventory();
+  const { data: inventory, isLoading } = useInventory();
   
-  if (!fuelTypeId || !inventory) return { available: 0, hasStock: true };
+  if (!fuelTypeId || isLoading || !inventory) {
+    return { available: 0, hasStock: false, checkQuantity: () => false };
+  }
   
   const fuelStock = inventory.find(i => i.fuel_type_id === fuelTypeId);
   const available = fuelStock?.current_stock || 0;
