@@ -41,36 +41,13 @@ import { getDateRangeFromPreset, type DateRangePreset } from "@/lib/api/dashboar
 
 const SHOW_GETTING_STARTED_GUIDE = false;
 
-const PRESETS: { id: DateRangePreset; label: string }[] = [
-  { id: '7D', label: '7D' },
-  { id: '30D', label: '30D' },
-  { id: 'MTD', label: 'MTD' },
-  { id: 'YTD', label: 'YTD' },
-];
-
-const PRESET_RANGE_LABELS: Record<DateRangePreset, string> = {
-  '7D': 'Last 7 days',
-  '30D': 'Last 30 days',
-  MTD: 'Month to date',
-  YTD: 'Year to date',
-};
-
-function formatAnalyticsRangeLabel(preset: DateRangePreset, startDate: string, endDate: string) {
-  try {
-    const start = format(parseISO(startDate), 'd MMM');
-    const end = format(parseISO(endDate), 'd MMM yyyy');
-    return `${PRESET_RANGE_LABELS[preset]} · ${start} – ${end}`;
-  } catch {
-    return `${PRESET_RANGE_LABELS[preset]} · ${startDate} – ${endDate}`;
-  }
-}
-
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [preset, setPreset] = useState<DateRangePreset>('30D');
+  const initialDates = getDateRangeFromPreset('30D');
+  const [startDate, setStartDate] = useState<string>(initialDates.startDate);
+  const [endDate, setEndDate] = useState<string>(initialDates.endDate);
   const [activeTab, setActiveTab] = useState('overview');
 
-  const { startDate, endDate } = useMemo(() => getDateRangeFromPreset(preset), [preset]);
   const todayIso = new Date().toISOString().split('T')[0];
   const todayLabel = new Date().toLocaleDateString('en-PK', {
     day: '2-digit',
@@ -292,26 +269,26 @@ export default function Dashboard() {
           </div>
 
           {showDatePreset && (
-            <div className="flex items-center gap-3 bg-white p-2 border border-slate-200 rounded-lg shadow-sm w-fit self-start md:self-auto">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 hidden sm:inline">
-                {formatAnalyticsRangeLabel(preset, startDate, endDate)}
-              </span>
-              <div className="flex items-center gap-1 p-0.5 bg-[#FAFAFA] border border-[#F4F4F5] rounded-md">
-                {PRESETS.map(({ id, label }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setPreset(id)}
-                    className={cn(
-                      'px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-sm transition-colors h-7 flex items-center justify-center',
-                      preset === id
-                        ? 'bg-[var(--color-primary)] text-white'
-                        : 'text-[var(--color-text-muted)] hover:bg-white hover:text-slate-900'
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
+            <div className="flex items-center gap-3 bg-white p-2.5 border border-slate-200 rounded-lg shadow-sm w-fit self-start md:self-auto">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">From:</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-8 px-2.5 border border-slate-300 rounded text-[11px] font-bold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">To:</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-8 px-2.5 border border-slate-300 rounded text-[11px] font-bold text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  />
+                </div>
               </div>
             </div>
           )}

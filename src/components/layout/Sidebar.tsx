@@ -24,7 +24,8 @@ import {
   Loader2,
   CheckCircle2,
   DatabaseBackup,
-  FileSignature
+  FileSignature,
+  Calculator
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -56,6 +57,7 @@ const navItems: NavItem[] = [
   { label: 'Party Statement', href: '/reports/account-statement', icon: FileText, section: 'Reports' },
   { label: 'Market Position', href: '/reports/business', icon: BarChart3, section: 'Reports' },
   { label: 'Income Statement', href: '/reports/profit-loss', icon: Receipt, section: 'Reports' },
+  { label: 'Daily Fuel Profit', href: '/reports/daily-fuel-profit', icon: Calculator, section: 'Reports', roles: ['admin', 'accountant'] },
   { label: 'Trial Balance', href: '/reports/trial-balance', icon: Wallet, section: 'Reports' },
   { label: 'Balance Sheet', href: '/reports/balance-sheet', icon: FileMinus, section: 'Reports' },
 

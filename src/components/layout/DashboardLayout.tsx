@@ -43,7 +43,8 @@ import {
   Loader2,
   Lock,
   DatabaseBackup,
-  FileSignature
+  FileSignature,
+  Calculator
 } from 'lucide-react';
 import {
   Sheet,
@@ -251,6 +252,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <span>Income Statement</span>
                 </Link>
               </DropdownMenuItem>
+              {isAllOperations && (
+                <DropdownMenuItem asChild>
+                  <Link to="/reports/daily-fuel-profit" className="flex items-center gap-2 px-2.5 py-2 hover:bg-white/10 rounded-sm cursor-pointer text-xs">
+                    <Calculator className="h-3.5 w-3.5 text-slate-400" />
+                    <span>Daily Fuel Profit</span>
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem asChild>
                 <Link to="/reports/trial-balance" className="flex items-center gap-2 px-2.5 py-2 hover:bg-white/10 rounded-sm cursor-pointer text-xs">
                   <Wallet className="h-3.5 w-3.5 text-slate-400" />

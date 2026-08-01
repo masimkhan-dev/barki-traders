@@ -27,6 +27,7 @@ const BusinessReports = lazy(() => import("./pages/BusinessReports"));
 const SetupOpeningBalance = lazy(() => import("./pages/SetupOpeningBalance"));
 const MonthEndClosing = lazy(() => import("./pages/MonthEndClosing"));
 const CapitalReport = lazy(() => import("./pages/CapitalReport"));
+const DailyFuelProfitCalculator = lazy(() => import("./pages/DailyFuelProfitCalculator"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const ChartOfAccounts = lazy(() => import("./pages/ChartOfAccounts"));
@@ -124,6 +125,7 @@ function AppRoutes() {
         <Route path="/reports/trial-balance" element={<ProtectedRoute><TrialBalance /></ProtectedRoute>} />
         <Route path="/reports/balance-sheet" element={<ProtectedRoute><BalanceSheet /></ProtectedRoute>} />
         <Route path="/reports/profit-loss" element={<ProtectedRoute><ProfitLossReport /></ProtectedRoute>} />
+        <Route path="/reports/daily-fuel-profit" element={<ProtectedRoute><DailyFuelProfitCalculator /></ProtectedRoute>} />
         <Route path="/reports/business" element={<ProtectedRoute><BusinessReports /></ProtectedRoute>} />
         <Route path="/setup-opening-balance" element={<ProtectedRoute><SetupOpeningBalance /></ProtectedRoute>} />
         <Route path="/month-end-closing" element={<ProtectedRoute><MonthEndClosing /></ProtectedRoute>} />
